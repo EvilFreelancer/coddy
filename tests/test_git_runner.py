@@ -10,6 +10,7 @@ from coddy.services.git_runner import (
     branch_name_from_issue,
     run_git_pull,
 )
+from coddy.utils import is_valid_branch_name
 
 
 def test_branch_name_from_issue() -> None:
@@ -20,11 +21,20 @@ def test_branch_name_from_issue() -> None:
 
 
 def test_branch_name_from_issue_long_title() -> None:
-    """Long title is truncated to 40 chars in slug."""
-    long_title = "a" * 50
+    """Long title is truncated to max length in slug (100 chars)."""
+    long_title = "a" * 150
     name = branch_name_from_issue(1, long_title)
     assert name.startswith("1-")
-    assert len(name) <= 43
+    assert len(name) <= 104
+
+
+def test_branch_name_from_issue_produces_valid_branch_name() -> None:
+    """Branch name built from issue is valid (sanitization applied
+    correctly)."""
+    name = branch_name_from_issue(42, "Add user login form with validation???")
+    assert is_valid_branch_name(name), f"branch_name_from_issue produced invalid name: {name!r}"
+    name2 = branch_name_from_issue(1, "Fix: bug ~ ^ : ? * [ ]")
+    assert is_valid_branch_name(name2), f"branch_name_from_issue produced invalid name: {name2!r}"
 
 
 def test_run_git_pull_success() -> None:

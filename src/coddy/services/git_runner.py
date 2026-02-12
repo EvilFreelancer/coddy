@@ -5,9 +5,10 @@ switches to that branch.
 """
 
 import logging
-import re
 import subprocess
 from pathlib import Path
+
+from coddy.utils import is_valid_branch_name, sanitize_branch_name
 
 
 class GitRunnerError(Exception):
@@ -34,12 +35,14 @@ def branch_name_from_issue(issue_number: int, title: str) -> str:
     """
     Build branch name from issue number and title: {number}-short-description.
 
-    Format: lowercase, words separated by dashes, spec says 2-3 words from title.
+    Format: lowercase, words separated by dashes; uses sanitize_branch_name
+    for spaces, invalid chars, and truncation (max 100 chars for slug).
     """
-    slug = re.sub(r"[^a-z0-9]+", "-", title.lower()).strip("-")
-    if len(slug) > 40:
-        slug = slug[:40].rstrip("-")
-    return f"{issue_number}-{slug}" if slug else str(issue_number)
+    slug = sanitize_branch_name(title, max_length=100)
+    name = f"{issue_number}-{slug}" if slug else str(issue_number)
+    if not is_valid_branch_name(name):
+        raise ValueError(f"Branch name transformation produced invalid name: {name!r}")
+    return name
 
 
 def run_git_pull(
