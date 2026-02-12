@@ -4,7 +4,11 @@ version = "0.1.0"
 description = "Community driven development bot"
 readme = "README.md"
 requires-python = ">=3.11"
-dependencies = []
+dependencies = [
+    "pydantic>=2.0",
+    "pydantic-settings>=2.0",
+    "pyyaml>=6.0",
+]
 
 [project.optional-dependencies]
 dev = [
@@ -14,6 +18,9 @@ dev = [
     "ruff>=0.1.0",
     "mypy>=1.5.0",
 ]
+
+[project.scripts]
+coddy = "coddy.main:main"
 
 [build-system]
 requires = ["setuptools>=61.0", "wheel"]

@@ -1,0 +1,30 @@
+# Coddy Bot - run with: docker compose up -d
+# Secrets: create .secrets/github_token and .secrets/webhook_secret (see README)
+
+services:
+  coddy:
+    build: .
+    image: coddy-bot:latest
+    container_name: coddy-bot
+    restart: unless-stopped
+    secrets:
+      - github_token
+      - webhook_secret
+    environment:
+      # App reads token from file when *_FILE is set (Docker mounts secrets there)
+      GITHUB_TOKEN_FILE: /run/secrets/github_token
+      WEBHOOK_SECRET_FILE: /run/secrets/webhook_secret
+      # Override repo for this deployment
+      BOT_REPOSITORY: "EvilFreelancer/coddy"
+    volumes:
+      # Mount config from host (copy config.example.yaml to config.yaml first)
+      - ./config.yaml:/app/config.yaml:ro
+    ports:
+      - "8000:8000"
+    command: ["python", "-m", "coddy.main", "--config", "/app/config.yaml"]
+
+secrets:
+  github_token:
+    file: ./.secrets/github_token
+  webhook_secret:
+    file: ./.secrets/webhook_secret

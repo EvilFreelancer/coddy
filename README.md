@@ -66,17 +66,53 @@ export WEBHOOK_SECRET=your_webhook_secret
 export REPOSITORY=owner/repo
 ```
 
-6. Run the bot:
+6. Run the bot (optional `--config` path):
+
 ```bash
 python -m coddy.main
+# or
+python -m coddy.main --config /path/to/config.yaml
+python -m coddy.main --check   # validate config and exit
 ```
 
-### Docker
+### Docker Compose (recommended)
+
+Tokens are passed via **Docker secrets** (files), not in the image or compose file.
+
+1. **Copy config from example**:
+
+```bash
+cp config.example.yaml config.yaml
+# Edit config.yaml if needed (repo, webhook settings, etc.)
+```
+
+2. **Create secret files** (do not commit them; `.secrets/` is in `.gitignore`):
+
+```bash
+mkdir -p .secrets
+echo "YOUR_GITHUB_PAT" > .secrets/github_token
+echo "YOUR_WEBHOOK_SECRET" > .secrets/webhook_secret
+chmod 600 .secrets/github_token .secrets/webhook_secret
+```
+
+3. **Start the bot**:
+
+```bash
+docker compose up -d
+```
+
+4. **Health check**: `curl http://localhost:8000/health`
+
+**Config**: `config.yaml` is mounted from the host via bind mount. Always copy `config.example.yaml` to `config.yaml` before first run - the example contains all available settings with defaults. Never commit `config.yaml` (it's in `.gitignore`).
+
+### Docker (single run)
 
 ```bash
 docker build -t coddy-bot .
 docker run -e GITHUB_TOKEN=... -e WEBHOOK_SECRET=... coddy-bot
 ```
+
+Or with secret files: `-e GITHUB_TOKEN_FILE=/run/secrets/gt -v $(pwd)/.secrets/github_token:/run/secrets/gt:ro`
 
 ## Configuration
 

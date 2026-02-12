@@ -4,7 +4,7 @@ WORKDIR /app
 
 # Install system dependencies
 RUN apt update \
- && apt-get install -y git \
+ && apt install -y --no-install-recommends git curl \
  && rm -rf /var/lib/apt/lists/*
 
 # Copy requirements
@@ -19,9 +19,9 @@ COPY tests/ ./tests/
 RUN useradd -m -u 1000 coddy && chown -R coddy:coddy /app
 USER coddy
 
-# Health check
+# Health check (no extra deps)
 HEALTHCHECK --interval=30s --timeout=10s --start-period=5s --retries=3 \
-    CMD python -c "import requests; requests.get('http://localhost:8000/health')" || exit 1
+    CMD curl -sf http://localhost:8000/health || exit 1
 
 # Run application
 CMD ["python", "-m", "coddy.main"]

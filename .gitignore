@@ -41,10 +41,13 @@ htmlcov/
 .tox/
 .hypothesis/
 
-# Configuration
+# Configuration and secrets (never commit tokens)
 config.yaml
 .env
+.env.*
+!.env.example
 *.secret
+.secrets/
 
 # Logs
 *.log
