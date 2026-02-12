@@ -41,6 +41,9 @@ htmlcov/
 .tox/
 .hypothesis/
 
+# Coddy task and report workspace (temporary; agent reads/writes here)
+.coddy/
+
 # Configuration and secrets (never commit tokens)
 config.yaml
 .env

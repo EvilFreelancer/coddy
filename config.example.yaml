@@ -27,14 +27,15 @@ bitbucket:
   api_url: "https://api.bitbucket.org/2.0"
   webhook_path: "/webhook/bitbucket"
 
-# AI Agent Configuration (Cursor CLI binary is 'agent' from cursor.com/install)
+# AI Agent Configuration (Cursor CLI: cursor.com/docs/cli/headless)
+# Headless mode: agent -p --force "prompt". Task/report files in .coddy/ (gitignored).
 ai_agents:
   cursor_cli:
     command: "agent"
     args: ["generate"]
     timeout: 300
     working_directory: "."
-    # token: set via CURSOR_AGENT_TOKEN or CURSOR_AGENT_TOKEN_FILE (Docker secret) for API auth
+    # token: CURSOR_AGENT_TOKEN or CURSOR_AGENT_TOKEN_FILE; or CURSOR_API_KEY for headless CLI
 
 # Webhook Server Configuration (optional; if not configured or unreachable, use scheduler)
 webhook:

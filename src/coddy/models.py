@@ -46,3 +46,25 @@ class Comment:
         self.author = author
         self.created_at = created_at
         self.updated_at = updated_at or created_at
+
+
+class PR:
+    """Pull request (or merge request)."""
+
+    def __init__(
+        self,
+        number: int,
+        title: str,
+        body: str,
+        head_branch: str,
+        base_branch: str,
+        state: str,
+        html_url: Optional[str] = None,
+    ) -> None:
+        self.number = number
+        self.title = title
+        self.body = body or ""
+        self.head_branch = head_branch
+        self.base_branch = base_branch
+        self.state = state
+        self.html_url = html_url

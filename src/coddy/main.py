@@ -41,6 +41,55 @@ def setup_logging(level: str = "INFO", fmt: Optional[str] = None) -> None:
     logging.basicConfig(level=getattr(logging, level.upper(), logging.INFO), format=fmt)
 
 
+def _make_agent(config: AppConfig, log: logging.Logger):
+    """Build AI agent from config (cursor_cli or stub)."""
+    if config.bot.ai_agent == "cursor_cli" and getattr(config, "ai_agents", {}).get("cursor_cli"):
+        from coddy.agents.cursor_cli_agent import make_cursor_cli_agent
+
+        return make_cursor_cli_agent(config)
+    from coddy.agents.stub_agent import StubAgent
+
+    return StubAgent(min_body_length=0)
+
+
+def _startup_poll_open_issues(config: AppConfig, log: logging.Logger) -> tuple:
+    """
+    On startup: list open issues and take the first one in work.
+
+    Sets label 'in progress' and returns (adapter, issue) for further processing,
+    or (None, None) if no issue or not GitHub.
+    """
+    token = config.github_token_resolved
+    if not token:
+        log.debug("Skipping startup issue check: no GitHub token")
+        return (None, None)
+    if config.bot.git_platform != "github":
+        log.debug("Startup issue check only implemented for GitHub")
+        return (None, None)
+
+    from coddy.adapters.base import GitPlatformError
+    from coddy.adapters.github import GitHubAdapter
+
+    adapter = GitHubAdapter(token=token, api_url=config.github.api_url)
+    repo = config.bot.repository
+    try:
+        issues = adapter.list_open_issues(repo)
+    except GitPlatformError as e:
+        log.warning("Startup: failed to list open issues: %s", e)
+        return (None, None)
+    if not issues:
+        log.info("Startup: no open issues")
+        return (None, None)
+    issue = issues[0]
+    log.info("Startup: found open issue #%s - %s", issue.number, issue.title)
+    try:
+        adapter.set_issue_labels(repo, issue.number, ["in progress"])
+        log.info("Startup: took issue #%s in work (label 'in progress' set)", issue.number)
+    except GitPlatformError as e:
+        log.warning("Startup: failed to set labels on issue #%s: %s", issue.number, e)
+    return (adapter, issue)
+
+
 def run(config: AppConfig) -> None:
     """Run the bot (webhook server and/or scheduler)."""
     setup_logging(config.logging.level, config.logging.format)
@@ -55,10 +104,30 @@ def run(config: AppConfig) -> None:
         config.bot.repository,
         config.bot.git_platform,
     )
+    if not config.webhook.enabled:
+        log.info("Webhooks disabled, events will not be received via HTTP.")
 
-    # TODO: start webhook server if config.webhook.enabled
-    # TODO: start scheduler if config.scheduler.enabled
-    # For prototype: just block with a simple HTTP server or sleep
+    # On startup: read all open issues, take the first, then run full flow (branch, sufficiency, work)
+    adapter, issue = _startup_poll_open_issues(config, log)
+    if adapter is not None and issue is not None:
+        from pathlib import Path
+
+        from coddy.services.issue_processor import process_one_issue
+
+        agent = _make_agent(config, log)
+        process_one_issue(
+            adapter,
+            agent,
+            issue,
+            config.bot.repository,
+            repo_dir=Path.cwd(),
+            bot_username=getattr(config.bot, "github_username", None),
+            bot_name=config.bot.name,
+            bot_email=config.bot.email,
+            log=log,
+        )
+
+    # TODO: start scheduler loop (periodic poll) when config.scheduler.enabled
     if config.webhook.enabled:
         from coddy.webhook.server import run_webhook_server
 
