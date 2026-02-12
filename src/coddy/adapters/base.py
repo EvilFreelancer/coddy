@@ -6,7 +6,7 @@ from abc import ABC, abstractmethod
 from datetime import datetime
 from typing import List, Optional
 
-from coddy.models import Comment, Issue
+from coddy.models import PR, Comment, Issue
 
 
 class GitPlatformError(Exception):
@@ -41,6 +41,73 @@ class GitPlatformAdapter(ABC):
 
     def list_issues_assigned_to(self, repo: str, assignee_username: str) -> List[Issue]:
         """List open issues assigned to the given user."""
+        raise NotImplementedError
+
+    def list_open_issues(self, repo: str) -> List[Issue]:
+        """
+        List all open issues in the repository (excludes pull requests).
+
+        Args:
+            repo: Repository in format owner/repo
+
+        Returns:
+            List of Issue instances, open only, no PRs
+        """
+        raise NotImplementedError
+
+    def set_issue_labels(self, repo: str, issue_number: int, labels: List[str]) -> None:
+        """
+        Set labels on an issue (replaces existing labels).
+
+        Args:
+            repo: Repository in format owner/repo
+            issue_number: Issue number
+            labels: New list of label names
+        """
+        raise NotImplementedError
+
+    def create_comment(self, repo: str, issue_number: int, body: str) -> Comment:
+        """
+        Post a comment on an issue.
+
+        Args:
+            repo: Repository in format owner/repo
+            issue_number: Issue number
+            body: Comment body (markdown supported)
+
+        Returns:
+            Created Comment instance
+        """
+        raise NotImplementedError
+
+    def create_branch(self, repo: str, branch_name: str) -> None:
+        """
+        Create a branch from the default branch HEAD (e.g. main).
+
+        Args:
+            repo: Repository in format owner/repo
+            branch_name: New branch name (e.g. 1-implement-get-issue-assignees)
+        """
+        raise NotImplementedError
+
+    def get_default_branch(self, repo: str) -> str:
+        """Return default branch name (e.g. main)."""
+        raise NotImplementedError
+
+    def create_pr(self, repo: str, title: str, body: str, head: str, base: str) -> PR:
+        """
+        Create a pull request from head branch to base branch.
+
+        Args:
+            repo: Repository in format owner/repo
+            title: PR title
+            body: PR description (markdown)
+            head: Head branch name
+            base: Base branch name (e.g. main)
+
+        Returns:
+            Created PR instance
+        """
         raise NotImplementedError
 
     def get_issue_comments(self, repo: str, issue_number: int, since: Optional[datetime] = None) -> List[Comment]:
