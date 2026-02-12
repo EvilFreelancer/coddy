@@ -1,14 +1,13 @@
-"""
-Run git commands in the repository (fetch, checkout).
+"""Run git commands in the repository (fetch, checkout).
 
-Used after creating a branch via platform API so the local workspace switches to that branch.
+Used after creating a branch via platform API so the local workspace
+switches to that branch.
 """
 
 import logging
 import re
 import subprocess
 from pathlib import Path
-from typing import Optional
 
 
 class GitRunnerError(Exception):
@@ -17,7 +16,7 @@ class GitRunnerError(Exception):
     pass
 
 
-def _run_git(args: list[str], cwd: Path, log: Optional[logging.Logger] = None) -> None:
+def _run_git(args: list[str], cwd: Path, log: logging.Logger | None = None) -> None:
     """Run git command; raise GitRunnerError on non-zero exit."""
     cmd = ["git"] + args
     try:
@@ -45,11 +44,10 @@ def branch_name_from_issue(issue_number: int, title: str) -> str:
 
 def fetch_and_checkout_branch(
     branch_name: str,
-    repo_dir: Optional[Path] = None,
-    log: Optional[logging.Logger] = None,
+    repo_dir: Path | None = None,
+    log: logging.Logger | None = None,
 ) -> None:
-    """
-    Fetch from origin and checkout the given branch (must exist on remote).
+    """Fetch from origin and checkout the given branch (must exist on remote).
 
     Args:
         branch_name: Branch to checkout (e.g. 1-implement-get-issue-assignees)
@@ -71,11 +69,10 @@ def commit_all_and_push(
     commit_message: str,
     bot_name: str,
     bot_email: str,
-    repo_dir: Optional[Path] = None,
-    log: Optional[logging.Logger] = None,
+    repo_dir: Path | None = None,
+    log: logging.Logger | None = None,
 ) -> None:
-    """
-    Stage all changes, commit with bot identity, and push branch to origin.
+    """Stage all changes, commit with bot identity, and push branch to origin.
 
     Args:
         branch_name: Current branch to push

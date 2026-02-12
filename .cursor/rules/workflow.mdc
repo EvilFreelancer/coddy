@@ -26,7 +26,7 @@ When the agent works on an issue (creates a branch and makes commits), follow th
 2. Implement the task following project rules (.cursor/rules, docs)
 3. **Final verification loop** (repeat until all pass):
    - Run **full test suite**: `pytest tests/ -v`
-   - Run **linter**: `ruff check .` and **formatter**: `ruff format .`
+   - Run **pre-commit**: `pre-commit run -a`, fix any errors
    - If there are failures: fix the issues, **commit** with message `#{issue_number} <description of fix>`, then repeat from step 3
 4. **Last mandatory step**: Write the description of what was done to `.coddy/pr-{issue_number}.md` (PR report). Include: what was done, how to test, reference to issue. Use markdown; do not write code in this file. This step must be done **after** all implementation and verification (linter, tests) are complete. The bot uses this file as the PR description when creating the pull request.
 5. Only then consider the work session complete (bot will commit/push and open PR).
@@ -35,11 +35,15 @@ See @docs/system-specification.md for the full issue processing workflow.
 
 ### After Completing Edits (Final Verification Loop)
 
-1. Run **linter**: `ruff check .` and **formatter**: `ruff format .`
-2. Run **full test suite**: `pytest tests/ -v`
-3. If there are failures: fix the issues, **commit** with message `#{issue_number} <description of fix>`, then repeat from step 1 until all checks pass
+1. Run **full test suite**: `pytest tests/ -v`
+2. If there are failures: fix the issues, **commit** with message `#{issue_number} <description of fix>`, then repeat from step 1 until all checks pass
+3. Run **pre-commit**: `pre-commit run -a`, fix any errors
 4. **Last mandatory step**: Write the PR description (what was done) to `.coddy/pr-{issue_number}.md` - the code agent must do this as the final step of every task
 5. Only then consider the work session complete (e.g. open PR or report)
+
+### Before Commit
+
+Before making a commit, **always** run `pre-commit run -a` and fix any reported errors. This runs all pre-commit hooks (lint, format, etc.) on the whole repository and ensures the code meets project standards before commit.
 
 ## Documentation
 
@@ -192,19 +196,23 @@ First write a test reproducing this bug, make sure the error actually exists, th
 
 **MANDATORY**: Before writing final report for any work (bug fix or new feature), **always** complete these steps:
 
-1. **Run all tests**: `pytest tests/ -v`
+1. **Run pre-commit**: `pre-commit run -a`
+   - Fix any errors reported by hooks
+   - All hooks must pass before proceeding
+
+2. **Run all tests**: `pytest tests/ -v`
    - All tests must pass (green)
    - No test failures allowed
 
-2. **Run linter**: `ruff check .`
+3. **Run linter**: `ruff check .`
    - All linting checks must pass
    - Fix all errors and warnings
 
-3. **Run formatter**: `ruff format .`
+4. **Run formatter**: `ruff format .`
    - Code must be properly formatted
    - Fix all formatting issues
 
-4. **Only then write report**
+5. **Only then write report**
    - Report must include test results
    - Report must include linter results
    - Report must confirm all checks passed

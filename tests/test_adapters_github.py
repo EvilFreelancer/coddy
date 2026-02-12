@@ -1,6 +1,4 @@
-"""
-Unit tests for GitHub adapter (mocked API).
-"""
+"""Unit tests for GitHub adapter (mocked API)."""
 
 from unittest.mock import Mock, patch
 
@@ -8,7 +6,7 @@ import pytest
 
 from coddy.adapters.base import GitPlatformError
 from coddy.adapters.github import GitHubAdapter
-from coddy.models import PR, Comment, Issue
+from coddy.models import PR, Comment, Issue, ReviewComment
 
 
 @pytest.fixture
@@ -250,3 +248,77 @@ def test_create_pr_success(adapter: GitHubAdapter) -> None:
         "base": "main",
         "body": "Done.",
     }
+
+
+def test_get_pr_success(adapter: GitHubAdapter) -> None:
+    """get_pr returns PR when API returns 200."""
+    response_data = {
+        "number": 3,
+        "title": "Fix bug",
+        "body": "Description",
+        "state": "open",
+        "head": {"ref": "2-fix-bug"},
+        "base": {"ref": "main"},
+        "html_url": "https://github.com/owner/repo/pull/3",
+    }
+    mock_resp = Mock()
+    mock_resp.status_code = 200
+    mock_resp.json.return_value = response_data
+    with patch.object(adapter._session, "request", return_value=mock_resp) as req:
+        pr = adapter.get_pr("owner/repo", 3)
+    assert isinstance(pr, PR)
+    assert pr.number == 3
+    assert pr.title == "Fix bug"
+    assert pr.head_branch == "2-fix-bug"
+    assert pr.base_branch == "main"
+    assert "/repos/owner/repo/pulls/3" in req.call_args[0][1]
+
+
+def test_list_pr_review_comments_success(adapter: GitHubAdapter) -> None:
+    """list_pr_review_comments returns list of ReviewComment."""
+    response_data = [
+        {
+            "id": 100,
+            "body": "Use a constant here",
+            "path": "src/foo.py",
+            "line": 42,
+            "side": "RIGHT",
+            "user": {"login": "reviewer"},
+            "created_at": "2024-01-15T10:00:00Z",
+            "updated_at": "2024-01-15T10:00:00Z",
+        },
+    ]
+    mock_resp = Mock()
+    mock_resp.status_code = 200
+    mock_resp.json.return_value = response_data
+    with patch.object(adapter._session, "request", return_value=mock_resp) as req:
+        comments = adapter.list_pr_review_comments("owner/repo", 3)
+    assert len(comments) == 1
+    assert isinstance(comments[0], ReviewComment)
+    assert comments[0].id == 100
+    assert comments[0].body == "Use a constant here"
+    assert comments[0].path == "src/foo.py"
+    assert comments[0].line == 42
+    assert comments[0].author == "reviewer"
+    assert "/repos/owner/repo/pulls/3/comments" in req.call_args[0][1]
+
+
+def test_reply_to_review_comment_success(adapter: GitHubAdapter) -> None:
+    """reply_to_review_comment sends POST with body and in_reply_to."""
+    response_data = {
+        "id": 101,
+        "body": "Done.",
+        "created_at": "2024-01-15T11:00:00Z",
+        "updated_at": "2024-01-15T11:00:00Z",
+        "user": {"login": "bot"},
+    }
+    mock_resp = Mock()
+    mock_resp.status_code = 201
+    mock_resp.json.return_value = response_data
+    with patch.object(adapter._session, "request", return_value=mock_resp) as req:
+        comment = adapter.reply_to_review_comment("owner/repo", 3, 100, "Done.")
+    assert isinstance(comment, Comment)
+    assert comment.id == 101
+    assert comment.body == "Done."
+    assert comment.author == "bot"
+    assert req.call_args[1].get("json") == {"body": "Done.", "in_reply_to": 100}

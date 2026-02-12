@@ -37,29 +37,34 @@ See [Architecture Documentation](docs/architecture.md) for details.
 ### Installation
 
 1. Clone the repository:
+
 ```bash
 git clone https://github.com/EvilFreelancer/coddy.git
 cd coddy
 ```
 
 2. Create virtual environment:
+
 ```bash
 python3 -m venv .venv
 source .venv/bin/activate  # On Windows: .venv\Scripts\activate
 ```
 
 3. Install dependencies:
+
 ```bash
 pip install -r requirements.txt
 ```
 
 4. Configure the bot:
+
 ```bash
 cp config.example.yaml config.yaml
 # Edit config.yaml with your settings
 ```
 
 5. Set environment variables:
+
 ```bash
 export GITHUB_TOKEN=your_github_token
 export WEBHOOK_SECRET=your_webhook_secret
@@ -119,6 +124,7 @@ Or with secret files: `-e GITHUB_TOKEN_FILE=/run/secrets/gt -v $(pwd)/.secrets/g
 See [System Specification](docs/system-specification.md) for detailed configuration options. For API tokens and developing adapters for GitHub, GitLab, or Bitbucket, see [Platform APIs](docs/platform-apis.md).
 
 Key configuration areas:
+
 - Git platform settings (GitHub, GitLab, BitBucket)
 - AI agent configuration
 - Bot identity (name, email)
@@ -173,7 +179,7 @@ See [Development Rules](.cursor/rules/) for coding standards and workflow.
 
 ## License
 
-[To be determined]
+\[To be determined\]
 
 ## Roadmap
 

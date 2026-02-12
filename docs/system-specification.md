@@ -8,11 +8,11 @@ Coddy (Community driven development) is an autonomous development bot that integ
 
 The bot does **not** automatically process every new issue. Work is triggered in one of two ways:
 
-1. **Assign bot to an issue**  
-   A human assigns the bot as the issue assignee. The bot then picks up that issue, writes a specification in the comments, manages labels, implements the task, and opens a PR.  
+1. **Assign bot to an issue**
+   A human assigns the bot as the issue assignee. The bot then picks up that issue, writes a specification in the comments, manages labels, implements the task, and opens a PR.
    *For the initial version, assignment is the primary trigger; full automation (e.g. auto-pick on every new issue) is out of scope.*
 
-2. **Reference an MR/PR**  
+2. **Reference an MR/PR**
    A user gives the bot a merge request or pull request number (e.g. in a comment or a dedicated command). The bot then works on that MR/PR (e.g. implements review feedback, updates description, or continues implementation).
 
 The bot still manages **issue labels** (tags) for any issue it works on: e.g. `in progress`, `stuck`, `review`, `done`.
@@ -290,19 +290,19 @@ bot:
   repository: "owner/repo"
   webhook_secret: "secret"
   ai_agent: "cursor_cli"
-  
+
 github:
   token: "ghp_..."
   api_url: "https://api.github.com"
-  
+
 gitlab:
   token: "glpat-..."
   api_url: "https://gitlab.com/api/v4"
-  
+
 bitbucket:
   token: "..."
   api_url: "https://api.bitbucket.org/2.0"
-  
+
 ai_agents:
   cursor_cli:
     command: "cursor"

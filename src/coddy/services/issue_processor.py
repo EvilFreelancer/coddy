@@ -8,7 +8,6 @@ import logging
 import time
 from datetime import UTC, datetime
 from pathlib import Path
-from typing import Optional
 
 from coddy.adapters.base import GitPlatformAdapter, GitPlatformError
 from coddy.agents.base import AIAgent
@@ -29,12 +28,12 @@ def process_one_issue(
     agent: AIAgent,
     issue: Issue,
     repo: str,
-    repo_dir: Optional[Path] = None,
-    bot_username: Optional[str] = None,
-    bot_name: Optional[str] = None,
-    bot_email: Optional[str] = None,
+    repo_dir: Path | None = None,
+    bot_username: str | None = None,
+    bot_name: str | None = None,
+    bot_email: str | None = None,
     poll_interval: int = POLL_INTERVAL_SECONDS,
-    log: Optional[logging.Logger] = None,
+    log: logging.Logger | None = None,
 ) -> None:
     """
     Full flow for one issue in one thread: branch, sufficiency check, optional wait, then work.
@@ -69,7 +68,7 @@ def process_one_issue(
         logger.warning("Failed to checkout branch %s: %s", branch_name, e)
         return
 
-    last_comment_at: Optional[datetime] = None
+    last_comment_at: datetime | None = None
 
     while True:
         issue = adapter.get_issue(repo, issue.number)

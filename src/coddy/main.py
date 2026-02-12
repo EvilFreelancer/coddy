@@ -1,20 +1,18 @@
-"""
-Coddy Bot entry point.
+"""Coddy Bot entry point.
 
-Loads config from YAML (and env), supports --config path.
-Secrets from env or Docker secret files (GITHUB_TOKEN_FILE, WEBHOOK_SECRET_FILE).
+Loads config from YAML (and env), supports --config path. Secrets from
+env or Docker secret files (GITHUB_TOKEN_FILE, WEBHOOK_SECRET_FILE).
 """
 
 import argparse
 import logging
 import sys
 from pathlib import Path
-from typing import Optional
 
 from coddy.config import AppConfig, load_config
 
 
-def parse_args(argv: Optional[list[str]] = None) -> argparse.Namespace:
+def parse_args(argv: list[str] | None = None) -> argparse.Namespace:
     """Parse CLI arguments (Pydantic-validated config path)."""
     parser = argparse.ArgumentParser(
         prog="coddy",
@@ -35,7 +33,7 @@ def parse_args(argv: Optional[list[str]] = None) -> argparse.Namespace:
     return parser.parse_args(argv)
 
 
-def setup_logging(level: str = "INFO", fmt: Optional[str] = None) -> None:
+def setup_logging(level: str = "INFO", fmt: str | None = None) -> None:
     """Configure root logger."""
     fmt = fmt or "%(asctime)s - %(name)s - %(levelname)s - %(message)s"
     logging.basicConfig(level=getattr(logging, level.upper(), logging.INFO), format=fmt)
@@ -133,14 +131,13 @@ def run(config: AppConfig) -> None:
 
         run_webhook_server(config)
     else:
-        log.info("Webhook disabled; scheduler would run here (not yet implemented)")
         import time
 
         while True:
             time.sleep(60)
 
 
-def main(argv: Optional[list[str]] = None) -> int:
+def main(argv: list[str] | None = None) -> int:
     """Entry point."""
     args = parse_args(argv)
 

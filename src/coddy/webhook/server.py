@@ -1,7 +1,7 @@
-"""
-Minimal webhook HTTP server for Git platform events.
+"""Minimal webhook HTTP server for Git platform events.
 
-Serves health check and webhook path; verification and handlers to be added.
+Serves health check and webhook path; verification and handlers to be
+added.
 """
 
 import json
@@ -44,7 +44,9 @@ class WebhookHandler(BaseHTTPRequestHandler):
             payload = json.loads(body.decode()) if body else {}
             event = self.headers.get("X-GitHub-Event", "")
             LOG.info("Webhook event: %s (payload keys: %s)", event, list(payload.keys()) if payload else [])
-            # TODO: queue for Issue Monitor
+            from coddy.webhook.handlers import handle_github_event
+
+            handle_github_event(self.config, event, payload)
         except json.JSONDecodeError:
             LOG.warning("Invalid webhook JSON")
         self.send_response(200)

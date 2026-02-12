@@ -1,6 +1,4 @@
-"""
-Tests for git_runner (branch name, fetch/checkout).
-"""
+"""Tests for git_runner (branch name, fetch/checkout)."""
 
 from coddy.services.git_runner import branch_name_from_issue
 

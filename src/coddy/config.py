@@ -1,20 +1,21 @@
-"""
-Configuration loading from YAML and environment.
+"""Configuration loading from YAML and environment.
 
-Secrets (tokens) are taken from environment variables or from files (Docker secrets).
-Never put real tokens in config files committed to the repo.
+Secrets (tokens) are taken from environment variables or from files
+(Docker secrets). Never put real tokens in config files committed to the
+repo.
 """
 
 from pathlib import Path
-from typing import Any, Optional
+from typing import Any
 
 import yaml
 from pydantic import Field
 from pydantic_settings import BaseSettings, SettingsConfigDict
 
 
-def _read_secret(env_key: str, file_env_key: str) -> Optional[str]:
-    """Read secret from env var or from file path in env (e.g. Docker secrets)."""
+def _read_secret(env_key: str, file_env_key: str) -> str | None:
+    """Read secret from env var or from file path in env (e.g. Docker
+    secrets)."""
     value = _current_env.get(env_key)
     if value:
         return value.strip()
@@ -37,7 +38,7 @@ class BotConfig(BaseSettings):
     email: str = Field(default="bot@coddy.dev", description="Bot email for commits")
     git_platform: str = Field(default="github", description="github, gitlab, bitbucket")
     repository: str = Field(default="owner/repo", description="Target repo e.g. EvilFreelancer/coddy")
-    github_username: Optional[str] = Field(
+    github_username: str | None = Field(
         default=None, description="Bot GitHub login (to skip own comments when polling)"
     )
     webhook_secret: str = Field(default="", description="Secret for webhook verification")
@@ -49,7 +50,7 @@ class GitHubConfig(BaseSettings):
 
     model_config = SettingsConfigDict(env_prefix="GITHUB_", extra="ignore")
 
-    token: Optional[str] = Field(default=None, description="PAT or app token; use env or secret file")
+    token: str | None = Field(default=None, description="PAT or app token; use env or secret file")
     api_url: str = Field(default="https://api.github.com", description="API base URL")
     webhook_path: str = Field(default="/webhook/github", description="Webhook URL path")
 
@@ -59,7 +60,7 @@ class GitLabConfig(BaseSettings):
 
     model_config = SettingsConfigDict(env_prefix="GITLAB_", extra="ignore")
 
-    token: Optional[str] = Field(default=None, description="Access token")
+    token: str | None = Field(default=None, description="Access token")
     api_url: str = Field(default="https://gitlab.com/api/v4", description="API base URL")
     webhook_path: str = Field(default="/webhook/gitlab", description="Webhook URL path")
 
@@ -69,21 +70,22 @@ class BitbucketConfig(BaseSettings):
 
     model_config = SettingsConfigDict(env_prefix="BITBUCKET_", extra="ignore")
 
-    token: Optional[str] = Field(default=None, description="API token or app password")
+    token: str | None = Field(default=None, description="API token or app password")
     api_url: str = Field(default="https://api.bitbucket.org/2.0", description="API base URL")
     webhook_path: str = Field(default="/webhook/bitbucket", description="Webhook URL path")
 
 
 class CursorCLIAgentConfig(BaseSettings):
-    """Cursor CLI agent settings (cursor.com/cli, cursor.com/docs/cli/headless)."""
+    """Cursor CLI agent settings (cursor.com/cli,
+    cursor.com/docs/cli/headless)."""
 
     command: str = Field(default="agent", description="CLI command name (agent from Cursor install)")
     args: list[str] = Field(default_factory=lambda: ["generate"], description="CLI args")
     timeout: int = Field(default=300, ge=1, description="Timeout in seconds")
     working_directory: str = Field(default=".", description="CWD for agent")
-    token: Optional[str] = Field(default=None, description="Agent token; prefer env or secret file")
+    token: str | None = Field(default=None, description="Agent token; prefer env or secret file")
     # Headless CLI options (docs: cursor.com/docs/cli/reference/parameters, output-format)
-    output_format: Optional[str] = Field(
+    output_format: str | None = Field(
         default=None,
         description="--output-format: text (default), json, or stream-json",
     )
@@ -91,8 +93,8 @@ class CursorCLIAgentConfig(BaseSettings):
         default=False,
         description="--stream-partial-output (only with output_format=stream-json)",
     )
-    model: Optional[str] = Field(default=None, description="--model: model to use")
-    mode: Optional[str] = Field(default=None, description="--mode: agent (default), plan, or ask")
+    model: str | None = Field(default=None, description="--model: model to use")
+    mode: str | None = Field(default=None, description="--mode: agent (default), plan, or ask")
 
 
 class WebhookConfig(BaseSettings):
@@ -142,7 +144,7 @@ class AppConfig(BaseSettings):
     logging: LoggingConfig = Field(default_factory=LoggingConfig)
 
     @property
-    def github_token_resolved(self) -> Optional[str]:
+    def github_token_resolved(self) -> str | None:
         """Resolve GitHub token from env or Docker secret file."""
         t = self.github.token
         if t and not t.startswith("${") and t != "your-webhook-secret-here":
@@ -150,7 +152,7 @@ class AppConfig(BaseSettings):
         return _read_secret("GITHUB_TOKEN", "GITHUB_TOKEN_FILE")
 
     @property
-    def webhook_secret_resolved(self) -> Optional[str]:
+    def webhook_secret_resolved(self) -> str | None:
         """Resolve webhook secret from env or Docker secret file."""
         s = self.bot.webhook_secret
         if s and not s.startswith("${") and s != "your-webhook-secret-here":
@@ -158,8 +160,9 @@ class AppConfig(BaseSettings):
         return _read_secret("WEBHOOK_SECRET", "WEBHOOK_SECRET_FILE") or ""
 
     @property
-    def cursor_agent_token_resolved(self) -> Optional[str]:
-        """Resolve Cursor Agent token from env or Docker secret file (for agent CLI)."""
+    def cursor_agent_token_resolved(self) -> str | None:
+        """Resolve Cursor Agent token from env or Docker secret file (for agent
+        CLI)."""
         t = None
         if self.ai_agents and "cursor_cli" in self.ai_agents:
             cfg = self.ai_agents["cursor_cli"]
@@ -188,9 +191,8 @@ def _substitute_env(value: Any) -> Any:
     return value
 
 
-def load_config(config_path: Optional[Path] = None) -> AppConfig:
-    """
-    Load config from YAML file and environment.
+def load_config(config_path: Path | None = None) -> AppConfig:
+    """Load config from YAML file and environment.
 
     Secrets: GITHUB_TOKEN or GITHUB_TOKEN_FILE, WEBHOOK_SECRET or WEBHOOK_SECRET_FILE.
     """

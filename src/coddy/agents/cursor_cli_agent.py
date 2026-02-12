@@ -12,19 +12,25 @@ import os
 import subprocess
 from datetime import UTC, datetime
 from pathlib import Path
-from typing import Any, List, Optional
+from typing import Any, List
 
 from coddy.agents.base import AIAgent, SufficiencyResult
-from coddy.models import Comment, Issue
-from coddy.services.task_file import read_pr_report, report_file_path, task_log_path, write_task_file
+from coddy.models import Comment, Issue, ReviewComment
+from coddy.services.task_file import (
+    read_pr_report,
+    read_review_reply,
+    report_file_path,
+    task_log_path,
+    write_review_task_file,
+    write_task_file,
+)
 
 
 class CursorCLIAgent(AIAgent):
-    """
-    Run Cursor CLI in headless mode (-p --force) with task file context.
+    """Run Cursor CLI in headless mode (-p --force) with task file context.
 
-    Task is written to .coddy/task-{issue_number}.md; agent is asked to execute it
-    and write PR description to .coddy/pr-{issue_number}.md.
+    Task is written to .coddy/task-{issue_number}.md; agent is asked to
+    execute it and write PR description to .coddy/pr-{issue_number}.md.
     """
 
     def __init__(
@@ -32,12 +38,12 @@ class CursorCLIAgent(AIAgent):
         command: str = "agent",
         timeout: int = 300,
         working_directory: str = ".",
-        token: Optional[str] = None,
-        output_format: Optional[str] = None,
+        token: str | None = None,
+        output_format: str | None = None,
         stream_partial_output: bool = False,
-        model: Optional[str] = None,
-        mode: Optional[str] = None,
-        log: Optional[logging.Logger] = None,
+        model: str | None = None,
+        mode: str | None = None,
+        log: logging.Logger | None = None,
     ) -> None:
         self.command = command
         self.timeout = timeout
@@ -58,12 +64,12 @@ class CursorCLIAgent(AIAgent):
             )
         return SufficiencyResult(sufficient=True)
 
-    def generate_code(self, issue: Issue, comments: List[Comment]) -> Optional[str]:
-        """
-        Write task file, run Cursor CLI headless, read PR report.
+    def generate_code(self, issue: Issue, comments: List[Comment]) -> str | None:
+        """Write task file, run Cursor CLI headless, read PR report.
 
-        All run info and CLI stdout/stderr are written to .coddy/task-{issue}.log.
-        Returns PR description string for create_pr, or None if report missing.
+        All run info and CLI stdout/stderr are written to
+        .coddy/task-{issue}.log. Returns PR description string for
+        create_pr, or None if report missing.
         """
         repo_dir = Path(self.working_directory).resolve()
         task_path = write_task_file(issue, comments, repo_dir)
@@ -128,9 +134,84 @@ class CursorCLIAgent(AIAgent):
 
         return read_pr_report(repo_dir, issue.number) or None
 
+    def process_review_item(
+        self,
+        pr_number: int,
+        issue_number: int,
+        comments: List[ReviewComment],
+        current_index: int,
+        repo_dir: Path,
+    ) -> str | None:
+        """Write review task for current item, run Cursor CLI, return reply
+        text if any.
+
+        Agent may apply code changes; caller commits and pushes. Reply
+        is read from the reply file written by the agent.
+        """
+        task_path = write_review_task_file(pr_number, issue_number, comments, current_index, Path(repo_dir))
+        current = comments[current_index - 1]
+        reply_path = Path(repo_dir) / ".coddy" / f"review-reply-{pr_number}-{current.id}.md"
+        log_path = Path(repo_dir) / ".coddy" / f"task-{issue_number}.log"
+        log_path.parent.mkdir(parents=True, exist_ok=True)
+
+        prompt = (
+            f"Read and execute the review task in {task_path}. "
+            f"Address the current item only: apply code changes and/or write your reply to {reply_path}. "
+            f"Then stop."
+        )
+        cmd = [self.command, "-p", "--force"]
+        if self.output_format:
+            cmd.extend(["--output-format", self.output_format])
+        if self.stream_partial_output:
+            cmd.append("--stream-partial-output")
+        if self.model:
+            cmd.extend(["--model", self.model])
+        if self.mode:
+            cmd.extend(["--mode", self.mode])
+        cmd.append(prompt)
+        env = os.environ.copy()
+        if self.token:
+            env["CURSOR_API_KEY"] = self.token
+
+        self._log.info(
+            "Running Cursor CLI for review item %s/%s (timeout=%ss)",
+            current_index,
+            len(comments),
+            self.timeout,
+        )
+        try:
+            with open(log_path, "a", encoding="utf-8") as log_file:
+                log_file.write(f"[{datetime.now(UTC).isoformat()}] PR #{pr_number} review item {current_index}\n")
+                log_file.write(f"Task file: {task_path}\n")
+                log_file.write("-" * 60 + "\n")
+                log_file.flush()
+                result = subprocess.run(
+                    cmd,
+                    cwd=self.working_directory,
+                    env=env,
+                    timeout=self.timeout,
+                    check=False,
+                    stdout=log_file,
+                    stderr=subprocess.STDOUT,
+                    text=True,
+                )
+                log_file.write("-" * 60 + "\n")
+                log_file.write(f"Exit code: {result.returncode}\n")
+        except subprocess.TimeoutExpired:
+            with open(log_path, "a", encoding="utf-8") as log_file:
+                log_file.write(f"Timed out after {self.timeout}s\n")
+            self._log.warning("Cursor CLI timed out after %s seconds", self.timeout)
+            return None
+        except FileNotFoundError as e:
+            self._log.warning("Cursor CLI not found: %s", e)
+            return None
+
+        return read_review_reply(Path(repo_dir), pr_number, current.id) or None
+
 
 def make_cursor_cli_agent(config: Any) -> CursorCLIAgent:
-    """Build CursorCLIAgent from app config (ai_agents.cursor_cli and resolved token)."""
+    """Build CursorCLIAgent from app config (ai_agents.cursor_cli and resolved
+    token)."""
     cfg = getattr(config, "ai_agents", {}).get("cursor_cli") or {}
     token = getattr(config, "cursor_agent_token_resolved", None) or getattr(cfg, "token", None)
     return CursorCLIAgent(

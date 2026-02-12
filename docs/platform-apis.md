@@ -145,7 +145,7 @@ Assignees: use `assignee_ids` (array of user IDs) or single `assignee_id`. For "
 
 ### Authentication
 
-- **API Token (recommended)**: Basic HTTP Auth; **username** = Atlassian account email, **password** = API token.  
+- **API Token (recommended)**: Basic HTTP Auth; **username** = Atlassian account email, **password** = API token.
   `Authorization: Basic base64(email:api_token)`.
 - **App passwords** (deprecated): Same Basic Auth with app password as password.
 - **OAuth 2.0**: `Authorization: Bearer <access_token>`. Tokens expire; use refresh token for long-running bots.
@@ -264,9 +264,9 @@ Repo identifier: GitHub `owner/repo`; GitLab `project id` (numeric or path); Bit
 ### Implementation checklist per platform
 
 1. **Config**: Add platform section in `config.example.yaml` (e.g. `github.token`, `gitlab.token`, `bitbucket.api_token` or `bitbucket.username` + `bitbucket.api_token` for Basic).
-2. **Auth in requests**:  
-   - GitHub: `Authorization: Bearer {token}`, `Accept: application/vnd.github+json`, `X-GitHub-Api-Version`.  
-   - GitLab: `PRIVATE-TOKEN: {token}` or `Authorization: Bearer {token}`.  
+2. **Auth in requests**:
+   - GitHub: `Authorization: Bearer {token}`, `Accept: application/vnd.github+json`, `X-GitHub-Api-Version`.
+   - GitLab: `PRIVATE-TOKEN: {token}` or `Authorization: Bearer {token}`.
    - Bitbucket: `Authorization: Basic base64(email:api_token)` for API token.
 3. **Repo id**: Parse `owner/repo` (GitHub), resolve project id (GitLab), `workspace/repo_slug` (Bitbucket).
 4. **Issue id**: GitHub/Bitbucket often use numeric issue number; GitLab uses project + IID.

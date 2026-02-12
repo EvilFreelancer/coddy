@@ -1,5 +1,4 @@
-"""
-Integration tests for GitHub adapter using real API.
+"""Integration tests for GitHub adapter using real API.
 
 Requires GITHUB_TOKEN in environment. Uses repository from config (default EvilFreelancer/coddy).
 Run: pytest tests/test_github_integration.py -v
@@ -7,7 +6,6 @@ Run: pytest tests/test_github_integration.py -v
 
 import os
 from pathlib import Path
-from typing import Optional
 
 import pytest
 
@@ -16,7 +14,7 @@ from coddy.config import load_config
 from coddy.models import Issue
 
 
-def _get_token() -> Optional[str]:
+def _get_token() -> str | None:
     token = os.environ.get("GITHUB_TOKEN")
     if token:
         return token.strip()

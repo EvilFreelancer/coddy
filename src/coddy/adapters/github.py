@@ -1,14 +1,12 @@
-"""
-GitHub API adapter.
-"""
+"""GitHub API adapter."""
 
 from datetime import datetime
-from typing import List, Optional
+from typing import List
 
 import requests
 
 from coddy.adapters.base import GitPlatformAdapter, GitPlatformError
-from coddy.models import PR, Comment, Issue
+from coddy.models import PR, Comment, Issue, ReviewComment
 
 
 class GitHubAdapter(GitPlatformAdapter):
@@ -16,7 +14,7 @@ class GitHubAdapter(GitPlatformAdapter):
 
     def __init__(
         self,
-        token: Optional[str] = None,
+        token: str | None = None,
         api_url: str = "https://api.github.com",
     ) -> None:
         self.token = token
@@ -48,8 +46,7 @@ class GitHubAdapter(GitPlatformAdapter):
         return resp
 
     def get_issue(self, repo: str, issue_number: int) -> Issue:
-        """
-        Fetch a single issue by number.
+        """Fetch a single issue by number.
 
         Args:
             repo: Repository in format owner/repo
@@ -89,8 +86,7 @@ class GitHubAdapter(GitPlatformAdapter):
         )
 
     def list_open_issues(self, repo: str) -> List[Issue]:
-        """
-        List all open issues in the repository (excludes pull requests).
+        """List all open issues in the repository (excludes pull requests).
 
         GitHub /repos/{owner}/{repo}/issues returns both issues and PRs;
         we filter out items that have pull_request set.
@@ -132,7 +128,7 @@ class GitHubAdapter(GitPlatformAdapter):
             updated_at=updated,
         )
 
-    def get_issue_comments(self, repo: str, issue_number: int, since: Optional[datetime] = None) -> List[Comment]:
+    def get_issue_comments(self, repo: str, issue_number: int, since: datetime | None = None) -> List[Comment]:
         """Fetch comments on an issue, optionally since a given datetime."""
         path = f"/repos/{repo}/issues/{issue_number}/comments"
         params: dict = {"per_page": 100}
@@ -177,6 +173,21 @@ class GitHubAdapter(GitPlatformAdapter):
             raise GitPlatformError("Could not get default branch SHA")
         self._request("POST", f"/repos/{repo}/git/refs", json={"ref": f"refs/heads/{branch_name}", "sha": sha})
 
+    def get_pr(self, repo: str, pr_number: int) -> PR:
+        """Fetch a pull request by number."""
+        path = f"/repos/{repo}/pulls/{pr_number}"
+        resp = self._request("GET", path)
+        data = resp.json()
+        return PR(
+            number=data["number"],
+            title=data.get("title", ""),
+            body=data.get("body", ""),
+            head_branch=data.get("head", {}).get("ref", ""),
+            base_branch=data.get("base", {}).get("ref", ""),
+            state=data.get("state", "open"),
+            html_url=data.get("html_url"),
+        )
+
     def create_pr(self, repo: str, title: str, body: str, head: str, base: str) -> PR:
         """Create a pull request."""
         resp = self._request(
@@ -193,4 +204,64 @@ class GitHubAdapter(GitPlatformAdapter):
             base_branch=data.get("base", {}).get("ref", base),
             state=data.get("state", "open"),
             html_url=data.get("html_url"),
+        )
+
+    def list_pr_review_comments(self, repo: str, pr_number: int, since: datetime | None = None) -> List[ReviewComment]:
+        """List review comments on a pull request, optionally since a given
+        datetime."""
+        path = f"/repos/{repo}/pulls/{pr_number}/comments"
+        params: dict = {"per_page": 100, "sort": "created", "direction": "asc"}
+        if since is not None:
+            params["since"] = since.strftime("%Y-%m-%dT%H:%M:%SZ")
+        resp = self._request("GET", path, params=params)
+        data_list = resp.json()
+        comments: List[ReviewComment] = []
+        for data in data_list:
+            created = data.get("created_at")
+            updated = data.get("updated_at")
+            if isinstance(created, str):
+                created = datetime.fromisoformat(created.replace("Z", "+00:00"))
+            if isinstance(updated, str):
+                updated = datetime.fromisoformat(updated.replace("Z", "+00:00"))
+            user = data.get("user") or {}
+            author = user.get("login", "")
+            line = data.get("line")
+            comments.append(
+                ReviewComment(
+                    id=data["id"],
+                    body=data.get("body", ""),
+                    author=author,
+                    path=data.get("path", ""),
+                    line=int(line) if line is not None else None,
+                    side=data.get("side", "RIGHT"),
+                    created_at=created,
+                    updated_at=updated,
+                    in_reply_to_id=data.get("in_reply_to_id"),
+                )
+            )
+        return comments
+
+    def reply_to_review_comment(self, repo: str, pr_number: int, in_reply_to_comment_id: int, body: str) -> Comment:
+        """Post a reply to a review comment."""
+        path = f"/repos/{repo}/pulls/{pr_number}/comments"
+        resp = self._request(
+            "POST",
+            path,
+            json={"body": body, "in_reply_to": in_reply_to_comment_id},
+        )
+        data = resp.json()
+        created = data.get("created_at")
+        updated = data.get("updated_at")
+        if isinstance(created, str):
+            created = datetime.fromisoformat(created.replace("Z", "+00:00"))
+        if isinstance(updated, str):
+            updated = datetime.fromisoformat(updated.replace("Z", "+00:00"))
+        user = data.get("user") or {}
+        author = user.get("login", "")
+        return Comment(
+            id=data["id"],
+            body=data.get("body", ""),
+            author=author,
+            created_at=created,
+            updated_at=updated,
         )

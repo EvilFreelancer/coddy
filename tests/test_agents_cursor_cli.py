@@ -22,7 +22,8 @@ def _issue(number: int = 42, body: str = "Enough body for sufficiency check.") -
 
 
 def test_cursor_cli_agent_writes_log_file(tmp_path: Path, mocker: MagicMock) -> None:
-    """generate_code writes .coddy/task-{issue}.log with header and CLI output."""
+    """generate_code writes .coddy/task-{issue}.log with header and CLI
+    output."""
     mock_run = mocker.patch("coddy.agents.cursor_cli_agent.subprocess.run")
     mock_run.return_value = MagicMock(returncode=0)
     mocker.patch(
@@ -85,7 +86,8 @@ def test_cursor_cli_agent_log_file_on_cli_not_found(tmp_path: Path, mocker: Magi
 
 
 def test_cursor_cli_agent_passes_cli_params_to_subprocess(tmp_path: Path, mocker: MagicMock) -> None:
-    """When output_format, model, mode, stream_partial_output are set, they appear in cmd."""
+    """When output_format, model, mode, stream_partial_output are set, they
+    appear in cmd."""
     mock_run = mocker.patch("coddy.agents.cursor_cli_agent.subprocess.run")
     mock_run.return_value = MagicMock(returncode=0)
     mocker.patch("coddy.agents.cursor_cli_agent.read_pr_report", return_value="")

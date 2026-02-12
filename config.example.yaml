@@ -36,12 +36,11 @@ ai_agents:
     args: ["generate"]
     timeout: 300
     working_directory: "."
+    model: "auto"
+    mode: "agent"   # agent (default), plan, or ask
     # token: CURSOR_AGENT_TOKEN or CURSOR_AGENT_TOKEN_FILE; or CURSOR_API_KEY for headless CLI
-    # Optional CLI params (cursor.com/docs/cli/reference/parameters, output-format):
     # output_format: "text"   # default; or "json", "stream-json"
     # stream_partial_output: false   # true only with output_format: "stream-json"
-    # model: "Claude 4 Sonnet"   # --model
-    # mode: "agent"   # agent (default), plan, or ask
 
 # Webhook Server Configuration (optional; if not configured or unreachable, use scheduler)
 webhook:
