@@ -43,7 +43,7 @@ class WebhookHandler(BaseHTTPRequestHandler):
         try:
             payload = json.loads(body.decode()) if body else {}
             event = self.headers.get("X-GitHub-Event", "")
-            LOG.info("Webhook event: %s", event)
+            LOG.info("Webhook event: %s (payload keys: %s)", event, list(payload.keys()) if payload else [])
             # TODO: queue for Issue Monitor
         except json.JSONDecodeError:
             LOG.warning("Invalid webhook JSON")

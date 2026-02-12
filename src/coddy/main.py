@@ -61,10 +61,12 @@ def run(config: AppConfig) -> None:
     # For prototype: just block with a simple HTTP server or sleep
     if config.webhook.enabled:
         from coddy.webhook.server import run_webhook_server
+
         run_webhook_server(config)
     else:
         log.info("Webhook disabled; scheduler would run here (not yet implemented)")
         import time
+
         while True:
             time.sleep(60)
 
