@@ -1,0 +1,1 @@
+"""Git platform adapters."""

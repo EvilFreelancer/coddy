@@ -1,0 +1,126 @@
+---
+description: Code style and formatting rules
+globs: *.py, **/*.py, **/**/*.py
+alwaysApply: true
+---
+
+# Code Style Rules
+
+## General Rules
+
+1. **Comments**: Write all code comments **ONLY in English**
+2. **User responses**: Respond in Russian unless user requests otherwise
+3. **Empty line at end of file**: Always add an empty line at the end of new files
+4. **No em dashes**: Never use —, use - instead
+5. **No colons in lists**: Never use : except for list enumeration
+6. **No curly quotes**: Never use «», use regular quotes ""
+
+## Code Formatting
+
+### Ruff and Black
+- Use `ruff` for linting and formatting
+- Line length: **120 characters** (configured in `ruff.toml`)
+- Follow rules from `ruff.toml`
+
+### Imports
+- Use `isort` for import sorting
+- Group imports: standard library → third-party → local
+- One import per line for long lists
+
+### Type Hints
+- **Mandatory**: Use type hints for all functions and methods
+- Use `Optional[T]` instead of `T | None` for compatibility
+- Use `Union[A, B]` for complex types
+- Use `Dict[str, Any]` instead of `dict` for explicitness
+- Use `List[T]` instead of `list[T]` for compatibility
+
+### Docstrings
+- Use docstrings in Google style format
+- All docstrings in **English**
+- Must document:
+  - Public classes and methods
+  - Complex business logic
+  - Parameters and return values
+  - Exceptions raised
+
+Example:
+```python
+def create_branch(self, repo: str, branch_name: str) -> None:
+    """
+    Create a new branch in the repository.
+
+    Args:
+        repo: Repository name in format owner/repo
+        branch_name: Name of the branch to create
+
+    Raises:
+        GitPlatformError: If branch creation fails
+    """
+```
+
+## File Structure
+
+### Element Order in File
+1. Module docstring
+2. Imports (standard library → third-party → local)
+3. Constants
+4. Types and exceptions
+5. Classes and functions
+
+### Naming
+- **Classes**: PascalCase (`GitHubAdapter`, `CodeGenerator`)
+- **Functions and methods**: snake_case (`create_branch`, `process_issue`)
+- **Constants**: UPPER_SNAKE_CASE (`MAX_RETRIES`, `DEFAULT_TIMEOUT`)
+- **Private methods**: start with `_` (`_internal_method`)
+- **Types**: PascalCase (`Issue`, `PullRequest`, `CodeChanges`)
+- **Modules**: snake_case (`issue_monitor.py`, `code_generator.py`)
+
+## Error Handling
+
+- Use specific exceptions, not generic `Exception`
+- Create custom exceptions for business logic (`GitPlatformError`, `AgentError`)
+- Always include informative error messages
+- Use `Optional` for values that may be missing
+- Define exception hierarchy:
+  - `CoddyError` - Base exception
+  - `GitPlatformError` - Git platform related errors
+  - `AgentError` - AI agent related errors
+  - `ConfigurationError` - Configuration errors
+
+## Performance
+
+- **Always** use hash indexes (dict) instead of loops for search
+- Avoid repeated API calls - cache results when appropriate
+- Use generators for large collections
+- Respect rate limits for Git platform APIs
+- Use async/await for I/O operations when possible
+
+## Testing
+
+- Each new class must have unit tests
+- Tests should be in `tests/` directory
+- Test file name: `test_<module_name>.py`
+- Use pytest fixtures for data preparation
+- Use mocks for external dependencies (Git platform APIs, AI agents)
+- Aim for code coverage >90%
+
+## Configuration
+
+- Load configuration from environment variables (highest priority)
+- Fall back to configuration file
+- Use default values as last resort
+- Validate configuration on startup
+- Use type hints for configuration classes
+
+## Logging
+
+- Use Python `logging` module
+- Log levels: DEBUG, INFO, WARNING, ERROR, CRITICAL
+- Include context in log messages (issue number, PR number, etc.)
+- Log all external API calls
+- Log errors with full traceback
+
+## References
+
+@ruff.toml
+@pytest.ini

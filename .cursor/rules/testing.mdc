@@ -1,0 +1,173 @@
+---
+description: Testing rules and best practices
+globs: tests/**/*.py, **/*test*.py
+alwaysApply: true
+---
+
+# Testing Rules
+
+## General Principles
+
+1. **TDD Approach**: Write tests before implementation
+2. **Test Coverage**: Aim for >90% code coverage
+3. **Test Isolation**: Each test must be independent
+4. **Mock External Dependencies**: Mock Git platform APIs and AI agents
+5. **Clear Test Names**: Test names should describe what is being tested
+
+## Test Structure
+
+### Test File Organization
+- Tests should mirror source code structure
+- Test file: `tests/test_<module_name>.py`
+- Test class: `Test<ClassName>` (if using classes)
+- Test function: `test_<functionality>`
+
+### Test Naming
+- Use descriptive names: `test_create_branch_success`, `test_create_branch_invalid_repo`
+- Use `test_` prefix for all test functions
+- Group related tests in classes if needed
+
+## Test Types
+
+### Unit Tests
+- Test individual components in isolation
+- Mock all external dependencies
+- Fast execution
+- Should be majority of tests
+
+### Integration Tests
+- Test component interactions
+- May use real adapters with test fixtures
+- Test full workflows
+- Slower than unit tests
+
+### End-to-End Tests
+- Test complete workflows
+- Use mock Git platform APIs
+- Test webhook → issue → code → PR flow
+- Slowest tests
+
+## Mocking Guidelines
+
+### Git Platform APIs
+- Always mock Git platform API calls
+- Use `unittest.mock` or `pytest-mock`
+- Create fixtures for common API responses
+- Test error cases (rate limits, network errors)
+
+### AI Agents
+- Mock AI agent command execution
+- Mock agent output
+- Test timeout scenarios
+- Test error handling
+
+### External Services
+- Mock all external HTTP calls
+- Mock file system operations if needed
+- Mock time-dependent operations
+
+## Test Fixtures
+
+### Pytest Fixtures
+- Use `@pytest.fixture` for reusable test data
+- Place fixtures in `tests/conftest.py`
+- Use fixtures for:
+  - Mock Git platform adapters
+  - Mock AI agents
+  - Test configuration
+  - Sample data (issues, PRs, etc.)
+
+### Example Fixture
+```python
+@pytest.fixture
+def mock_github_adapter(mocker):
+    adapter = mocker.Mock(spec=GitHubAdapter)
+    adapter.get_issue.return_value = Issue(
+        number=1,
+        title="Test Issue",
+        body="Test body"
+    )
+    return adapter
+```
+
+## Test Assertions
+
+- Use clear assertion messages
+- Test both success and failure cases
+- Test edge cases (empty strings, None values, etc.)
+- Test error handling and exceptions
+
+## Test Data
+
+- Use realistic test data
+- Create test data factories if needed
+- Keep test data minimal but complete
+- Use constants for repeated test data
+
+## Running Tests
+
+### Run All Tests
+```bash
+pytest tests/ -v
+```
+
+### Run Specific Test
+```bash
+pytest tests/test_module.py::test_function -v
+```
+
+### Run with Coverage
+```bash
+pytest tests/ --cov=src/coddy --cov-report=html
+```
+
+### Run Fast Tests Only
+```bash
+pytest tests/ -m "not slow"
+```
+
+## Test Organization
+
+### Test Directory Structure
+```
+tests/
+├── conftest.py          # Shared fixtures
+├── unit/                # Unit tests
+│   ├── test_adapters/
+│   ├── test_agents/
+│   └── test_services/
+├── integration/         # Integration tests
+└── e2e/                 # End-to-end tests
+```
+
+## Best Practices
+
+1. **One assertion per test** (when possible)
+2. **Test behavior, not implementation**
+3. **Use descriptive test names**
+4. **Keep tests simple and focused**
+5. **Refactor tests along with code**
+6. **Test error paths, not just happy paths**
+7. **Use parametrize for similar tests**
+8. **Clean up after tests** (if needed)
+
+## Forbidden
+
+❌ Tests that depend on external services
+❌ Tests that depend on other tests
+❌ Tests without assertions
+❌ Tests that don't actually test anything
+❌ Hardcoded credentials or tokens
+
+## Allowed
+
+✅ Mocked external dependencies
+✅ Independent tests
+✅ Clear test names
+✅ Test fixtures for common data
+✅ Parametrized tests for similar cases
+
+## References
+
+@pytest.ini
+@code-style.mdc

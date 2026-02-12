@@ -1,0 +1,149 @@
+---
+description: Implementation order for new features - one class at a time
+globs: src/**/*.py
+alwaysApply: false
+---
+
+# Implementation Order: One Class at a Time
+
+## "One Class at a Time" Principle
+
+When adding new functionality, follow **"one class at a time"** principle, starting from lower architecture layers.
+
+## Architecture Layers (from lowest to highest)
+
+1. **Layer 1: Platform Adapters** (`src/coddy/adapters/`)
+2. **Layer 2: AI Agent Interface** (`src/coddy/agents/`)
+3. **Layer 3: Core Services** (`src/coddy/services/`)
+4. **Layer 4: Webhook Server** (`src/coddy/webhook/`)
+5. **Layer 5: Application Entry Point** (`src/coddy/`)
+
+See @architecture.mdc for detailed layer descriptions.
+
+## Implementation Steps
+
+### 1. Determine Layer
+Determine which layer the new functionality belongs to (see @architecture.mdc)
+
+### 2. Implement Class
+- Create class with minimal implementation
+- Use type hints
+- Add docstrings in English
+- Follow rules from @code-style.mdc
+- Implement abstract base class if needed
+
+### 3. Write Tests
+- Create test file `tests/test_<module_name>.py`
+- Write minimal unit tests for class
+- Make sure tests pass
+- Follow rules from @testing.mdc
+
+### 4. Move to Next Layer
+Only after lower layer class is ready and tested, move to upper layer classes.
+
+## Example: Adding New Git Platform Adapter
+
+### Step 1: Define Abstract Interface (if needed)
+```python
+# src/coddy/adapters/base.py
+class GitPlatformAdapter(ABC):
+    @abstractmethod
+    def create_branch(self, repo: str, branch_name: str) -> None:
+        pass
+```
+
+### Step 2: Write Tests for New Adapter
+```python
+# tests/test_adapters/test_gitlab.py
+def test_gitlab_create_branch():
+    adapter = GitLabAdapter(token="test")
+    adapter.create_branch("owner/repo", "feature-1")
+    # Assertions
+```
+
+### Step 3: Implement Adapter (Layer 1)
+```python
+# src/coddy/adapters/gitlab.py
+class GitLabAdapter(GitPlatformAdapter):
+    def create_branch(self, repo: str, branch_name: str) -> None:
+        """Create branch in GitLab repository."""
+        # Implementation
+```
+
+### Step 4: Integration Tests
+```python
+# tests/test_services/test_code_generator.py
+def test_code_generator_with_gitlab():
+    adapter = GitLabAdapter(...)
+    generator = CodeGenerator(adapter=adapter)
+    # Test integration
+```
+
+### Step 5: Use in Services (Layer 3)
+Only after adapter is ready and tested:
+```python
+# src/coddy/services/code_generator.py
+class CodeGenerator:
+    def __init__(self, adapter: GitPlatformAdapter):
+        self.adapter = adapter
+```
+
+## Example: Adding New AI Agent
+
+### Step 1: Define Abstract Interface (if needed)
+```python
+# src/coddy/agents/base.py
+class AIAgent(ABC):
+    @abstractmethod
+    def generate_code(self, task: Task) -> CodeChanges:
+        pass
+```
+
+### Step 2: Write Tests
+```python
+# tests/test_agents/test_custom_agent.py
+def test_custom_agent_generate_code():
+    agent = CustomAgent()
+    result = agent.generate_code(task)
+    assert result is not None
+```
+
+### Step 3: Implement Agent (Layer 2)
+```python
+# src/coddy/agents/custom_agent.py
+class CustomAgent(AIAgent):
+    def generate_code(self, task: Task) -> CodeChanges:
+        """Generate code using custom agent."""
+        # Implementation
+```
+
+### Step 4: Use in Services (Layer 3)
+```python
+# src/coddy/services/code_generator.py
+class CodeGenerator:
+    def __init__(self, agent: AIAgent):
+        self.agent = agent
+```
+
+## Forbidden
+
+❌ Implement multiple classes simultaneously
+❌ Move to upper layers before lower ones are ready
+❌ Skip writing tests
+❌ Implement functionality without understanding architecture
+❌ Depend on upper layers from lower layers
+
+## Allowed
+
+✅ Implement one class at a time
+✅ Write tests immediately before class
+✅ Use stubs for dependencies
+✅ Refactor after basic functionality works
+✅ Create abstract base classes first
+✅ Use factory pattern for creating instances
+
+## References
+
+@architecture.mdc
+@code-style.mdc
+@testing.mdc

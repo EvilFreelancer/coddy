@@ -1,0 +1,140 @@
+---
+description: Architectural rules and boundaries for Coddy Bot
+globs: src/**/*.py, tests/**/*.py
+alwaysApply: true
+---
+
+# Architectural Rules
+
+## General Architecture
+
+The project uses **modular architecture with clear separation of concerns**. Each module has its own responsibility area and must not violate boundaries of other modules.
+
+## Architecture Layers (Implementation Order)
+
+### Layer 1: Platform Adapters
+**Location**: `src/coddy/adapters/`
+
+Lowest layer - abstract interfaces and implementations for Git hosting platforms.
+
+- `base.py` - Abstract base classes
+- `github/` - GitHub implementation
+- `gitlab/` - GitLab implementation (planned)
+- `bitbucket/` - BitBucket implementation (planned)
+
+**Dependencies**: None (only external libraries)
+
+### Layer 2: AI Agent Interface
+**Location**: `src/coddy/agents/`
+
+Pluggable interface for AI code generation agents.
+
+- `base.py` - Abstract base class for AI agents
+- `cursor_cli.py` - Cursor CLI implementation
+- `factory.py` - Agent factory
+
+**Dependencies**: Layer 1 (may need Git platform for context)
+
+### Layer 3: Core Services
+**Location**: `src/coddy/services/`
+
+Business logic and orchestration services.
+
+- `issue_monitor.py` - Issue monitoring and processing
+- `code_generator.py` - Code generation orchestration
+- `pr_manager.py` - Pull request management
+- `review_handler.py` - Code review processing
+- `specification_generator.py` - Feature specification generation
+
+**Dependencies**: Layers 1, 2
+
+### Layer 4: Webhook Server
+**Location**: `src/coddy/webhook/`
+
+Webhook server for receiving Git platform events.
+
+- `server.py` - HTTP webhook server
+- `handlers.py` - Event handlers
+- `verification.py` - Webhook signature verification
+
+**Dependencies**: Layers 1, 3
+
+### Layer 5: Application Entry Point
+**Location**: `src/coddy/`
+
+Main application and configuration.
+
+- `main.py` - Application entry point
+- `config.py` - Configuration management
+- `models.py` - Data models
+
+**Dependencies**: All layers
+
+## Module Rules
+
+### Platform Adapters (`adapters/`)
+
+- Must implement abstract base class from `base.py`
+- Must handle platform-specific API differences
+- Must provide unified interface for upper layers
+- Should handle rate limiting and retries
+- Should cache API responses when appropriate
+
+### AI Agents (`agents/`)
+
+- Must implement abstract base class from `base.py`
+- Must handle agent-specific command execution
+- Must parse agent output into standardized format
+- Should handle timeouts and errors gracefully
+- Should provide progress feedback when possible
+
+### Services (`services/`)
+
+- Should orchestrate lower layer components
+- Should contain business logic
+- Should not directly call external APIs (use adapters)
+- Should handle errors and retries appropriately
+- Should be testable in isolation
+
+### Webhook Server (`webhook/`)
+
+- Must verify webhook signatures
+- Must handle different event types
+- Should route events to appropriate handlers
+- Should handle errors gracefully
+- Should log all events
+
+## Design Principles
+
+1. **One class at a time**: When implementing new functionality, create one class at a time, starting from lower layers
+2. **Minimal dependencies**: Each module should depend only on lower layer modules
+3. **Factory pattern**: Use factories for creating platform adapters and AI agents
+4. **Strategy pattern**: Use strategy pattern for different platform/agent implementations
+5. **Type hints**: Use type hints for all functions and methods
+6. **Abstract interfaces**: Define abstract base classes for extensibility
+7. **Error handling**: Use specific exceptions, not generic Exception
+8. **Configuration**: Load configuration from environment variables and config files
+
+## Forbidden
+
+❌ Upper layers depending on lower layers in wrong order
+❌ Direct API calls from services (must use adapters)
+❌ Platform-specific code outside adapters
+❌ Agent-specific code outside agents
+❌ Business logic in webhook handlers
+❌ Hardcoded configuration values
+
+## Allowed
+
+✅ Lower layers depending only on external libraries
+✅ Services using adapters and agents
+✅ Abstract base classes for interfaces
+✅ Factory pattern for creating instances
+✅ Configuration through environment variables
+✅ Dependency injection for testability
+
+## References
+
+@README.md
+@docs/architecture.md
+@docs/system-specification.md
