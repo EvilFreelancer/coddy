@@ -6,6 +6,7 @@ bot:
   email: "bot@coddy.dev"
   git_platform: "github"  # github, gitlab, bitbucket
   repository: "owner/repo"
+  default_branch: "main"   # used for git pull on PR merge and for PR base
   webhook_secret: "your-webhook-secret-here"
   ai_agent: "cursor_cli"
 

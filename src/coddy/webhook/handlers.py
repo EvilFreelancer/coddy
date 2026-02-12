@@ -1,18 +1,20 @@
 """
-Handle GitHub webhook events (e.g. PR review comment).
+Handle GitHub webhook events (e.g. PR review comment, PR merged).
 
-Parses payload and delegates to services (review handler).
+Parses payload and delegates to services (review handler) or runs git pull
+and restarts on PR merged.
 """
 
 import logging
+import sys
 from datetime import datetime
 from pathlib import Path
-from typing import Any, Dict, Optional
+from typing import Any, Dict
 
 from coddy.models import ReviewComment
 
 
-def _parse_review_comment_from_payload(comment_payload: Dict[str, Any]) -> Optional[ReviewComment]:
+def _parse_review_comment_from_payload(comment_payload: Dict[str, Any]) -> ReviewComment | None:
     """Build ReviewComment from GitHub webhook comment object."""
     try:
         cid = comment_payload.get("id")
@@ -49,20 +51,69 @@ def _parse_review_comment_from_payload(comment_payload: Dict[str, Any]) -> Optio
         return None
 
 
+def _working_dir_from_config(config: Any) -> Path:
+    """Resolve bot working directory (repo root) from config."""
+    if config.ai_agents and "cursor_cli" in config.ai_agents:
+        wd = getattr(config.ai_agents["cursor_cli"], "working_directory", None)
+        if wd:
+            return Path(wd)
+    return Path.cwd()
+
+
+def _handle_pr_merged(
+    config: Any,
+    payload: Dict[str, Any],
+    repo_dir: Path | None = None,
+    log: logging.Logger | None = None,
+) -> None:
+    """On PR merged: pull from default branch then exit 0 so supervisor can restart."""
+    logger = log or logging.getLogger("coddy.webhook.handlers")
+    if payload.get("action") != "closed":
+        return
+    pull = payload.get("pull_request") or {}
+    if not pull.get("merged"):
+        return
+    if getattr(config.bot, "git_platform", "") != "github":
+        logger.debug("Skipping PR merged: platform is not github")
+        return
+    repo_payload = payload.get("repository") or {}
+    repo_full_name = repo_payload.get("full_name") or ""
+    if repo_full_name and repo_full_name != getattr(config.bot, "repository", ""):
+        logger.debug("Skipping PR merged: repository %s is not configured repo", repo_full_name)
+        return
+    working_dir = Path(repo_dir) if repo_dir is not None else _working_dir_from_config(config)
+    default_branch = getattr(config.bot, "default_branch", "main")
+    from coddy.services.git_runner import GitRunnerError, run_git_pull
+
+    try:
+        run_git_pull(default_branch, repo_dir=working_dir, log=logger)
+    except GitRunnerError as e:
+        logger.warning("PR merged: git pull failed - %s", e)
+        return
+    logger.info("PR merged: pulled origin/%s, exiting for restart", default_branch)
+    sys.exit(0)
+
+
 def handle_github_event(
     config: Any,
     event: str,
     payload: Dict[str, Any],
-    repo_dir: Optional[Path] = None,
-    log: Optional[logging.Logger] = None,
+    repo_dir: Path | None = None,
+    log: logging.Logger | None = None,
 ) -> None:
     """
     Handle a GitHub webhook event.
 
     Supported events:
+    - pull_request (action=closed, merged=true): git pull from default branch, then exit 0 to allow restart.
     - pull_request_review_comment (action=created): run review handler for the new comment.
     """
     logger = log or logging.getLogger("coddy.webhook.handlers")
+
+    if event == "pull_request":
+        _handle_pr_merged(config, payload, repo_dir=repo_dir, log=logger)
+        return
+
     if event != "pull_request_review_comment":
         return
     if payload.get("action") != "created":

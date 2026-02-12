@@ -42,6 +42,30 @@ def branch_name_from_issue(issue_number: int, title: str) -> str:
     return f"{issue_number}-{slug}" if slug else str(issue_number)
 
 
+def run_git_pull(
+    branch: str,
+    repo_dir: Path | None = None,
+    log: logging.Logger | None = None,
+) -> None:
+    """Run git pull origin <branch> in the repository.
+
+    Used after a PR is merged to update the local default branch before
+    restarting the server.
+
+    Args:
+        branch: Branch to pull (e.g. main)
+        repo_dir: Repository root; default current directory
+        log: Optional logger
+
+    Raises:
+        GitRunnerError: If git pull fails
+    """
+    cwd = Path(repo_dir) if repo_dir is not None else Path.cwd()
+    _run_git(["pull", "origin", branch], cwd=cwd, log=log)
+    if log:
+        log.info("Pulled origin/%s", branch)
+
+
 def fetch_and_checkout_branch(
     branch_name: str,
     repo_dir: Path | None = None,

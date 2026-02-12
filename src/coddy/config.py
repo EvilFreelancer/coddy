@@ -38,6 +38,7 @@ class BotConfig(BaseSettings):
     email: str = Field(default="bot@coddy.dev", description="Bot email for commits")
     git_platform: str = Field(default="github", description="github, gitlab, bitbucket")
     repository: str = Field(default="owner/repo", description="Target repo e.g. EvilFreelancer/coddy")
+    default_branch: str = Field(default="main", description="Default branch for pull and PR base (e.g. main)")
     github_username: str | None = Field(
         default=None, description="Bot GitHub login (to skip own comments when polling)"
     )

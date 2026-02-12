@@ -127,8 +127,15 @@ Key configuration areas:
 
 - Git platform settings (GitHub, GitLab, BitBucket)
 - AI agent configuration
-- Bot identity (name, email)
+- Bot identity (name, email, default branch)
 - Webhook settings
+
+### PR merged webhook and restart
+
+When a pull request is merged (GitHub `pull_request` event with `action: closed` and `merged: true`), the bot runs `git pull origin <default_branch>` in its working directory and then exits with code 0 so that a process manager can restart it.
+
+- **Console**: Run the bot under a supervisor that restarts on exit (e.g. systemd, or a shell loop like `while true; do python -m coddy.main; done`).
+- **Docker**: Use a restart policy (e.g. `restart: unless-stopped` in Compose) so the container restarts after the bot exits and picks up the latest code.
 
 ## Development
 
