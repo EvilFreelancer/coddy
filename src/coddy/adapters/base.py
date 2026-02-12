@@ -78,12 +78,13 @@ class GitPlatformAdapter(ABC):
         """
         raise NotImplementedError
 
-    def create_branch(self, repo: str, branch_name: str) -> None:
+    def create_branch(self, repo: str, branch_name: str, base_branch: str | None = None) -> None:
         """Create a branch from the default branch HEAD (e.g. main).
 
         Args:
             repo: Repository in format owner/repo
             branch_name: New branch name (e.g. 1-implement-get-issue-assignees)
+            base_branch: Optional default branch name; if not set, obtained from API
         """
         raise NotImplementedError
 

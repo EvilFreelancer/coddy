@@ -32,6 +32,7 @@ def process_one_issue(
     bot_username: str | None = None,
     bot_name: str | None = None,
     bot_email: str | None = None,
+    default_branch: str | None = None,
     poll_interval: int = POLL_INTERVAL_SECONDS,
     log: logging.Logger | None = None,
 ) -> None:
@@ -53,7 +54,7 @@ def process_one_issue(
     logger.info("Creating or reusing branch %s for issue #%s", branch_name, issue.number)
 
     try:
-        adapter.create_branch(repo, branch_name)
+        adapter.create_branch(repo, branch_name, base_branch=default_branch)
     except GitPlatformError as e:
         err_msg = str(e).lower()
         if "already exists" in err_msg or "422" in err_msg:
@@ -98,7 +99,7 @@ def process_one_issue(
                     except Exception as e:
                         logger.warning("Failed to commit/push: %s", e)
                 try:
-                    base_branch = adapter.get_default_branch(repo)
+                    base_branch = default_branch or adapter.get_default_branch(repo)
                     adapter.create_pr(
                         repo,
                         title=issue.title,
