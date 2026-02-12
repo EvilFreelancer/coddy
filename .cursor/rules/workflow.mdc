@@ -13,7 +13,7 @@ When the agent works on an issue (creates a branch and makes commits), follow th
 ### Default Branch and New Issues
 
 - **New branch from default**: When a new issue arrives and work starts, **always create the new branch from the default branch** (e.g. `main` or `master`). Before creating the branch: checkout default branch, pull latest, then create and switch to the new branch. This keeps each issue branch based on current default, not on a previous issue branch.
-- **Switch back after PR**: After completing edits, committing, pushing, and opening the PR, **switch back to the default branch**. Coddy must not stay on the feature branch - so the next issue or run starts from default.
+- **Switch back after PR**: After completing edits, committing, pushing, and opening the PR, **switch back to the default branch** (e.g. `git checkout main`). Coddy must not stay on the feature branch - so the next issue or run starts from default.
 
 ### Branch Name
 - Format: `{issue_number}-short-description-1-3-words`
@@ -35,7 +35,9 @@ When the agent works on an issue (creates a branch and makes commits), follow th
    - If there are failures: fix the issues, **commit** with message `#{issue_number} <description of fix>`, then repeat from step 3
 4. **Last mandatory step**: Write the description of what was done to `.coddy/pr-{issue_number}.md` (PR report). Include: what was done, how to test, reference to issue, and a line that closes the issue (e.g. `Closes #42` or `Fixes #42` so the issue is auto-closed when the PR is merged). Use markdown; do not write code in this file. This step must be done **after** all implementation and verification (linter, tests) are complete. The bot uses this file as the PR description when creating the pull request.
 5. Only then consider the work session complete (bot will commit/push and open PR).
-6. **After PR is created**: Switch back to the default branch (e.g. `git checkout main`). Do not leave the repository on the feature branch so that the next run or new issue starts from default.
+6. **After PR is created**: Switch back to the default branch (e.g. `git checkout main`). Do not leave the repository on the feature branch so that the next issue or run starts from default.
+
+**Mandatory**: When work on an issue is finished (PR created or session ended), always switch back to the default branch. The repo must not remain on the feature branch.
 
 See @docs/system-specification.md for the full issue processing workflow.
 
@@ -45,8 +47,10 @@ See @docs/system-specification.md for the full issue processing workflow.
 2. If there are failures: fix the issues, **commit** with message `#{issue_number} <description of fix>`, then repeat from step 1 until all checks pass
 3. Run **pre-commit**: `pre-commit run -a`, fix any errors
 4. **Last mandatory step**: Write the PR description (what was done, how to test, and a line like `Closes #42` so the issue is closed when the PR is merged) to `.coddy/pr-{issue_number}.md` - the code agent must do this as the final step of every task
-5. Only then consider the work session complete (e.g. open PR or report)
-6. **After PR is created**: Switch back to the default branch so the next issue or run starts from default (do not leave the repo on the feature branch)
+5. Only then consider the work session complete (e.g. open PR or report).
+6. **After PR is created**: Switch back to the default branch so the next issue or run starts from default (do not leave the repo on the feature branch).
+
+**On task completion**: Always run `git checkout main` (or the project default branch) when work on the task is done. Never leave the repository on the feature branch.
 
 ### Before Commit
 
