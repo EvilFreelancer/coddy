@@ -184,8 +184,8 @@ See [Development Rules](.cursor/rules/) for coding standards and workflow.
 ## Roadmap
 
 - [x] System specification
-- [ ] GitHub adapter implementation
-- [ ] Cursor CLI agent integration
+- [x] GitHub adapter implementation
+- [x] Cursor CLI agent integration
 - [ ] Webhook server
 - [ ] Issue processing workflow
 - [ ] PR creation and management
