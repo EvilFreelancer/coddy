@@ -211,7 +211,8 @@ def test_create_branch_success(adapter: GitHubAdapter) -> None:
 
 
 def test_create_branch_with_base_branch_skips_repo_api(adapter: GitHubAdapter) -> None:
-    """create_branch with base_branch uses it and does not call get repo API."""
+    """create_branch with base_branch uses it and does not call get repo
+    API."""
     ref_data = {"object": {"sha": "def456"}}
 
     def side_effect(method, url, **kwargs):

@@ -21,7 +21,8 @@ def config_pr_merged() -> "object":
 
 
 def test_handle_pr_merged_pulls_and_exits(config_pr_merged: "object") -> None:
-    """On pull_request closed+merged, run_git_pull is called and sys.exit(0)."""
+    """On pull_request closed+merged, run_git_pull is called and
+    sys.exit(0)."""
     payload = {
         "action": "closed",
         "pull_request": {"merged": True, "number": 1},
