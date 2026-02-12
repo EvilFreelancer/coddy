@@ -104,6 +104,8 @@ def run(config: AppConfig) -> None:
         config.bot.repository,
         config.bot.git_platform,
     )
+    if not config.webhook.enabled:
+        log.info("Webhooks disabled, events will not be received via HTTP.")
 
     # On startup: read all open issues, take the first, then run full flow (branch, sufficiency, work)
     adapter, issue = _startup_poll_open_issues(config, log)
