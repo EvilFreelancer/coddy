@@ -339,9 +339,10 @@ This document is the single source for developing and maintaining the GitHub, Gi
 
 1. **Webhook Verification**: All webhooks must be verified using platform-specific signatures
 2. **Token Management**: Git platform tokens stored securely (environment variables, secrets)
-3. **Code Review**: Generated code should be reviewed before merging
-4. **Rate Limiting**: Respect API rate limits for Git platforms
-5. **Access Control**: Bot should only have necessary permissions
+3. **Forbidden path - `.secrets/`**: The bot (code agent) must **never** access the `.secrets/` directory under any circumstances. No read, list, write, or any reference to files inside `.secrets/`. Tokens and secrets live there; the agent must not touch this folder.
+4. **Code Review**: Generated code should be reviewed before merging
+5. **Rate Limiting**: Respect API rate limits for Git platforms
+6. **Access Control**: Bot should only have necessary permissions
 
 ## Error Handling
 

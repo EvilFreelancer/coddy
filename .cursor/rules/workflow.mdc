@@ -6,6 +6,10 @@ alwaysApply: true
 
 # Workflow Rules for Documentation, Bugs, and New Features
 
+## Forbidden Paths (Security)
+
+- **`.secrets/` directory**: The agent (bot) is **forbidden** to access the `.secrets/` folder under any circumstances. Do not read, list, write, or reference files inside `.secrets/`. Do not suggest commands or code that would read or modify `.secrets/`. This directory contains tokens and secrets and must never be touched by the agent.
+
 ## Branch and Commit Conventions (When Working on an Issue)
 
 When the agent works on an issue (creates a branch and makes commits), follow these conventions:
