@@ -1,8 +1,7 @@
-"""
-Handle GitHub webhook events (e.g. PR review comment, PR merged).
+"""Handle GitHub webhook events (e.g. PR review comment, PR merged).
 
-Parses payload and delegates to services (review handler) or runs git pull
-and restarts on PR merged.
+Parses payload and delegates to services (review handler) or runs git
+pull and restarts on PR merged.
 """
 
 import logging
@@ -101,8 +100,7 @@ def handle_github_event(
     repo_dir: Path | None = None,
     log: logging.Logger | None = None,
 ) -> None:
-    """
-    Handle a GitHub webhook event.
+    """Handle a GitHub webhook event.
 
     Supported events:
     - pull_request (action=closed, merged=true): git pull from default branch, then exit 0 to allow restart.
