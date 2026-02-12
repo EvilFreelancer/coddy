@@ -6,6 +6,28 @@ alwaysApply: true
 
 # Workflow Rules for Documentation, Bugs, and New Features
 
+## Branch and Commit Conventions (When Working on an Issue)
+
+When the agent works on an issue (creates a branch and makes commits), follow these conventions:
+
+### Branch Name
+- Format: `{issue_number}-short-description-1-3-words`
+- Short description: 1-3 words from the issue title, in **English**, **lowercase**, words separated by **dashes**
+- Example: for issue #42 "Add user login form" use branch `42-add-user-login`
+
+### Commit Messages
+- Format: `#{issue_number} Description of what was done`
+- Example: `#42 Add login form and validation`
+- The bot may make **multiple commits** during work (each Cursor edit session = one commit); each commit uses this format
+
+### After Completing Edits (Final Verification Loop)
+1. Run **linter**: `ruff check .` and **formatter**: `ruff format .`
+2. Run **full test suite**: `pytest tests/ -v`
+3. If there are failures: fix the issues, **commit** with message `#{issue_number} <description of fix>`, then repeat from step 1 until all checks pass
+4. Only then consider the work session complete (e.g. open PR or report)
+
+See @docs/system-specification.md for the full issue processing workflow.
+
 ## Documentation
 
 ### Documentation Location

@@ -60,11 +60,15 @@ The bot still manages **issue labels** (tags) for any issue it works on: e.g. `i
    - Bot labels issue (e.g., "in progress", "needs clarification")
 
 3. **Code Generation**
-   - Bot creates branch: `issue-{number}`
+   - Bot creates branch with format: `{number}-short-issue-description-2-3-words`
+     - Example: `42-add-user-login` (issue number, then 2-3 word description from issue title, English, lowercase, words separated by dashes)
    - Bot switches to branch
    - Bot calls AI agent with issue context
    - Agent generates code following specification
-   - Bot commits changes with descriptive messages referencing issue number
+   - Bot may make **multiple commits** during work (each Cursor edit session typically produces one commit)
+   - **Commit message format**: `#{number} Description of what was done`
+     - Example: `#42 Add login form and validation`
+   - After completing edits, the agent runs a **final verification**: linter (`ruff check .`, `ruff format .`) and full test suite (`pytest tests/ -v`). If there are failures, the agent fixes them, commits with the same format, and repeats until all checks pass.
    - Commits are signed with bot identity (configurable)
 
 4. **Pull Request Creation**
@@ -173,7 +177,9 @@ class AIAgent(ABC):
 - Call AI agent with task
 - Handle agent responses and clarifications
 - Manage code changes and commits
-- Create commit messages with issue references
+- Create branch with format `{issue_number}-short-description-2-3-words` (English, lowercase, dashes; derived from issue title)
+- Create commit messages with format `#{issue_number} Description of what was done`
+- Support multiple commits per issue (one per edit session); after edits are done, run final linter and tests, fix and commit if needed until all pass
 
 ### PR Manager
 
@@ -193,7 +199,7 @@ class AIAgent(ABC):
 - Parse review comments
 - Identify requested changes
 - Call AI agent to implement fixes
-- Commit changes
+- Commit changes with message format `#{issue_number} Description of what was fixed`
 - Respond to comments with explanations
 
 ### Webhook Server
@@ -376,7 +382,7 @@ For the initial prototype, focus on:
 
 6. **Bot Identity**
    - Commits signed with bot name/email
-   - Simple commit messages
+   - Commit messages: `#{issue_number} Description of what was done`
 
 ### Out of Scope for MVP
 
