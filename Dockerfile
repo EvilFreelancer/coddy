@@ -10,9 +10,10 @@ RUN apt update \
 
 # Copy project and install (package coddy at repo root)
 COPY pyproject.toml ./
+RUN pip install --no-cache-dir -e ".[dev]"
+
 COPY coddy/ ./coddy/
 COPY tests/ ./tests/
-RUN pip install --no-cache-dir -e ".[dev]"
 
 # Install Cursor CLI (agent binary)
 RUN curl -fsSL https://cursor.com/install | bash \
