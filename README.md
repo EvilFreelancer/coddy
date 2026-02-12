@@ -38,13 +38,13 @@ See [Architecture Documentation](docs/architecture.md) for details.
 
 1. Clone the repository:
 ```bash
-git clone <repository-url>
-cd codda
+git clone https://github.com/EvilFreelancer/coddy.git
+cd coddy
 ```
 
 2. Create virtual environment:
 ```bash
-python -m venv .venv
+python3 -m venv .venv
 source .venv/bin/activate  # On Windows: .venv\Scripts\activate
 ```
 

@@ -1,5 +1,6 @@
 # Coddy Bot - run with: docker compose up -d
-# Secrets: create .secrets/github_token and .secrets/webhook_secret (see README)
+# Secrets: .secrets/github_token, .secrets/webhook_secret
+# Optional (for Cursor Agent): create .secrets/cursor_agent_token and uncomment below
 
 services:
   coddy:
@@ -10,11 +11,11 @@ services:
     secrets:
       - github_token
       - webhook_secret
+      - cursor_agent_token
     environment:
-      # App reads token from file when *_FILE is set (Docker mounts secrets there)
       GITHUB_TOKEN_FILE: /run/secrets/github_token
       WEBHOOK_SECRET_FILE: /run/secrets/webhook_secret
-      # Override repo for this deployment
+      CURSOR_AGENT_TOKEN_FILE: /run/secrets/cursor_agent_token
       BOT_REPOSITORY: "EvilFreelancer/coddy"
     volumes:
       # Mount config from host (copy config.example.yaml to config.yaml first)
@@ -28,3 +29,5 @@ secrets:
     file: ./.secrets/github_token
   webhook_secret:
     file: ./.secrets/webhook_secret
+  cursor_agent_token:
+    file: ./.secrets/cursor_agent_token

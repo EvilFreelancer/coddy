@@ -1,0 +1,55 @@
+# Coddy Bot Configuration Example
+# Copy this file to config.yaml and fill in your values
+
+bot:
+  name: "Coddy Bot"
+  email: "bot@coddy.dev"
+  git_platform: "github"  # github, gitlab, bitbucket
+  repository: "owner/repo"
+  webhook_secret: "your-webhook-secret-here"
+  ai_agent: "cursor_cli"
+
+# GitHub Configuration
+github:
+  token: "${GITHUB_TOKEN}"  # Use environment variable
+  api_url: "https://api.github.com"
+  webhook_path: "/webhook/github"
+
+# GitLab Configuration (optional)
+gitlab:
+  token: "${GITLAB_TOKEN}"
+  api_url: "https://gitlab.com/api/v4"
+  webhook_path: "/webhook/gitlab"
+
+# BitBucket Configuration (optional)
+bitbucket:
+  token: "${BITBUCKET_TOKEN}"
+  api_url: "https://api.bitbucket.org/2.0"
+  webhook_path: "/webhook/bitbucket"
+
+# AI Agent Configuration (Cursor CLI binary is 'agent' from cursor.com/install)
+ai_agents:
+  cursor_cli:
+    command: "agent"
+    args: ["generate"]
+    timeout: 300
+    working_directory: "."
+    # token: set via CURSOR_AGENT_TOKEN or CURSOR_AGENT_TOKEN_FILE (Docker secret) for API auth
+
+# Webhook Server Configuration (optional; if not configured or unreachable, use scheduler)
+webhook:
+  host: "0.0.0.0"
+  port: 8000
+  debug: false
+  enabled: true  # set false to use only scheduler
+
+# Scheduler (polling) - used when webhooks are not available or as fallback
+scheduler:
+  enabled: true   # if webhooks disabled or as backup
+  interval_seconds: 120  # poll every 2 minutes
+  # Tracks last-seen timestamps per issue/PR to detect new assignments and new comments
+
+# Logging Configuration
+logging:
+  level: "INFO"  # DEBUG, INFO, WARNING, ERROR, CRITICAL
+  format: "%(asctime)s - %(name)s - %(levelname)s - %(message)s"

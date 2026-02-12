@@ -72,12 +72,13 @@ class BitbucketConfig(BaseSettings):
 
 
 class CursorCLIAgentConfig(BaseSettings):
-    """Cursor CLI agent settings."""
+    """Cursor CLI agent settings (binary name is 'agent' from cursor.com/install)."""
 
-    command: str = Field(default="cursor", description="CLI command name")
+    command: str = Field(default="agent", description="CLI command name (agent from Cursor install)")
     args: list[str] = Field(default_factory=lambda: ["generate"], description="CLI args")
     timeout: int = Field(default=300, ge=1, description="Timeout in seconds")
     working_directory: str = Field(default=".", description="CWD for agent")
+    token: Optional[str] = Field(default=None, description="Agent token; prefer env or secret file")
 
 
 class WebhookConfig(BaseSettings):
@@ -141,6 +142,18 @@ class AppConfig(BaseSettings):
         if s and not s.startswith("${") and s != "your-webhook-secret-here":
             return s
         return _read_secret("WEBHOOK_SECRET", "WEBHOOK_SECRET_FILE") or ""
+
+    @property
+    def cursor_agent_token_resolved(self) -> Optional[str]:
+        """Resolve Cursor Agent token from env or Docker secret file (for agent CLI)."""
+        t = None
+        if self.ai_agents and "cursor_cli" in self.ai_agents:
+            cfg = self.ai_agents["cursor_cli"]
+            if hasattr(cfg, "token") and cfg.token:
+                t = cfg.token
+        if t and not str(t).startswith("${"):
+            return t
+        return _read_secret("CURSOR_AGENT_TOKEN", "CURSOR_AGENT_TOKEN_FILE")
 
 
 def _substitute_env(value: Any) -> Any:

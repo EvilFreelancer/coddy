@@ -15,6 +15,11 @@ RUN pip install --no-cache-dir -e ".[dev]"
 COPY src/ ./src/
 COPY tests/ ./tests/
 
+# Install Cursor CLI (agent binary)
+RUN curl -fsSL https://cursor.com/install | bash \
+ && cp /root/.local/bin/agent /usr/local/bin/agent \
+ && agent --version
+
 # Create non-root user
 RUN useradd -m -u 1000 coddy && chown -R coddy:coddy /app
 USER coddy

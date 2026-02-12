@@ -37,6 +37,18 @@
 - The app is given `GITHUB_TOKEN_FILE=/run/secrets/github_token` and `WEBHOOK_SECRET_FILE=/run/secrets/webhook_secret`.
 - The app reads the token/secret from that path and never expects them in the image or in `config.yaml`.
 
+## Cursor Agent token (optional)
+
+For the Cursor CLI agent to call the API, it needs a token. You can pass it via env or a secret file:
+
+1. **Create** `.secrets/cursor_agent_token` with your Cursor Agent token.
+2. **Uncomment** in `docker-compose.yml`:
+   - under `secrets`: `- cursor_agent_token`
+   - under `environment`: `CURSOR_AGENT_TOKEN_FILE: /run/secrets/cursor_agent_token`
+   - under `secrets`: the `cursor_agent_token` entry with `file: ./.secrets/cursor_agent_token`
+
+Alternatively set `CURSOR_AGENT_TOKEN` in the environment (e.g. in a non-committed `.env`).
+
 ## Config file
 
 The `config.yaml` file is mounted from the host via bind mount in `docker-compose.yml`. Always copy `config.example.yaml` to `config.yaml` before first run - the example contains all available settings with defaults.
