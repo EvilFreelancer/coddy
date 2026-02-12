@@ -162,9 +162,9 @@ class GitHubAdapter(GitPlatformAdapter):
         resp = self._request("GET", f"/repos/{repo}")
         return resp.json().get("default_branch", "main")
 
-    def create_branch(self, repo: str, branch_name: str) -> None:
+    def create_branch(self, repo: str, branch_name: str, base_branch: str | None = None) -> None:
         """Create a branch from the default branch HEAD."""
-        default_branch = self.get_default_branch(repo)
+        default_branch = base_branch or self.get_default_branch(repo)
         ref_path = f"/repos/{repo}/git/ref/heads/{default_branch}"
         ref_resp = self._request("GET", ref_path)
         ref_data = ref_resp.json()

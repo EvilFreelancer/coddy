@@ -122,6 +122,7 @@ def run(config: AppConfig) -> None:
             bot_username=getattr(config.bot, "github_username", None),
             bot_name=config.bot.name,
             bot_email=config.bot.email,
+            default_branch=config.bot.default_branch,
             log=log,
         )
 

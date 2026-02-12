@@ -210,6 +210,29 @@ def test_create_branch_success(adapter: GitHubAdapter) -> None:
     assert req.call_args_list[2][1].get("json") == {"ref": "refs/heads/1-feature", "sha": "abc123"}
 
 
+def test_create_branch_with_base_branch_skips_repo_api(adapter: GitHubAdapter) -> None:
+    """create_branch with base_branch uses it and does not call get repo API."""
+    ref_data = {"object": {"sha": "def456"}}
+
+    def side_effect(method, url, **kwargs):
+        resp = Mock()
+        resp.status_code = 200
+        if method == "GET" and "git/ref/heads/main" in url:
+            resp.json.return_value = ref_data
+        elif method == "POST" and "git/refs" in url:
+            resp.json.return_value = {}
+        else:
+            raise AssertionError(f"Unexpected request: {method} {url}")
+        return resp
+
+    with patch.object(adapter, "_request", side_effect=side_effect) as req:
+        adapter.create_branch("owner/repo", "2-feature", base_branch="main")
+
+    assert req.call_count == 2
+    assert "ref/heads/main" in req.call_args_list[0][0][1]
+    assert req.call_args_list[1][1].get("json") == {"ref": "refs/heads/2-feature", "sha": "def456"}
+
+
 def test_get_default_branch(adapter: GitHubAdapter) -> None:
     """get_default_branch returns default_branch from repo API."""
     mock_resp = Mock()
