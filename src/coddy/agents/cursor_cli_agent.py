@@ -1,18 +1,22 @@
 """
 Cursor CLI agent: headless mode with task file and PR report file.
 
-Writes task to .coddy/task-{n}.md, runs `agent -p --force "..."`, reads .coddy/pr-{n}.md for PR body.
+Coddy writes .coddy/task-{n}.md. Agent runs and either: (1) implements and writes
+.coddy/pr-{n}.md for PR body, or (2) finds data insufficient and appends
+"## Agent clarification request" to the task file and stops; Coddy reads that
+and posts it to the issue. Run log is in .coddy/task-{n}.log.
 """
 
 import logging
 import os
 import subprocess
+from datetime import UTC, datetime
 from pathlib import Path
 from typing import Any, List, Optional
 
 from coddy.agents.base import AIAgent, SufficiencyResult
 from coddy.models import Comment, Issue
-from coddy.services.task_file import read_pr_report, report_file_path, write_task_file
+from coddy.services.task_file import read_pr_report, report_file_path, task_log_path, write_task_file
 
 
 class CursorCLIAgent(AIAgent):
@@ -29,12 +33,20 @@ class CursorCLIAgent(AIAgent):
         timeout: int = 300,
         working_directory: str = ".",
         token: Optional[str] = None,
+        output_format: Optional[str] = None,
+        stream_partial_output: bool = False,
+        model: Optional[str] = None,
+        mode: Optional[str] = None,
         log: Optional[logging.Logger] = None,
     ) -> None:
         self.command = command
         self.timeout = timeout
         self.working_directory = working_directory
         self.token = token
+        self.output_format = output_format
+        self.stream_partial_output = stream_partial_output
+        self.model = model
+        self.mode = mode
         self._log = log or logging.getLogger("coddy.agents.cursor_cli")
 
     def evaluate_sufficiency(self, issue: Issue, comments: List[Comment]) -> SufficiencyResult:
@@ -50,38 +62,67 @@ class CursorCLIAgent(AIAgent):
         """
         Write task file, run Cursor CLI headless, read PR report.
 
+        All run info and CLI stdout/stderr are written to .coddy/task-{issue}.log.
         Returns PR description string for create_pr, or None if report missing.
         """
         repo_dir = Path(self.working_directory).resolve()
         task_path = write_task_file(issue, comments, repo_dir)
         report_path = report_file_path(repo_dir, issue.number)
+        log_path = task_log_path(repo_dir, issue.number)
+        log_path.parent.mkdir(parents=True, exist_ok=True)
 
         prompt = (
             f"Read and execute the task described in {task_path}. "
-            f"Follow all project rules. As the last step of the task (after linter and tests pass), "
-            f"write the PR description to {report_path} "
-            f"(markdown: what was done, how to test, reference to issue #{issue.number})."
+            f"The task file explains: if data is insufficient, append '## Agent clarification request' "
+            f"with your question and stop; otherwise implement and write the PR description to {report_path}."
         )
 
-        cmd = [self.command, "-p", "--force", prompt]
+        cmd = [self.command, "-p", "--force"]
+        if self.output_format:
+            cmd.extend(["--output-format", self.output_format])
+        if self.stream_partial_output:
+            cmd.append("--stream-partial-output")
+        if self.model:
+            cmd.extend(["--model", self.model])
+        if self.mode:
+            cmd.extend(["--mode", self.mode])
+        cmd.append(prompt)
         env = os.environ.copy()
         if self.token:
             env["CURSOR_API_KEY"] = self.token
 
         self._log.info("Running Cursor CLI (headless): %s (timeout=%ss)", self.command, self.timeout)
         try:
-            subprocess.run(
-                cmd,
-                cwd=self.working_directory,
-                env=env,
-                timeout=self.timeout,
-                check=False,
-                capture_output=True,
-                text=True,
-            )
+            with open(log_path, "w", encoding="utf-8") as log_file:
+                log_file.write(
+                    f"[{datetime.now(UTC).isoformat()}] Issue #{issue.number} | "
+                    f"command={self.command} timeout={self.timeout}s\n"
+                )
+                log_file.write(f"Task file: {task_path}\n")
+                log_file.write(f"Report file: {report_path}\n")
+                log_file.write("-" * 60 + "\n")
+                log_file.flush()
+                result = subprocess.run(
+                    cmd,
+                    cwd=self.working_directory,
+                    env=env,
+                    timeout=self.timeout,
+                    check=False,
+                    stdout=log_file,
+                    stderr=subprocess.STDOUT,
+                    text=True,
+                )
+                log_file.write("-" * 60 + "\n")
+                log_file.write(f"Exit code: {result.returncode}\n")
         except subprocess.TimeoutExpired:
+            with open(log_path, "a", encoding="utf-8") as log_file:
+                log_file.write("-" * 60 + "\n")
+                log_file.write(f"Timed out after {self.timeout}s\n")
             self._log.warning("Cursor CLI timed out after %s seconds", self.timeout)
         except FileNotFoundError as e:
+            with open(log_path, "a", encoding="utf-8") as log_file:
+                log_file.write("-" * 60 + "\n")
+                log_file.write(f"Error: CLI not found: {e}\n")
             self._log.warning("Cursor CLI not found: %s", e)
             return None
 
@@ -97,4 +138,8 @@ def make_cursor_cli_agent(config: Any) -> CursorCLIAgent:
         timeout=getattr(cfg, "timeout", 300),
         working_directory=getattr(cfg, "working_directory", "."),
         token=token,
+        output_format=getattr(cfg, "output_format", None),
+        stream_partial_output=getattr(cfg, "stream_partial_output", False),
+        model=getattr(cfg, "model", None),
+        mode=getattr(cfg, "mode", None),
     )

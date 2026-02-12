@@ -75,13 +75,24 @@ class BitbucketConfig(BaseSettings):
 
 
 class CursorCLIAgentConfig(BaseSettings):
-    """Cursor CLI agent settings (binary name is 'agent' from cursor.com/install)."""
+    """Cursor CLI agent settings (cursor.com/cli, cursor.com/docs/cli/headless)."""
 
     command: str = Field(default="agent", description="CLI command name (agent from Cursor install)")
     args: list[str] = Field(default_factory=lambda: ["generate"], description="CLI args")
     timeout: int = Field(default=300, ge=1, description="Timeout in seconds")
     working_directory: str = Field(default=".", description="CWD for agent")
     token: Optional[str] = Field(default=None, description="Agent token; prefer env or secret file")
+    # Headless CLI options (docs: cursor.com/docs/cli/reference/parameters, output-format)
+    output_format: Optional[str] = Field(
+        default=None,
+        description="--output-format: text (default), json, or stream-json",
+    )
+    stream_partial_output: bool = Field(
+        default=False,
+        description="--stream-partial-output (only with output_format=stream-json)",
+    )
+    model: Optional[str] = Field(default=None, description="--model: model to use")
+    mode: Optional[str] = Field(default=None, description="--mode: agent (default), plan, or ask")
 
 
 class WebhookConfig(BaseSettings):

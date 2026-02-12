@@ -6,7 +6,7 @@ a PR description to a report file that we read for create_pr.
 """
 
 from pathlib import Path
-from typing import List
+from typing import List, Optional
 
 from coddy.models import Comment, Issue
 
@@ -25,13 +25,23 @@ TASK_TEMPLATE = """# Task (Issue #{number})
 ---
 Follow project rules (.cursor/rules, docs).
 
-Workflow: implement the task, then run final verification (linter, tests), fix and repeat until all pass.
-As the last step of the task, write a PR description to:
+If the task description and comments do NOT contain enough information to implement
+(e.g. missing acceptance criteria, unclear scope), do NOT implement. Instead append
+a new section at the end of this task file:
+
+## Agent clarification request
+
+Write your specific question(s) here (what is missing, what you need from the user).
+Then stop; do not write the PR report file.
+
+If the task IS clear enough to implement: implement it, run final verification
+(linter, tests), fix and repeat until all pass. As the last step, write a PR
+description to:
 {report_path}
 
 Include: What was done; How to test; Reference to issue #{number}.
 Use markdown. Do not write code in the report file, only the PR description text.
-Write this file only after all other work and checks are complete.
+Write the report file only after all other work and checks are complete.
 """
 
 
@@ -43,6 +53,11 @@ def task_file_path(repo_dir: Path, issue_number: int) -> Path:
 def report_file_path(repo_dir: Path, issue_number: int) -> Path:
     """Path to PR report file written by the agent."""
     return repo_dir / CODDY_DIR / f"pr-{issue_number}.md"
+
+
+def task_log_path(repo_dir: Path, issue_number: int) -> Path:
+    """Path to agent run log file for the issue (headless mode)."""
+    return repo_dir / CODDY_DIR / f"task-{issue_number}.log"
 
 
 def write_task_file(
@@ -72,6 +87,34 @@ def write_task_file(
     )
     path.write_text(content, encoding="utf-8")
     return path
+
+
+CLARIFICATION_HEADING = "## Agent clarification request"
+
+
+def read_agent_clarification(repo_dir: Path, issue_number: int) -> Optional[str]:
+    """
+    Read agent clarification from .coddy/task-{issue_number}.md if present.
+
+    If the agent appended a section "## Agent clarification request", returns its
+    content (until the next ## or EOF). Returns None if file missing or section absent.
+    """
+    path = task_file_path(repo_dir, issue_number)
+    if not path.is_file():
+        return None
+    try:
+        text = path.read_text(encoding="utf-8")
+    except Exception:
+        return None
+    if CLARIFICATION_HEADING not in text:
+        return None
+    start = text.index(CLARIFICATION_HEADING) + len(CLARIFICATION_HEADING)
+    rest = text[start:].lstrip()
+    # Take until next ## or end
+    end = rest.find("\n## ")
+    if end >= 0:
+        rest = rest[:end]
+    return rest.strip() or None
 
 
 def read_pr_report(repo_dir: Path, issue_number: int) -> str:

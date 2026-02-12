@@ -27,8 +27,9 @@ bitbucket:
   api_url: "https://api.bitbucket.org/2.0"
   webhook_path: "/webhook/bitbucket"
 
-# AI Agent Configuration (Cursor CLI: cursor.com/docs/cli/headless)
-# Headless mode: agent -p --force "prompt". Task/report files in .coddy/ (gitignored).
+# AI Agent Configuration (Cursor CLI: cursor.com/cli, cursor.com/docs/cli/headless)
+# Headless: agent -p --force "prompt". Task/report in .coddy/ (gitignored).
+# If agent finds task unclear, it appends "## Agent clarification request" to task file; Coddy posts it to the issue.
 ai_agents:
   cursor_cli:
     command: "agent"
@@ -36,6 +37,11 @@ ai_agents:
     timeout: 300
     working_directory: "."
     # token: CURSOR_AGENT_TOKEN or CURSOR_AGENT_TOKEN_FILE; or CURSOR_API_KEY for headless CLI
+    # Optional CLI params (cursor.com/docs/cli/reference/parameters, output-format):
+    # output_format: "text"   # default; or "json", "stream-json"
+    # stream_partial_output: false   # true only with output_format: "stream-json"
+    # model: "Claude 4 Sonnet"   # --model
+    # mode: "agent"   # agent (default), plan, or ask
 
 # Webhook Server Configuration (optional; if not configured or unreachable, use scheduler)
 webhook:

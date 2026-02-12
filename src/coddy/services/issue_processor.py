@@ -18,6 +18,7 @@ from coddy.services.git_runner import (
     commit_all_and_push,
     fetch_and_checkout_branch,
 )
+from coddy.services.task_file import read_agent_clarification
 
 POLL_INTERVAL_SECONDS = 60
 POLL_MAX_ITERATIONS = 60 * 24  # 24 hours at 1/min
@@ -36,13 +37,15 @@ def process_one_issue(
     log: Optional[logging.Logger] = None,
 ) -> None:
     """
-    Full flow for one issue in one thread: branch, sufficiency check, optional wait for user, then work.
+    Full flow for one issue in one thread: branch, sufficiency check, optional wait, then work.
 
     1. Create branch on remote and checkout locally.
-    2. Ask agent if issue data is sufficient.
+    2. Ask agent if issue data is sufficient (e.g. evaluate_sufficiency).
     3. If not: post clarification, set label 'stuck', poll for new comments;
        when user replies, re-evaluate until sufficient or timeout.
     4. If sufficient: set label 'in progress', call agent.generate_code.
+    5. If generate_code returns no PR body: read .coddy/task-{n}.md for
+       "## Agent clarification request"; if present, post it to the issue and poll.
     """
     logger = log or logging.getLogger("coddy.issue_processor")
     repo_path = Path(repo_dir) if repo_dir is not None else Path.cwd()
@@ -81,33 +84,77 @@ def process_one_issue(
                 logger.warning("Failed to set labels: %s", e)
             pr_body = agent.generate_code(issue, comments)
 
-            commit_message = f"#{issue.number} {issue.title}"
-            if bot_name and bot_email:
+            if pr_body:
+                commit_message = f"#{issue.number} {issue.title}"
+                if bot_name and bot_email:
+                    try:
+                        commit_all_and_push(
+                            branch_name,
+                            commit_message,
+                            bot_name,
+                            bot_email,
+                            repo_dir=repo_path,
+                            log=logger,
+                        )
+                    except Exception as e:
+                        logger.warning("Failed to commit/push: %s", e)
                 try:
-                    commit_all_and_push(
-                        branch_name,
-                        commit_message,
-                        bot_name,
-                        bot_email,
-                        repo_dir=repo_path,
-                        log=logger,
+                    base_branch = adapter.get_default_branch(repo)
+                    adapter.create_pr(
+                        repo,
+                        title=issue.title,
+                        body=pr_body or issue.body or "",
+                        head=branch_name,
+                        base=base_branch,
                     )
-                except Exception as e:
-                    logger.warning("Failed to commit/push: %s", e)
+                    adapter.set_issue_labels(repo, issue.number, ["review"])
+                    logger.info("Issue #%s: PR created, label set to review", issue.number)
+                except GitPlatformError as e:
+                    logger.warning("Failed to create PR or set labels: %s", e)
+                return
 
-            try:
-                base_branch = adapter.get_default_branch(repo)
-                adapter.create_pr(
-                    repo,
-                    title=issue.title,
-                    body=pr_body or issue.body or "",
-                    head=branch_name,
-                    base=base_branch,
+            clarification = read_agent_clarification(repo_path, issue.number)
+            if clarification:
+                logger.info(
+                    "Issue #%s: agent asked for clarification (in task file), posting to issue",
+                    issue.number,
                 )
-                adapter.set_issue_labels(repo, issue.number, ["review"])
-                logger.info("Issue #%s: PR created, label set to review", issue.number)
-            except GitPlatformError as e:
-                logger.warning("Failed to create PR or set labels: %s", e)
+                try:
+                    adapter.create_comment(repo, issue.number, clarification)
+                    adapter.set_issue_labels(repo, issue.number, ["stuck"])
+                except GitPlatformError as e:
+                    logger.warning("Failed to post clarification or set labels: %s", e)
+                    return
+                for c in comments:
+                    if c.created_at and (last_comment_at is None or c.created_at > last_comment_at):
+                        last_comment_at = c.created_at
+                if last_comment_at is None:
+                    last_comment_at = datetime.now(UTC)
+                logger.info(
+                    "Issue #%s: waiting for user reply (polling every %ss)",
+                    issue.number,
+                    poll_interval,
+                )
+                for _ in range(POLL_MAX_ITERATIONS):
+                    time.sleep(poll_interval)
+                    new_comments = adapter.get_issue_comments(repo, issue.number, since=last_comment_at)
+                    user_comments = [c for c in new_comments if bot_username is None or c.author != bot_username]
+                    if not user_comments:
+                        continue
+                    for c in user_comments:
+                        if c.created_at and c.created_at > last_comment_at:
+                            last_comment_at = c.created_at
+                    logger.info("Issue #%s: new user comment(s), re-evaluating", issue.number)
+                    break
+                else:
+                    logger.warning("Issue #%s: poll timeout waiting for user reply", issue.number)
+                    return
+                continue
+
+            logger.warning(
+                "Issue #%s: agent produced no PR report and no clarification in task file",
+                issue.number,
+            )
             return
 
         logger.info("Issue #%s: data insufficient, asking for clarification", issue.number)
