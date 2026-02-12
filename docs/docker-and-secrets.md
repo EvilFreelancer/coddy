@@ -38,6 +38,29 @@
 
 For the Cursor CLI agent to call the API, it needs a token. The setup script creates `.secrets/cursor_agent_token` with a placeholder; `docker-compose.yml` mounts it. Replace the placeholder with your Cursor Agent token to enable the agent, or leave it as is if you use `stub_agent`. Alternatively set `CURSOR_AGENT_TOKEN` in the environment (e.g. in a non-committed `.env`).
 
+### How to obtain the Cursor API key
+
+The token is **not** stored anywhere on your system by default. You must create a **User API Key** in the Cursor dashboard and then put it into the secret file for Docker.
+
+1. **Open the Cursor dashboard**  
+   Go to [cursor.com/dashboard](https://cursor.com/dashboard) and sign in.
+
+2. **Open Integrations and User API Keys**  
+   In the dashboard, go to **Integrations → User API Keys**, or open:  
+   [cursor.com/dashboard?tab=integrations](https://cursor.com/dashboard?tab=integrations)
+
+3. **Create a User API Key**  
+   Create a new key and copy it. This is the token used for the headless Cursor CLI (and for Coddy in Docker).
+
+4. **Put the key into the Docker secret**  
+   Either overwrite the secret file with the key (no trailing newline):
+   ```bash
+   echo -n "YOUR_COPIED_KEY" > .secrets/cursor_agent_token
+   ```
+   or edit `.secrets/cursor_agent_token` and replace the placeholder with the key.
+
+The app passes this token to the Cursor CLI as the `CURSOR_API_KEY` environment variable. If you only use `agent login` on the host, that stores credentials locally in Cursor's config but does not give you a file to copy; for Docker you need the **User API Key** from the dashboard.
+
 ## Config file
 
 The `config.yaml` file is mounted from the host via bind mount in `docker-compose.yml`. Always copy `config.example.yaml` to `config.yaml` before first run - the example contains all available settings with defaults.
