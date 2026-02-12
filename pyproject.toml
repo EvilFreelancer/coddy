@@ -24,6 +24,9 @@ dev = [
 [project.scripts]
 coddy = "coddy.main:main"
 
+[tool.setuptools.packages.find]
+where = ["."]
+
 [build-system]
 requires = ["setuptools>=61.0", "wheel"]
 build-backend = "setuptools.build_meta"
@@ -44,7 +47,7 @@ testpaths = ["tests"]
 python_files = "test_*.py"
 python_classes = "Test*"
 python_functions = "test_*"
-addopts = "-v --cov=src/coddy --cov-report=term-missing"
+addopts = "-v --cov=coddy --cov-report=term-missing"
 
 [tool.mypy]
 python_version = "3.11"

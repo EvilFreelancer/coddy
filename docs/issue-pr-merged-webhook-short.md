@@ -22,6 +22,6 @@
 
 ## References
 
-- Current webhook: `src/coddy/webhook/server.py`, `handlers.py`
-- Config: `src/coddy/config.py`; default branch: `adapters/github.py` `get_default_branch`, `services/issue_processor.py`
+- Current webhook: `coddy/webhook/server.py`, `handlers.py`
+- Config: `coddy/config.py`; default branch: `adapters/github.py` `get_default_branch`, `services/issue_processor.py`
 - Full spec: `docs/issue-pr-merged-webhook-and-restart.md`

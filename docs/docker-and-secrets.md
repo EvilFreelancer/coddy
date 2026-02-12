@@ -2,21 +2,18 @@
 
 ## First run
 
-1. **Copy config from example**:
+1. **Create secrets and config** (creates `.secrets/` and `config.yaml` from templates):
 
    ```bash
-   cp config.example.yaml config.yaml
-   # Edit config.yaml if needed (repo, webhook settings, etc.)
+   chmod +x scripts/setup-docker-secrets.sh
+   ./scripts/setup-docker-secrets.sh
    ```
 
-2. **Create secret files** (never commit `.secrets/`):
+2. **Replace placeholders with real values** (never commit `.secrets/`):
 
-   ```bash
-   mkdir -p .secrets
-   echo "YOUR_GITHUB_PERSONAL_ACCESS_TOKEN" > .secrets/github_token
-   echo "YOUR_WEBHOOK_SECRET"             > .secrets/webhook_secret
-   chmod 600 .secrets/github_token .secrets/webhook_secret
-   ```
+   - Edit `.secrets/github_token` - put your GitHub Personal Access Token
+   - Edit `.secrets/webhook_secret` - put the secret you configured in GitHub webhook
+   - Edit `config.yaml` if needed (repository, webhook path, etc.). For Docker, set `webhook.enabled: true` so the HTTP server listens on port 8000 and the health check succeeds.
 
 3. **Start the bot**:
 
@@ -24,7 +21,7 @@
    docker compose up -d
    ```
 
-3. **Check**:
+4. **Check**:
 
    ```bash
    curl http://localhost:8000/health
@@ -39,15 +36,7 @@
 
 ## Cursor Agent token (optional)
 
-For the Cursor CLI agent to call the API, it needs a token. You can pass it via env or a secret file:
-
-1. **Create** `.secrets/cursor_agent_token` with your Cursor Agent token.
-2. **Uncomment** in `docker-compose.yml`:
-   - under `secrets`: `- cursor_agent_token`
-   - under `environment`: `CURSOR_AGENT_TOKEN_FILE: /run/secrets/cursor_agent_token`
-   - under `secrets`: the `cursor_agent_token` entry with `file: ./.secrets/cursor_agent_token`
-
-Alternatively set `CURSOR_AGENT_TOKEN` in the environment (e.g. in a non-committed `.env`).
+For the Cursor CLI agent to call the API, it needs a token. The setup script creates `.secrets/cursor_agent_token` with a placeholder; `docker-compose.yml` mounts it. Replace the placeholder with your Cursor Agent token to enable the agent, or leave it as is if you use `stub_agent`. Alternatively set `CURSOR_AGENT_TOKEN` in the environment (e.g. in a non-committed `.env`).
 
 ## Config file
 

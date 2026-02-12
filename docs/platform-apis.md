@@ -1,6 +1,6 @@
 # Git Platform APIs - Authentication and Adapter Development
 
-This document describes how to authenticate and which API endpoints to use for GitHub, GitLab, and Bitbucket. It is intended for developing the platform adapters (`src/coddy/adapters/`).
+This document describes how to authenticate and which API endpoints to use for GitHub, GitLab, and Bitbucket. It is intended for developing the platform adapters (`coddy/adapters/`).
 
 ## Overview: Tokens Required
 

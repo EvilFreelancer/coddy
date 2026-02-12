@@ -1,6 +1,6 @@
-# Coddy Bot - run with: docker compose up -d
-# Secrets: .secrets/github_token, .secrets/webhook_secret
-# Optional (for Cursor Agent): create .secrets/cursor_agent_token and uncomment below
+# Coddy Bot - run with: ./scripts/setup-docker-secrets.sh then docker compose up -d
+# Required secrets: .secrets/github_token, .secrets/webhook_secret
+# Optional: .secrets/cursor_agent_token (for Cursor CLI agent); setup script creates a placeholder
 
 services:
   coddy:

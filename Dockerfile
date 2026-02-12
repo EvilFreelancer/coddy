@@ -4,21 +4,19 @@ WORKDIR /app
 
 # Install system dependencies
 RUN apt update \
- && apt install -y --no-install-recommends git curl \
+ && apt install -y --no-install-recommends git curl nodejs \
+ && ln -sf /usr/bin/nodejs /usr/local/bin/node \
  && rm -rf /var/lib/apt/lists/*
 
-# Copy requirements
+# Copy project and install (package coddy at repo root)
 COPY pyproject.toml ./
-RUN pip install --no-cache-dir -e ".[dev]"
-
-# Copy application code
-COPY src/ ./src/
+COPY coddy/ ./coddy/
 COPY tests/ ./tests/
+RUN pip install --no-cache-dir -e ".[dev]"
 
 # Install Cursor CLI (agent binary)
 RUN curl -fsSL https://cursor.com/install | bash \
- && cp /root/.local/bin/agent /usr/local/bin/agent \
- && agent --version
+ && cp /root/.local/bin/agent /usr/local/bin/agent
 
 # Create non-root user
 RUN useradd -m -u 1000 coddy && chown -R coddy:coddy /app

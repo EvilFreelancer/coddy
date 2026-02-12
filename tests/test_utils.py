@@ -1,7 +1,5 @@
 """Tests for branch name sanitization utility."""
 
-import pytest
-
 from coddy.utils import is_valid_branch_name, sanitize_branch_name
 
 
@@ -63,7 +61,8 @@ def test_is_valid_branch_name_accepts_valid_names() -> None:
 
 
 def test_is_valid_branch_name_rejects_invalid() -> None:
-    """Invalid branch names are rejected (spaces, special chars, double dot)."""
+    """Invalid branch names are rejected (spaces, special chars, double
+    dot)."""
     assert is_valid_branch_name("42 add feature") is False
     assert is_valid_branch_name("42..add") is False
     assert is_valid_branch_name("42~feature") is False

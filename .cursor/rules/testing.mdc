@@ -118,7 +118,7 @@ pytest tests/test_module.py::test_function -v
 
 ### Run with Coverage
 ```bash
-pytest tests/ --cov=src/coddy --cov-report=html
+pytest tests/ --cov=coddy --cov-report=html
 ```
 
 ### Run Fast Tests Only

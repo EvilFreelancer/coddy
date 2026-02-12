@@ -126,13 +126,13 @@ Before making a commit, **always** run `pre-commit run -a` and fix any reported 
 
 ### Implementation
 1. Added test `test_new_feature` in `tests/test_module.py` (initially red)
-2. Implemented `new_method` in `src/coddy/module.py`
+2. Implemented `new_method` in `coddy/module.py`
 3. Ran new test - passed (green)
 4. Ran all tests - all green (X passed)
 5. Ran linter - all checks passed
 
 ### Changed Files
-- `src/coddy/module.py` - added new_method implementation
+- `coddy/module.py` - added new_method implementation
 - `tests/test_module.py` - added test_new_feature test
 ```
 
@@ -193,13 +193,13 @@ First write a test reproducing this bug, make sure the error actually exists, th
 
 ### Solution
 1. Added test `test_bug_reproduction` in `tests/test_module.py` (initially red)
-2. Fixed method `method_name` in `src/coddy/module.py`
+2. Fixed method `method_name` in `coddy/module.py`
 3. Ran new test - passed (green)
 4. Ran all tests - all green (X passed)
 5. Ran linter - all checks passed
 
 ### Changed Files
-- `src/coddy/module.py` - fixed processing logic
+- `coddy/module.py` - fixed processing logic
 - `tests/test_module.py` - added test for bug
 ```
 

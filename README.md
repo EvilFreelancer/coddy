@@ -53,7 +53,7 @@ source .venv/bin/activate  # On Windows: .venv\Scripts\activate
 3. Install dependencies:
 
 ```bash
-pip install -r requirements.txt
+pip install -e ".[dev]"
 ```
 
 4. Configure the bot:
@@ -80,25 +80,23 @@ python -m coddy.main --config /path/to/config.yaml
 python -m coddy.main --check   # validate config and exit
 ```
 
-### Docker Compose (recommended)
+### Docker (recommended)
 
-Tokens are passed via **Docker secrets** (files), not in the image or compose file.
+The easiest way to run the bot is with Docker Compose. Tokens are passed via **Docker secrets** (files in `.secrets/`), not in the image or compose file.
 
-1. **Copy config from example**:
-
-```bash
-cp config.example.yaml config.yaml
-# Edit config.yaml if needed (repo, webhook settings, etc.)
-```
-
-2. **Create secret files** (do not commit them; `.secrets/` is in `.gitignore`):
+1. **Create secrets and config** (creates `.secrets/` and `config.yaml` from templates):
 
 ```bash
-mkdir -p .secrets
-echo "YOUR_GITHUB_PAT" > .secrets/github_token
-echo "YOUR_WEBHOOK_SECRET" > .secrets/webhook_secret
-chmod 600 .secrets/github_token .secrets/webhook_secret
+chmod +x scripts/setup-docker-secrets.sh
+./scripts/setup-docker-secrets.sh
 ```
+
+2. **Replace placeholders** with real values (do not commit `.secrets/`):
+
+- Edit `.secrets/github_token` - your GitHub Personal Access Token
+- Edit `.secrets/webhook_secret` - the secret from your GitHub webhook
+- (Optional) Edit `.secrets/cursor_agent_token` for Cursor CLI agent, or leave the placeholder
+- Edit `config.yaml` if needed (repository, webhook path). Set `webhook.enabled: true` so the server listens on port 8000 and the health check works.
 
 3. **Start the bot**:
 
@@ -106,18 +104,23 @@ chmod 600 .secrets/github_token .secrets/webhook_secret
 docker compose up -d
 ```
 
-4. **Health check**: `curl http://localhost:8000/health`
+4. **Check**:
 
-**Config**: `config.yaml` is mounted from the host via bind mount. Always copy `config.example.yaml` to `config.yaml` before first run - the example contains all available settings with defaults. Never commit `config.yaml` (it's in `.gitignore`).
+```bash
+curl http://localhost:8000/health
+docker compose logs -f coddy
+```
+
+See [Docker and Secrets](docs/docker-and-secrets.md) for details (Cursor Agent token, config mount, CLI in container).
 
 ### Docker (single run)
 
 ```bash
 docker build -t coddy-bot .
-docker run -e GITHUB_TOKEN=... -e WEBHOOK_SECRET=... coddy-bot
+docker run -e GITHUB_TOKEN=... -e WEBHOOK_SECRET=... -v $(pwd)/config.yaml:/app/config.yaml:ro coddy-bot
 ```
 
-Or with secret files: `-e GITHUB_TOKEN_FILE=/run/secrets/gt -v $(pwd)/.secrets/github_token:/run/secrets/gt:ro`
+Or mount secret files and pass `*_FILE` env vars; see `docker-compose.yml` for the exact variable names.
 
 ## Configuration
 
@@ -142,16 +145,16 @@ When a pull request is merged (GitHub `pull_request` event with `action: closed`
 ### Project Structure
 
 ```
-codda/
+coddy/
+├── coddy/             # Main application code
+│   ├── adapters/      # Git platform adapters
+│   ├── agents/        # AI agent implementations
+│   ├── services/      # Core services
+│   └── webhook/       # Webhook server
 ├── docs/              # Documentation
-├── src/
-│   └── coddy/        # Main application code
-│       ├── adapters/ # Git platform adapters
-│       ├── agents/   # AI agent implementations
-│       ├── services/ # Core services
-│       └── webhook/  # Webhook server
-├── tests/            # Test suite
-├── .cursor/          # Cursor IDE rules
+├── tests/             # Test suite
+├── scripts/           # Setup scripts (e.g. setup-docker-secrets.sh)
+├── .cursor/           # Cursor IDE rules
 └── README.md
 ```
 

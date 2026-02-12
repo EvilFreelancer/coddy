@@ -12,7 +12,7 @@ Coddy Bot follows a modular architecture with clear separation of concerns. The 
 
 ### Layer 1: Platform Adapters
 
-**Location**: `src/coddy/adapters/`
+**Location**: `coddy/adapters/`
 
 Abstract interfaces and implementations for Git hosting platforms. Authentication, endpoints, and mapping of operations across GitHub, GitLab, and Bitbucket are described in [Platform APIs](platform-apis.md).
 
@@ -25,7 +25,7 @@ Abstract interfaces and implementations for Git hosting platforms. Authenticatio
 
 ### Layer 2: AI Agent Interface
 
-**Location**: `src/coddy/agents/`
+**Location**: `coddy/agents/`
 
 Pluggable interface for AI code generation agents.
 
@@ -37,7 +37,7 @@ Pluggable interface for AI code generation agents.
 
 ### Layer 3: Core Services
 
-**Location**: `src/coddy/services/`
+**Location**: `coddy/services/`
 
 Business logic and orchestration services.
 
@@ -52,7 +52,7 @@ Business logic and orchestration services.
 
 ### Layer 4: Webhook Server and Scheduler
 
-**Location**: `src/coddy/webhook/`, `src/coddy/scheduler/` (or under `services/`)
+**Location**: `coddy/webhook/`, `coddy/scheduler/` (or under `services/`)
 
 Event sources for the Issue Monitor.
 
@@ -63,7 +63,7 @@ Event sources for the Issue Monitor.
 
 ### Layer 5: Application Entry Point
 
-**Location**: `src/coddy/`
+**Location**: `coddy/`
 
 Main application entry point and configuration.
 

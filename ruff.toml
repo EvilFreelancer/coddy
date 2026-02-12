@@ -6,7 +6,7 @@ select = ["E", "F", "I", "N", "W", "UP"]
 ignore = ["UP035", "UP006"]
 
 [lint.per-file-ignores]
-"src/coddy/webhook/server.py" = ["N802"]
+"coddy/webhook/server.py" = ["N802"]
 
 [lint.isort]
 known-first-party = ["coddy"]

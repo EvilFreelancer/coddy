@@ -70,7 +70,7 @@ ruff check --fix .
 pytest tests/ -v
 
 # Run with coverage
-pytest tests/ --cov=src/coddy --cov-report=html
+pytest tests/ --cov=coddy --cov-report=html
 
 # Run specific test
 pytest tests/test_module.py::test_function -v
@@ -141,17 +141,17 @@ Follow the TDD workflow described in `.cursor/rules/workflow.mdc`:
 
 ## Adding New Git Platform
 
-1. Create adapter class in `src/coddy/adapters/` implementing `GitPlatformAdapter`
+1. Create adapter class in `coddy/adapters/` implementing `GitPlatformAdapter`
 2. Add tests in `tests/test_adapters/`
-3. Update factory in `src/coddy/adapters/factory.py`
+3. Update factory in `coddy/adapters/factory.py`
 4. Add configuration in `config.example.yaml`
 5. Update documentation
 
 ## Adding New AI Agent
 
-1. Create agent class in `src/coddy/agents/` implementing `AIAgent`
+1. Create agent class in `coddy/agents/` implementing `AIAgent`
 2. Add tests in `tests/test_agents/`
-3. Update factory in `src/coddy/agents/factory.py`
+3. Update factory in `coddy/agents/factory.py`
 4. Add configuration in `config.example.yaml`
 5. Update documentation
 

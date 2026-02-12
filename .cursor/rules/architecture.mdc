@@ -1,6 +1,6 @@
 ---
 description: Architectural rules and boundaries for Coddy Bot
-globs: src/**/*.py, tests/**/*.py
+globs: coddy/**/*.py, tests/**/*.py
 alwaysApply: true
 ---
 
@@ -13,7 +13,7 @@ The project uses **modular architecture with clear separation of concerns**. Eac
 ## Architecture Layers (Implementation Order)
 
 ### Layer 1: Platform Adapters
-**Location**: `src/coddy/adapters/`
+**Location**: `coddy/adapters/`
 
 Lowest layer - abstract interfaces and implementations for Git hosting platforms.
 
@@ -25,7 +25,7 @@ Lowest layer - abstract interfaces and implementations for Git hosting platforms
 **Dependencies**: None (only external libraries)
 
 ### Layer 2: AI Agent Interface
-**Location**: `src/coddy/agents/`
+**Location**: `coddy/agents/`
 
 Pluggable interface for AI code generation agents.
 
@@ -36,7 +36,7 @@ Pluggable interface for AI code generation agents.
 **Dependencies**: Layer 1 (may need Git platform for context)
 
 ### Layer 3: Core Services
-**Location**: `src/coddy/services/`
+**Location**: `coddy/services/`
 
 Business logic and orchestration services.
 
@@ -49,7 +49,7 @@ Business logic and orchestration services.
 **Dependencies**: Layers 1, 2
 
 ### Layer 4: Webhook Server
-**Location**: `src/coddy/webhook/`
+**Location**: `coddy/webhook/`
 
 Webhook server for receiving Git platform events.
 
@@ -60,7 +60,7 @@ Webhook server for receiving Git platform events.
 **Dependencies**: Layers 1, 3
 
 ### Layer 5: Application Entry Point
-**Location**: `src/coddy/`
+**Location**: `coddy/`
 
 Main application and configuration.
 

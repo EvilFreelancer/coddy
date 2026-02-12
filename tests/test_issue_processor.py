@@ -10,7 +10,8 @@ from coddy.services.issue_processor import process_one_issue
 
 
 def test_process_one_issue_sets_review_label_after_pr_created(tmp_path: Path) -> None:
-    """When agent completes and returns PR body, issue gets label 'review' after create_pr."""
+    """When agent completes and returns PR body, issue gets label 'review'
+    after create_pr."""
     dt = datetime(2024, 1, 15, 10, 0, 0, tzinfo=UTC)
     issue = Issue(6, "Add review label", "Body", "user", [], "open", dt, dt)
 

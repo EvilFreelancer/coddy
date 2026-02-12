@@ -12,11 +12,11 @@ When adding new functionality, follow **"one class at a time"** principle, start
 
 ## Architecture Layers (from lowest to highest)
 
-1. **Layer 1: Platform Adapters** (`src/coddy/adapters/`)
-2. **Layer 2: AI Agent Interface** (`src/coddy/agents/`)
-3. **Layer 3: Core Services** (`src/coddy/services/`)
-4. **Layer 4: Webhook Server** (`src/coddy/webhook/`)
-5. **Layer 5: Application Entry Point** (`src/coddy/`)
+1. **Layer 1: Platform Adapters** (`coddy/adapters/`)
+2. **Layer 2: AI Agent Interface** (`coddy/agents/`)
+3. **Layer 3: Core Services** (`coddy/services/`)
+4. **Layer 4: Webhook Server** (`coddy/webhook/`)
+5. **Layer 5: Application Entry Point** (`coddy/`)
 
 See @architecture.mdc for detailed layer descriptions.
 
@@ -45,7 +45,7 @@ Only after lower layer class is ready and tested, move to upper layer classes.
 
 ### Step 1: Define Abstract Interface (if needed)
 ```python
-# src/coddy/adapters/base.py
+# coddy/adapters/base.py
 class GitPlatformAdapter(ABC):
     @abstractmethod
     def create_branch(self, repo: str, branch_name: str) -> None:
@@ -63,7 +63,7 @@ def test_gitlab_create_branch():
 
 ### Step 3: Implement Adapter (Layer 1)
 ```python
-# src/coddy/adapters/gitlab.py
+# coddy/adapters/gitlab.py
 class GitLabAdapter(GitPlatformAdapter):
     def create_branch(self, repo: str, branch_name: str) -> None:
         """Create branch in GitLab repository."""
@@ -82,7 +82,7 @@ def test_code_generator_with_gitlab():
 ### Step 5: Use in Services (Layer 3)
 Only after adapter is ready and tested:
 ```python
-# src/coddy/services/code_generator.py
+# coddy/services/code_generator.py
 class CodeGenerator:
     def __init__(self, adapter: GitPlatformAdapter):
         self.adapter = adapter
@@ -92,7 +92,7 @@ class CodeGenerator:
 
 ### Step 1: Define Abstract Interface (if needed)
 ```python
-# src/coddy/agents/base.py
+# coddy/agents/base.py
 class AIAgent(ABC):
     @abstractmethod
     def generate_code(self, task: Task) -> CodeChanges:
@@ -110,7 +110,7 @@ def test_custom_agent_generate_code():
 
 ### Step 3: Implement Agent (Layer 2)
 ```python
-# src/coddy/agents/custom_agent.py
+# coddy/agents/custom_agent.py
 class CustomAgent(AIAgent):
     def generate_code(self, task: Task) -> CodeChanges:
         """Generate code using custom agent."""
@@ -119,7 +119,7 @@ class CustomAgent(AIAgent):
 
 ### Step 4: Use in Services (Layer 3)
 ```python
-# src/coddy/services/code_generator.py
+# coddy/services/code_generator.py
 class CodeGenerator:
     def __init__(self, agent: AIAgent):
         self.agent = agent
