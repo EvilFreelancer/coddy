@@ -58,7 +58,8 @@ class CursorCLIAgent(AIAgent):
 
         prompt = (
             f"Read and execute the task described in {task_path}. "
-            f"Follow all project rules. When finished, write the PR description to {report_path} "
+            f"Follow all project rules. As the last step of the task (after linter and tests pass), "
+            f"write the PR description to {report_path} "
             f"(markdown: what was done, how to test, reference to issue #{issue.number})."
         )
 

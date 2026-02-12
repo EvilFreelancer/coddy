@@ -20,13 +20,26 @@ When the agent works on an issue (creates a branch and makes commits), follow th
 - Example: `#42 Add login form and validation`
 - The bot may make **multiple commits** during work (each Cursor edit session = one commit); each commit uses this format
 
+### Full Task Flow (Code Agent - When Working on an Issue)
+
+1. Read and execute the task from `.coddy/task-{issue_number}.md` (issue title, description, comments)
+2. Implement the task following project rules (.cursor/rules, docs)
+3. **Final verification loop** (repeat until all pass):
+   - Run **full test suite**: `pytest tests/ -v`
+   - Run **linter**: `ruff check .` and **formatter**: `ruff format .`
+   - If there are failures: fix the issues, **commit** with message `#{issue_number} <description of fix>`, then repeat from step 3
+4. **Last mandatory step**: Write the description of what was done to `.coddy/pr-{issue_number}.md` (PR report). Include: what was done, how to test, reference to issue. Use markdown; do not write code in this file. This step must be done **after** all implementation and verification (linter, tests) are complete. The bot uses this file as the PR description when creating the pull request.
+5. Only then consider the work session complete (bot will commit/push and open PR).
+
+See @docs/system-specification.md for the full issue processing workflow.
+
 ### After Completing Edits (Final Verification Loop)
+
 1. Run **linter**: `ruff check .` and **formatter**: `ruff format .`
 2. Run **full test suite**: `pytest tests/ -v`
 3. If there are failures: fix the issues, **commit** with message `#{issue_number} <description of fix>`, then repeat from step 1 until all checks pass
-4. Only then consider the work session complete (e.g. open PR or report)
-
-See @docs/system-specification.md for the full issue processing workflow.
+4. **Last mandatory step**: Write the PR description (what was done) to `.coddy/pr-{issue_number}.md` - the code agent must do this as the final step of every task
+5. Only then consider the work session complete (e.g. open PR or report)
 
 ## Documentation
 

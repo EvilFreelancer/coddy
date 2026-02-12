@@ -137,7 +137,7 @@ Used for:
 4. **Issue/PR Retrieval** → Platform adapter fetches issue or MR/PR details (and all comments when processing new comment)
 5. **Data Sufficiency** → Bot evaluates whether issue description and comments contain enough information to implement. If not: post comment in issue asking for clarification, set label `stuck`, stop. If yes: set label `in progress`, optionally write spec in comments, proceed
 6. **Code Generation** → Code generator creates branch, switches to it, calls AI agent, commits, pushes
-7. **PR Creation** → PR manager creates pull request with description that includes what was done, how to test, reference to issue; issue label set to `review`
+7. **PR Creation** → Code agent writes PR description (what was done, how to test, reference to issue) to `.coddy/pr-{issue_number}.md` as the last step of the task; PR manager creates pull request using that description; issue label set to `review`
 8. **Monitoring** → Webhook or scheduler monitors PR for new reviews and comments
 
 ### Review Processing Flow

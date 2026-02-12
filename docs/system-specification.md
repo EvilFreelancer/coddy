@@ -74,6 +74,7 @@ The bot still manages **issue labels** (tags) for any issue it works on: e.g. `i
    - **Commit message format**: `#{number} Description of what was done`
      - Example: `#42 Add login form and validation`
    - After completing edits, the agent runs a **final verification**: linter (`ruff check .`, `ruff format .`) and full test suite (`pytest tests/ -v`). If there are failures, the agent fixes them, commits with the same format, and repeats until all checks pass.
+   - **Last step of the task**: The code agent writes the PR description (what was done, how to test, reference to issue) to `.coddy/pr-{issue_number}.md`. This must be done after all implementation and verification are complete. The bot uses this file as the PR body when creating the pull request.
    - Commits are signed with bot identity (configurable).
    - Bot pushes the branch to the remote.
 

@@ -23,11 +23,15 @@ TASK_TEMPLATE = """# Task (Issue #{number})
 {comments}
 
 ---
-Follow project rules (.cursor/rules, docs). When finished, write a PR description to:
+Follow project rules (.cursor/rules, docs).
+
+Workflow: implement the task, then run final verification (linter, tests), fix and repeat until all pass.
+As the last step of the task, write a PR description to:
 {report_path}
 
 Include: What was done; How to test; Reference to issue #{number}.
 Use markdown. Do not write code in the report file, only the PR description text.
+Write this file only after all other work and checks are complete.
 """
 
 
@@ -53,7 +57,6 @@ def write_task_file(
     """
     path = task_file_path(repo_dir, issue.number)
     path.parent.mkdir(parents=True, exist_ok=True)
-    report_path = report_file_path(repo_dir, issue.number)
     report_path_relative = Path(CODDY_DIR) / f"pr-{issue.number}.md"
     comments_text = "\n\n".join(
         f"**{c.author}**: {c.body}" for c in sorted(comments, key=lambda x: x.created_at or x.id)
