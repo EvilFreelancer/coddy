@@ -37,6 +37,9 @@ class BotConfig(BaseSettings):
     email: str = Field(default="bot@coddy.dev", description="Bot email for commits")
     git_platform: str = Field(default="github", description="github, gitlab, bitbucket")
     repository: str = Field(default="owner/repo", description="Target repo e.g. EvilFreelancer/coddy")
+    github_username: Optional[str] = Field(
+        default=None, description="Bot GitHub login (to skip own comments when polling)"
+    )
     webhook_secret: str = Field(default="", description="Secret for webhook verification")
     ai_agent: str = Field(default="cursor_cli", description="AI agent key from ai_agents")
 
