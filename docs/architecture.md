@@ -132,14 +132,13 @@ Used for:
 ### Issue Processing Flow
 
 1. **Trigger Event** → Webhook or **Scheduler** (polling) produces "bot assigned to issue" or "user provided MR/PR number"; only then is work queued
-2. **New comment on issue** → If the scheduler (or webhook) detects a new comment on an issue the bot is working on, Issue Monitor passes full issue + comments to the pipeline so the bot takes user input into account (re-spec, clarify, or continue)
+2. **New comment on issue** → If the scheduler (or webhook) detects a new comment on an issue the bot is working on, Issue Monitor passes full issue + comments to the pipeline so the bot takes user input into account (re-evaluate sufficiency, re-spec, or continue)
 3. **Event Parsing** → Handler parses event type and confirms it is an assignment or MR reference
 4. **Issue/PR Retrieval** → Platform adapter fetches issue or MR/PR details (and all comments when processing new comment)
-5. **Specification** → Specification generator creates or updates spec
-6. **Code Generation** → Code generator calls AI agent
-7. **Commit** → Changes committed to branch
-8. **PR Creation** → PR manager creates pull request
-9. **Monitoring** → Webhook or scheduler monitors PR for new reviews and comments
+5. **Data Sufficiency** → Bot evaluates whether issue description and comments contain enough information to implement. If not: post comment in issue asking for clarification, set label `stuck`, stop. If yes: set label `in progress`, optionally write spec in comments, proceed
+6. **Code Generation** → Code generator creates branch, switches to it, calls AI agent, commits, pushes
+7. **PR Creation** → PR manager creates pull request with description that includes what was done, how to test, reference to issue; issue label set to `review`
+8. **Monitoring** → Webhook or scheduler monitors PR for new reviews and comments
 
 ### Review Processing Flow
 

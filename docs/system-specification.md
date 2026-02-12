@@ -54,30 +54,37 @@ The bot still manages **issue labels** (tags) for any issue it works on: e.g. `i
    - Only issues/MRs explicitly assigned or referenced are processed; the bot does not auto-pick every new issue.
    - **New messages in an issue**: If a user adds a comment to an issue the bot is working on, that input must be taken into account (see "Scheduler" and "Issue comments" below). The bot re-reads the issue body and all comments before continuing or when deciding next steps.
 
-2. **Issue Analysis**
-   - Bot reads issue description and context
-   - Bot creates feature specification in issue comments
-   - Bot labels issue (e.g., "in progress", "needs clarification")
+2. **Issue Analysis and Data Sufficiency**
+   - Bot reads issue description (title, body) and all issue comments.
+   - Bot decides whether the information is **sufficient** to proceed (e.g. clear scope, acceptance criteria, or enough context to implement).
+   - **If data is insufficient**:
+     - Bot posts a **comment in the issue** asking the user to clarify (what to do, what is expected, which files/repo area, etc.).
+     - Bot sets issue label `stuck` (or equivalent "needs clarification") and does **not** create a branch or generate code. Work stops until the user provides more information (new comment); then the bot re-reads the issue and re-evaluates sufficiency.
+   - **If data is sufficient**:
+     - Bot sets label `in progress`.
+     - Optionally writes a short feature specification in issue comments.
+     - Proceeds to step 3 (Code Generation).
 
 3. **Code Generation**
    - Bot creates branch with format: `{number}-short-issue-description-2-3-words`
      - Example: `42-add-user-login` (issue number, then 2-3 word description from issue title, English, lowercase, words separated by dashes)
-   - Bot switches to branch
-   - Bot calls AI agent with issue context
-   - Agent generates code following specification
-   - Bot may make **multiple commits** during work (each Cursor edit session typically produces one commit)
+   - Bot switches to that branch.
+   - Bot calls AI agent with issue context; agent generates code and applies changes.
+   - Bot may make **multiple commits** during work (each Cursor edit session typically produces one commit).
    - **Commit message format**: `#{number} Description of what was done`
      - Example: `#42 Add login form and validation`
    - After completing edits, the agent runs a **final verification**: linter (`ruff check .`, `ruff format .`) and full test suite (`pytest tests/ -v`). If there are failures, the agent fixes them, commits with the same format, and repeats until all checks pass.
-   - Commits are signed with bot identity (configurable)
+   - Commits are signed with bot identity (configurable).
+   - Bot pushes the branch to the remote.
 
 4. **Pull Request Creation**
-   - Bot creates PR from branch to main/master
+   - Bot creates a Pull Request from the new branch to main/master.
    - PR description includes:
-     - Summary of changes
+     - **What was done** (summary of changes, list of implemented items)
      - How to test the feature
-     - How to use the feature
-     - Reference to original issue
+     - How to use the feature (if applicable)
+     - Reference to the original issue
+   - Bot updates issue label to `review`.
 
 5. **Review Handling**
    - Bot monitors PR for comments and reviews
@@ -95,12 +102,12 @@ The bot still manages **issue labels** (tags) for any issue it works on: e.g. `i
 
 The bot manages issue labels (tags) for any issue it works on. Do not forget to set and update these:
 
-- `in progress` - Bot is actively working on the issue
-- `stuck` - Bot needs clarification or cannot proceed
+- `in progress` - Bot has enough data and is actively working (branch created, code generation in progress)
+- `stuck` - Bot asked for clarification (data insufficient); work paused until user responds in the issue
 - `review` - Code is ready for review (PR/MR created)
 - `done` - Issue is completed and merged
 
-Labels are updated as the workflow progresses (e.g. set `in progress` when starting, `review` when PR is opened, `done` when merged).
+Labels are updated as the workflow progresses: set `stuck` when asking for clarification; set `in progress` when starting implementation; set `review` when PR is opened; set `done` when merged.
 
 ## Component Specifications
 
@@ -138,7 +145,7 @@ class GitPlatformAdapter(ABC):
 **Responsibilities**:
 - Receive events from webhooks (when configured) or from the scheduler (polling)
 - When the bot is **assigned** to an issue, queue that issue for processing
-- When a **new comment is added to an issue** the bot is working on (or is assignee of), treat it as new input: re-read issue body and all comments, then continue work or adjust (e.g. clarification, change of scope, or user-provided MR/PR number)
+- When a **new comment is added to an issue** the bot is working on (or is assignee of), treat it as new input: re-read issue body and all comments, then re-evaluate data sufficiency and either continue work, ask for clarification again, or adjust (e.g. change of scope, or user-provided MR/PR number)
 - Optionally: handle user messages that reference an MR/PR number (e.g. "work on MR !42")
 - Queue only issues/MRs that are explicitly assigned or referenced
 - Track issue and PR state
@@ -170,14 +177,13 @@ class AIAgent(ABC):
 
 ### Code Generator
 
-**Purpose**: Orchestrate code generation workflow
+**Purpose**: Orchestrate code generation workflow (invoked only when issue data is sufficient).
 
 **Responsibilities**:
-- Prepare context for AI agent (codebase, issue description)
-- Call AI agent with task
-- Handle agent responses and clarifications
-- Manage code changes and commits
-- Create branch with format `{issue_number}-short-description-2-3-words` (English, lowercase, dashes; derived from issue title)
+- Prepare context for AI agent (codebase, issue description, comments)
+- Create branch with format `{issue_number}-short-description-2-3-words` (English, lowercase, dashes; derived from issue title) and switch to it
+- Call AI agent with task; handle agent responses and clarifications
+- Manage code changes and commits; push branch to remote
 - Create commit messages with format `#{issue_number} Description of what was done`
 - Support multiple commits per issue (one per edit session); after edits are done, run final linter and tests, fix and commit if needed until all pass
 
@@ -186,8 +192,8 @@ class AIAgent(ABC):
 **Purpose**: Create and manage pull requests
 
 **Responsibilities**:
-- Create PRs with proper descriptions
-- Format PR descriptions with testing instructions
+- Create PR from current branch to main/master after code generation is complete
+- PR description must include **what was done** (summary of changes, list of implemented items), how to test, how to use (if applicable), and reference to the original issue
 - Monitor PR status
 - Handle PR updates
 
