@@ -67,6 +67,7 @@ The bot still manages **issue labels** (tags) for any issue it works on: e.g. `i
 
 3. **Code Generation**
    - Bot creates branch with format: `{number}-short-issue-description-2-3-words`
+     - **Branch must be created from the default branch** (e.g. main/master). Before creating: checkout default branch, pull latest, then create and switch to the new branch. This ensures each issue branch is based on current default, not on a previous feature branch.
      - Example: `42-add-user-login` (issue number, then 2-3 word description from issue title, English, lowercase, words separated by dashes)
    - Bot switches to that branch.
    - Bot calls AI agent with issue context; agent generates code and applies changes.
@@ -74,7 +75,7 @@ The bot still manages **issue labels** (tags) for any issue it works on: e.g. `i
    - **Commit message format**: `#{number} Description of what was done`
      - Example: `#42 Add login form and validation`
    - After completing edits, the agent runs a **final verification**: linter (`ruff check .`, `ruff format .`) and full test suite (`pytest tests/ -v`). If there are failures, the agent fixes them, commits with the same format, and repeats until all checks pass.
-   - **Last step of the task**: The code agent writes the PR description (what was done, how to test, reference to issue) to `.coddy/pr-{issue_number}.md`. This must be done after all implementation and verification are complete. The bot uses this file as the PR body when creating the pull request.
+   - **Last step of the task**: The code agent writes the PR description (what was done, how to test, reference to issue, and a line that closes the issue, e.g. `Closes #42` or `Fixes #42`) to `.coddy/pr-{issue_number}.md`. This must be done after all implementation and verification are complete. The bot uses this file as the PR body when creating the pull request.
    - Commits are signed with bot identity (configurable).
    - Bot pushes the branch to the remote.
 
@@ -85,7 +86,9 @@ The bot still manages **issue labels** (tags) for any issue it works on: e.g. `i
      - How to test the feature
      - How to use the feature (if applicable)
      - Reference to the original issue
+     - A line that closes the issue when the PR is merged (e.g. `Closes #42` or `Fixes #42`)
    - Bot updates issue label to `review`.
+   - **Bot switches back to the default branch** so the next run or new issue starts from default (do not leave the repo on the feature branch).
 
 5. **Review Handling**
    - Bot monitors PR for comments and reviews
@@ -194,7 +197,7 @@ class AIAgent(ABC):
 
 **Responsibilities**:
 - Create PR from current branch to main/master after code generation is complete
-- PR description must include **what was done** (summary of changes, list of implemented items), how to test, how to use (if applicable), and reference to the original issue
+- PR description must include **what was done** (summary of changes, list of implemented items), how to test, how to use (if applicable), reference to the original issue, and a line that closes the issue (e.g. `Closes #42` or `Fixes #42`)
 - Monitor PR status
 - Handle PR updates
 
