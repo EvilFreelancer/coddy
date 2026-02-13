@@ -4,7 +4,7 @@ WORKDIR /app
 
 # Install system dependencies
 RUN apt update \
- && apt install -y --no-install-recommends git curl nodejs \
+ && apt install -y --no-install-recommends git curl ssh nodejs \
  && ln -sf /usr/bin/nodejs /usr/local/bin/node \
  && rm -rf /var/lib/apt/lists/*
 
