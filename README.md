@@ -196,10 +196,10 @@ See [Development Rules](.cursor/rules/) for coding standards and workflow.
 - [x] System specification
 - [x] GitHub adapter implementation
 - [x] Cursor CLI agent integration
-- [ ] Webhook server
-- [ ] Issue processing workflow
-- [ ] PR creation and management
-- [ ] Review handling
+- [x] Webhook server
+- [x] Issue processing workflow
+- [x] PR creation and management
+- [x] Review handling
 - [ ] GitLab support
 - [ ] BitBucket support
 - [ ] Multiple AI agent support
