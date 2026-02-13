@@ -8,8 +8,7 @@ _DOUBLE_DASH_RE = re.compile(r"-+")
 
 
 def sanitize_branch_name(text: str, max_length: int = 100) -> str:
-    """
-    Sanitize a string for use as (part of) a branch name.
+    """Sanitize a string for use as (part of) a branch name.
 
     Replaces spaces with dashes, removes invalid characters, lowercases,
     collapses and strips dashes, and truncates to max_length without
@@ -36,8 +35,8 @@ def sanitize_branch_name(text: str, max_length: int = 100) -> str:
 
 
 def is_valid_branch_name(name: str) -> bool:
-    """
-    Check that a branch name is valid (transformation was applied correctly).
+    """Check that a branch name is valid (transformation was applied
+    correctly).
 
     Valid: non-empty, only lowercase letters, digits, dashes; no "..";
     no leading or trailing dash.

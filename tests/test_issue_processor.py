@@ -2,7 +2,7 @@
 
 from datetime import UTC, datetime
 from pathlib import Path
-from unittest.mock import Mock, patch
+from unittest.mock import ANY, Mock, patch
 
 from coddy.agents.base import SufficiencyResult
 from coddy.models import Issue
@@ -32,6 +32,9 @@ def test_process_one_issue_sets_review_label_after_pr_created(tmp_path: Path) ->
         patch(
             "coddy.services.issue_processor.commit_all_and_push",
         ),
+        patch(
+            "coddy.services.issue_processor.checkout_branch",
+        ),
     ):
         process_one_issue(
             adapter,
@@ -51,3 +54,44 @@ def test_process_one_issue_sets_review_label_after_pr_created(tmp_path: Path) ->
     assert review_calls[0][0][0] == "owner/repo"
     assert review_calls[0][0][1] == 6
     assert review_calls[0][0][2] == ["review"]
+
+
+def test_process_one_issue_switches_to_default_branch_after_pr_created(tmp_path: Path) -> None:
+    """When PR is created, checkout_branch is called to switch back to default
+    branch."""
+    dt = datetime(2024, 1, 15, 10, 0, 0, tzinfo=UTC)
+    issue = Issue(7, "Test switch branch", "Body", "user", [], "open", dt, dt)
+
+    adapter = Mock()
+    adapter.get_issue.return_value = issue
+    adapter.get_issue_comments.return_value = []
+    adapter.get_default_branch.return_value = "main"
+    adapter.create_pr.return_value = None
+
+    agent = Mock()
+    agent.evaluate_sufficiency.return_value = SufficiencyResult(sufficient=True)
+    agent.generate_code.return_value = "PR description body"
+
+    with (
+        patch(
+            "coddy.services.issue_processor.fetch_and_checkout_branch",
+        ),
+        patch(
+            "coddy.services.issue_processor.commit_all_and_push",
+        ),
+        patch(
+            "coddy.services.issue_processor.checkout_branch",
+        ) as mock_checkout,
+    ):
+        process_one_issue(
+            adapter,
+            agent,
+            issue,
+            "owner/repo",
+            repo_dir=tmp_path,
+            bot_name="Bot",
+            bot_email="bot@example.com",
+            default_branch="main",
+        )
+
+    mock_checkout.assert_called_once_with("main", repo_dir=tmp_path, log=ANY)

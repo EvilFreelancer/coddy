@@ -42,17 +42,17 @@ For the Cursor CLI agent to call the API, it needs a token. The setup script cre
 
 The token is **not** stored anywhere on your system by default. You must create a **User API Key** in the Cursor dashboard and then put it into the secret file for Docker.
 
-1. **Open the Cursor dashboard**  
+1. **Open the Cursor dashboard**
    Go to [cursor.com/dashboard](https://cursor.com/dashboard) and sign in.
 
-2. **Open Integrations and User API Keys**  
-   In the dashboard, go to **Integrations → User API Keys**, or open:  
+2. **Open Integrations and User API Keys**
+   In the dashboard, go to **Integrations → User API Keys**, or open:
    [cursor.com/dashboard?tab=integrations](https://cursor.com/dashboard?tab=integrations)
 
-3. **Create a User API Key**  
+3. **Create a User API Key**
    Create a new key and copy it. This is the token used for the headless Cursor CLI (and for Coddy in Docker).
 
-4. **Put the key into the Docker secret**  
+4. **Put the key into the Docker secret**
    Either overwrite the secret file with the key (no trailing newline):
    ```bash
    echo -n "YOUR_COPIED_KEY" > .secrets/cursor_agent_token
