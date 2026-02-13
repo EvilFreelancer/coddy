@@ -20,7 +20,7 @@ services:
     volumes:
       # Mount config from host (copy config.example.yaml to config.yaml first)
       - ./config.yaml:/app/config.yaml:ro
-      - .:/app:rw
+      - ./coddy:/app/coddy:rw
     ports:
       - "${CODDY_PORT:-8000}:8000"
     command: ["python", "-m", "coddy.main", "--config", "/app/config.yaml"]
