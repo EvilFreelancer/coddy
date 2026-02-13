@@ -14,6 +14,7 @@ from coddy.agents.base import AIAgent
 from coddy.models import Issue
 from coddy.services.git_runner import (
     branch_name_from_issue,
+    checkout_branch,
     commit_all_and_push,
     fetch_and_checkout_branch,
 )
@@ -111,6 +112,13 @@ def process_one_issue(
                     logger.info("Issue #%s: PR created, label set to review", issue.number)
                 except GitPlatformError as e:
                     logger.warning("Failed to create PR or set labels: %s", e)
+                # Switch back to default branch after PR creation
+                if default_branch:
+                    try:
+                        checkout_branch(default_branch, repo_dir=repo_path, log=logger)
+                        logger.info("Switched back to default branch: %s", default_branch)
+                    except Exception as e:
+                        logger.warning("Failed to switch back to default branch %s: %s", default_branch, e)
                 return
 
             clarification = read_agent_clarification(repo_path, issue.number)
