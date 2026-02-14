@@ -162,7 +162,6 @@ coddy/
 │   │   ├── task_yaml.py    # Task/PR report YAML paths and helpers
 │   │   ├── ralph_loop.py   # Development loop
 │   │   └── run.py         # Worker entry point
-│   ├── utils/              # Re-exports from services.git (backward compat)
 │   ├── config.py           # Configuration
 │   ├── main.py             # CLI (observer | worker)
 │   ├── daemon.py           # Thin wrapper (legacy): python -m coddy.daemon -> observer.run

@@ -108,7 +108,6 @@ coddy/
 │   │   ├── task_yaml.py     # Task and PR report YAML
 │   │   ├── ralph_loop.py    # Development loop
 │   │   └── run.py           # Worker entry point
-│   ├── utils/               # Re-exports from coddy.services.git (backward compat)
 │   ├── config.py            # Configuration management
 │   └── main.py              # Application entry point (observer | worker)
 ├── tests/                   # Test suite

@@ -28,7 +28,7 @@ Coddy Bot follows a **two-module** design: an **observer** that receives webhook
 
 ## Package Layout
 
-The codebase is organized into services (shared), observer, worker, and utils.
+The codebase is organized into services (shared), observer, and worker.
 
 ### Services (`coddy/services/`)
 
@@ -66,17 +66,7 @@ Runs the development loop and uses the AI agent.
 | `worker/ralph_loop.py` | Ralph loop: sufficiency, branch, repeated agent runs until PR report or clarification. |
 | `worker/run.py` | Worker entry: reads queued issues from store, currently dry-run stub (writes empty PR YAML). |
 
-**Dependencies**: observer (models), `coddy.services.store`, `coddy.services.git`, utils.
-
-### Utils (`coddy/utils/`)
-
-Shared utilities; no business logic.
-
-| Path | Description |
-|------|-------------|
-| `utils/__init__.py` | Re-exports git helpers from `coddy.services.git` (branch name, checkout, pull, commit_and_push). |
-
-**Dependencies**: `coddy.services.git`.
+**Dependencies**: observer (models), `coddy.services.store`, `coddy.services.git`.
 
 ### Application Entry (`coddy/`)
 
@@ -132,7 +122,7 @@ Orchestrates the development loop and uses the agent.
 - `ralph_loop.py` - Sufficiency, branch, loop until PR report or clarification
 - `run.py` - Queue polling, run ralph loop per task
 
-**Dependencies**: Observer (adapters, queue, models), utils, worker.agents, worker.task_yaml
+**Dependencies**: Observer (adapters, queue, models), worker.agents, worker.task_yaml
 
 ## Component Interactions
 
@@ -193,7 +183,7 @@ See [System Specification](system-specification.md) for the full configuration s
 - **Integration Tests**: Component interactions (e.g. webhook -> handler -> issue store)
 - **Mock Platform**: Mock Git platform API and agent in tests
 
-Tests live in `tests/`; import from `coddy.observer.*`, `coddy.worker.*`, `coddy.utils.*`.
+Tests live in `tests/`; import from `coddy.observer.*`, `coddy.worker.*`, `coddy.services.*`.
 
 ## Deployment
 

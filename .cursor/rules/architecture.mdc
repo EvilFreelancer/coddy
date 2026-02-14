@@ -8,7 +8,7 @@ alwaysApply: true
 
 ## General Architecture
 
-The project uses **modular architecture with clear separation of concerns**. Code is organized into **services** (shared store), **observer** (events, planning), **worker** (ralph loop, agents), and **utils** (shared helpers). See `docs/architecture.md` for the full layout.
+The project uses **modular architecture with clear separation of concerns**. Code is organized into **services** (shared store), **observer** (events, planning), and **worker** (ralph loop, agents). See `docs/architecture.md` for the full layout.
 
 ## Package Layout
 
@@ -40,15 +40,7 @@ Runs the development loop and uses the AI agent.
 - **ralph_loop.py** - Ralph loop (sufficiency, branch, agent loop)
 - **run.py** - Worker entry (dry-run stub: read issues, write empty PR YAML)
 
-**Dependencies**: observer (models), coddy.services.store, coddy.services.git, utils
-
-### Utils (`coddy/utils/`)
-
-Shared utilities; re-exports from coddy.services.git. No business logic.
-
-- **__init__.py** - Re-exports from coddy.services.git (branch, checkout, pull, commit_and_push)
-
-**Dependencies**: coddy.services.git
+**Dependencies**: observer (models), coddy.services.store, coddy.services.git
 
 ### Application entry (`coddy/`)
 
@@ -89,7 +81,7 @@ Shared utilities; re-exports from coddy.services.git. No business logic.
 ## Design Principles
 
 1. **One class at a time**: When implementing new functionality, create one class at a time, starting from lower layers
-2. **Minimal dependencies**: Observer does not depend on worker; worker depends on observer and utils
+2. **Minimal dependencies**: Observer does not depend on worker; worker depends on observer
 3. **Factory pattern**: Use factory helpers for agents (e.g. `make_cursor_cli_agent(config)`)
 4. **Strategy pattern**: Use strategy pattern for different platform/agent implementations
 5. **Type hints**: Use type hints for all functions and methods
@@ -109,7 +101,7 @@ Shared utilities; re-exports from coddy.services.git. No business logic.
 ## Allowed
 
 - Observer using only adapters, issues, queue, models
-- Worker using observer (adapters, queue, models) and utils
+- Worker using observer (adapters, queue, models)
 - Abstract base classes for interfaces
 - Factory helpers for creating agents
 - Configuration through environment variables
