@@ -7,7 +7,7 @@ from coddy.services.store import (
     IssueComment,
     IssueFile,
     PRFile,
-    add_message,
+    add_comment,
     create_issue,
     list_issues_by_status,
     list_pending_plan,
@@ -22,7 +22,7 @@ from coddy.services.store import (
 
 
 class TestIssueStore:
-    """Tests for issue_store (load, save, create, add_message, set_issue_status, list_*)."""
+    """Tests for issue_store (load, save, create, add_comment, set_issue_status, list_*)."""
 
     def test_create_issue_writes_yaml(self, tmp_path: Path) -> None:
         """create_issue writes .coddy/issues/{n}.yaml with status pending_plan."""
@@ -91,10 +91,10 @@ class TestIssueStore:
         )
         assert load_issue(tmp_path, 14) is None
 
-    def test_add_message_appends_and_updates(self, tmp_path: Path) -> None:
-        """add_message appends to comments and updates updated_at."""
+    def test_add_comment_appends_and_updates(self, tmp_path: Path) -> None:
+        """add_comment appends to comments and updates updated_at."""
         create_issue(tmp_path, 9, "o/r", "T", "D", "@u")
-        add_message(tmp_path, 9, "@bot", "Here is the plan.", created_at=2000, updated_at=2000)
+        add_comment(tmp_path, 9, "@bot", "Here is the plan.", created_at=2000, updated_at=2000)
         issue = load_issue(tmp_path, 9)
         assert issue is not None
         assert len(issue.comments) == 2
@@ -103,9 +103,9 @@ class TestIssueStore:
         assert issue.comments[1].created_at == 2000
         assert issue.comments[1].updated_at == 2000
 
-    def test_add_message_when_issue_not_found_does_nothing(self, tmp_path: Path) -> None:
-        """add_message does not crash when issue file is missing."""
-        add_message(tmp_path, 999, "@bot", "Hello")
+    def test_add_comment_when_issue_not_found_does_nothing(self, tmp_path: Path) -> None:
+        """add_comment does not crash when issue file is missing."""
+        add_comment(tmp_path, 999, "@bot", "Hello")
         assert load_issue(tmp_path, 999) is None
 
     def test_set_issue_status_updates_file(self, tmp_path: Path) -> None:

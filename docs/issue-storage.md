@@ -40,7 +40,7 @@ comments:
 - `coddy.services.store.schemas.issue_comment.IssueComment`: name, content, created_at, updated_at (all required).
 - `coddy.services.store.schemas.issue_file.IssueFile`: author, created_at, updated_at, status, title, description, comments, repo, issue_id, assigned_at.
 
-Re-exported from `coddy.services.store`: `IssueComment`, `IssueFile`, `load_issue`, `save_issue`, `create_issue`, `add_message`, `set_issue_status`, `list_queued`, `list_pending_plan`, `list_issues_by_status`.
+Re-exported from `coddy.services.store`: `IssueComment`, `IssueFile`, `load_issue`, `save_issue`, `create_issue`, `add_comment`, `set_issue_status`, `list_queued`, `list_pending_plan`, `list_issues_by_status`.
 
 ## Markdown rendering
 

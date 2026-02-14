@@ -10,7 +10,7 @@ from pathlib import Path
 
 from coddy.observer.adapters.base import GitPlatformAdapter, GitPlatformError
 from coddy.observer.models import Issue
-from coddy.services.store import add_message, set_issue_status
+from coddy.services.store import add_comment, set_issue_status
 from coddy.worker.agents.base import AIAgent
 
 LOG = logging.getLogger("coddy.observer.planner")
@@ -66,7 +66,7 @@ def run_planner(
         logger.warning("Failed to post plan comment: %s", e)
         return
     name = f"@{bot_username}" if bot_username else "@bot"
-    add_message(repo_dir, issue.number, name, message)
+    add_comment(repo_dir, issue.number, name, message)
     set_issue_status(repo_dir, issue.number, "waiting_confirmation")
     logger.info("Posted plan for issue #%s, waiting for user confirmation", issue.number)
 
@@ -85,10 +85,10 @@ def on_user_confirmed(
     """Add user comment to issue store, set status queued (worker picks from
     .coddy/issues/), post work started."""
     logger = log or LOG
-    add_message(repo_dir, issue_number, f"@{comment_author}", comment_body)
+    add_comment(repo_dir, issue_number, f"@{comment_author}", comment_body)
     set_issue_status(repo_dir, issue_number, "queued")
     bot_name = f"@{bot_username}" if bot_username else "@bot"
-    add_message(repo_dir, issue_number, bot_name, TEMPLATE_WORK_STARTED)
+    add_comment(repo_dir, issue_number, bot_name, TEMPLATE_WORK_STARTED)
     message = TEMPLATE_WORK_STARTED
     try:
         adapter.create_comment(repo, issue_number, message)

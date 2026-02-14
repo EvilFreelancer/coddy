@@ -1,7 +1,7 @@
 """Root storage logic for issues and PRs (.coddy/issues/, .coddy/prs/)."""
 
 from coddy.services.store.issue_store import (
-    add_message,
+    add_comment,
     create_issue,
     list_issues_by_status,
     list_pending_plan,
@@ -17,7 +17,7 @@ __all__ = [
     "IssueComment",
     "IssueFile",
     "PRFile",
-    "add_message",
+    "add_comment",
     "create_issue",
     "list_issues_by_status",
     "list_pending_plan",

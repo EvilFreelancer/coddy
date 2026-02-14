@@ -36,7 +36,7 @@ Shared layer used by both observer and worker.
 
 | Path | Description |
 |------|-------------|
-| `services/store/` | Issue and PR storage (`.coddy/issues/*.yaml`, `.coddy/prs/*.yaml`). Schemas: IssueFile, IssueComment, PRFile. Functions: create_issue, load_issue, save_issue, set_issue_status, list_queued, list_pending_plan, add_message; load_pr, save_pr, set_pr_status. |
+| `services/store/` | Issue and PR storage (`.coddy/issues/*.yaml`, `.coddy/prs/*.yaml`). Schemas: IssueFile, IssueComment, PRFile. Functions: create_issue, load_issue, save_issue, set_issue_status, list_queued, list_pending_plan, add_comment; load_pr, save_pr, set_pr_status. |
 | `services/git/` | Git operations: `branches.py` (branch name sanitization, checkout, fetch); `commits.py` (stage and commit); `push_pull.py` (pull, push, commit_all_and_push). Used by observer (webhook, review) and worker (ralph loop). |
 
 **Dependencies**: Standard lib, third-party (pydantic, yaml). No observer or worker imports.

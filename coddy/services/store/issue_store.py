@@ -94,7 +94,7 @@ def create_issue(
     return issue
 
 
-def add_message(
+def add_comment(
     repo_dir: Path,
     issue_id: int,
     name: str,
@@ -102,10 +102,10 @@ def add_message(
     created_at: int | None = None,
     updated_at: int | None = None,
 ) -> None:
-    """Append a message to the issue thread and bump updated_at."""
+    """Append a comment to the issue thread and bump updated_at."""
     issue = load_issue(repo_dir, issue_id)
     if not issue:
-        LOG.warning("Cannot add message: issue #%s not found", issue_id)
+        LOG.warning("Cannot add comment: issue #%s not found", issue_id)
         return
     now_ts = int(datetime.now(UTC).timestamp())
     ts_created = created_at if created_at is not None else now_ts
@@ -115,7 +115,7 @@ def add_message(
     )
     issue.updated_at = datetime.now(UTC).isoformat()
     save_issue(repo_dir, issue_id, issue)
-    LOG.debug("Added message to issue #%s from %s", issue_id, name)
+    LOG.debug("Added comment to issue #%s from %s", issue_id, name)
 
 
 def set_issue_status(repo_dir: Path, issue_id: int, status: str) -> None:
