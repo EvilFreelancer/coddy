@@ -1,11 +1,6 @@
-"""Issue storage in .coddy/issues/ (YAML per issue).
+"""Root storage logic for issues and PRs (.coddy/issues/, .coddy/prs/)."""
 
-Re-exports from store.
-"""
-
-from coddy.observer.store import (
-    IssueComment,
-    IssueFile,
+from coddy.observer.store.issue_store import (
     add_message,
     create_issue,
     list_issues_by_status,
@@ -15,16 +10,22 @@ from coddy.observer.store import (
     save_issue,
     set_status,
 )
+from coddy.observer.store.pr_store import load_pr, save_pr, set_pr_status
+from coddy.observer.store.schemas import IssueComment, IssueFile, PRFile
 
 __all__ = [
     "IssueComment",
     "IssueFile",
+    "PRFile",
     "add_message",
     "create_issue",
-    "load_issue",
     "list_issues_by_status",
     "list_pending_plan",
     "list_queued",
+    "load_issue",
+    "load_pr",
     "save_issue",
+    "save_pr",
     "set_status",
+    "set_pr_status",
 ]

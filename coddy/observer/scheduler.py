@@ -8,8 +8,8 @@ from pathlib import Path
 from typing import Any
 
 from coddy.observer.adapters.github import GitHubAdapter
-from coddy.observer.issues.issue_store import list_pending_plan
 from coddy.observer.planner import run_planner
+from coddy.observer.store import list_pending_plan
 from coddy.worker.agents.cursor_cli_agent import make_cursor_cli_agent
 
 LOG = logging.getLogger("coddy.observer.scheduler")
@@ -67,7 +67,10 @@ def run_scheduler_loop(
 
 
 def start_scheduler_thread(config: Any, repo_dir: Path) -> threading.Thread:
-    """Start scheduler in a daemon thread. Call after config and repo_dir are set."""
+    """Start scheduler in a daemon thread.
+
+    Call after config and repo_dir are set.
+    """
     interval = getattr(config.scheduler, "interval_seconds", 60)
     thread = threading.Thread(
         target=run_scheduler_loop,

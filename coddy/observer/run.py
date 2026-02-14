@@ -76,9 +76,7 @@ def main(argv: list[str] | None = None) -> int:
         if Path("config.example.yaml").is_file():
             config_path = Path("config.example.yaml")
             logging.basicConfig(level=logging.INFO)
-            logging.getLogger("coddy.observer.run").warning(
-                "config.yaml not found, using config.example.yaml"
-            )
+            logging.getLogger("coddy.observer.run").warning("config.yaml not found, using config.example.yaml")
 
     config = load_config(config_path)
 

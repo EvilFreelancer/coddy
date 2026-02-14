@@ -17,7 +17,7 @@ Coddy runs as two services: **observer** (webhook server, enqueues tasks) and **
    - Edit `.secrets/webhook_secret` - put the secret you configured in GitHub webhook
    - Edit `config.yaml`: set `webhook.enabled: true`, and under `ai_agents.cursor_cli` set `working_directory: /app/workspace` so both containers use the shared workspace.
 
-3. **Workspace (repo)**  
+3. **Workspace (repo)**
    The worker needs the target repo on disk to run git and the Cursor CLI. Either:
    - Copy `docker-compose.dist.yaml` to `docker-compose.yaml` and add a bind mount for your repo, e.g. under `coddy-worker` and `coddy-daemon` (observer service):
      ```yaml

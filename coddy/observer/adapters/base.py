@@ -14,7 +14,8 @@ class GitPlatformError(Exception):
 
 
 class GitPlatformAdapter(ABC):
-    """Abstract interface for Git hosting platforms (GitHub, GitLab, Bitbucket)."""
+    """Abstract interface for Git hosting platforms (GitHub, GitLab,
+    Bitbucket)."""
 
     @abstractmethod
     def get_issue(self, repo: str, issue_number: int) -> Issue:
@@ -69,15 +70,24 @@ class GitPlatformAdapter(ABC):
         ...
 
     def get_pr(self, repo: str, pr_number: int) -> PR:
-        """Fetch PR by number. Override if needed."""
+        """Fetch PR by number.
+
+        Override if needed.
+        """
         raise NotImplementedError("get_pr")
 
     def list_open_issues(self, repo: str) -> List[Issue]:
-        """List open issues (exclude PRs). Override if needed."""
+        """List open issues (exclude PRs).
+
+        Override if needed.
+        """
         return []
 
     def list_pr_review_comments(self, repo: str, pr_number: int) -> List[ReviewComment]:
-        """List review comments on a PR. Override if needed."""
+        """List review comments on a PR.
+
+        Override if needed.
+        """
         return []
 
     def reply_to_review_comment(
@@ -87,5 +97,8 @@ class GitPlatformAdapter(ABC):
         comment_id: int,
         body: str,
     ) -> Comment:
-        """Reply to a review comment. Override if needed."""
+        """Reply to a review comment.
+
+        Override if needed.
+        """
         raise NotImplementedError("reply_to_review_comment")

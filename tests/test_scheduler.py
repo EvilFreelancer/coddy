@@ -10,7 +10,8 @@ from coddy.observer.scheduler import run_scheduler_loop
 
 
 def test_scheduler_runs_planner_when_pending_plan_older_than_idle_minutes(tmp_path: Path) -> None:
-    """When a pending_plan issue has assigned_at older than idle_minutes, planner runs once per tick."""
+    """When a pending_plan issue has assigned_at older than idle_minutes,
+    planner runs once per tick."""
     import yaml
 
     from coddy.observer.issues import create_issue, load_issue

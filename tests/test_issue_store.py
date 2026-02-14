@@ -3,8 +3,8 @@
 from pathlib import Path
 
 from coddy.observer.issues import (
+    IssueComment,
     IssueFile,
-    IssueMessage,
     add_message,
     create_issue,
     list_issues_by_status,
@@ -51,8 +51,8 @@ def test_load_issue_returns_issue_file(tmp_path: Path) -> None:
     assert issue.status == "pending_plan"
     assert issue.title == "T"
     assert issue.repo == "o/r"
-    assert len(issue.messages) == 1
-    assert "T" in issue.messages[0].content and "D" in issue.messages[0].content
+    assert len(issue.comments) == 1
+    assert "T" in issue.comments[0].content and "D" in issue.comments[0].content
 
 
 def test_load_issue_missing_returns_none(tmp_path: Path) -> None:
@@ -61,15 +61,16 @@ def test_load_issue_missing_returns_none(tmp_path: Path) -> None:
 
 
 def test_add_message_appends_and_updates(tmp_path: Path) -> None:
-    """add_message appends to messages and updates updated_at."""
+    """add_message appends to comments and updates updated_at."""
     create_issue(tmp_path, 9, "o/r", "T", "D", "@u")
-    add_message(tmp_path, 9, "@bot", "Here is the plan.", 2000)
+    add_message(tmp_path, 9, "@bot", "Here is the plan.", created_at=2000, updated_at=2000)
     issue = load_issue(tmp_path, 9)
     assert issue is not None
-    assert len(issue.messages) == 2
-    assert issue.messages[1].name == "@bot"
-    assert issue.messages[1].content == "Here is the plan."
-    assert issue.messages[1].timestamp == 2000
+    assert len(issue.comments) == 2
+    assert issue.comments[1].name == "@bot"
+    assert issue.comments[1].content == "Here is the plan."
+    assert issue.comments[1].created_at == 2000
+    assert issue.comments[1].updated_at == 2000
 
 
 def test_set_status_updates_file(tmp_path: Path) -> None:
@@ -119,7 +120,7 @@ def test_save_issue_persists_manual_issue(tmp_path: Path) -> None:
         status="queued",
         title="Manual",
         description="Desc",
-        messages=[IssueMessage(name="@x", content="Manual\n\nDesc", timestamp=0)],
+        comments=[IssueComment(name="@x", content="Manual\n\nDesc", created_at=0, updated_at=0)],
         repo="a/b",
         issue_number=99,
     )

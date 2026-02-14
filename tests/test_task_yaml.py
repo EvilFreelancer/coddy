@@ -1,4 +1,5 @@
-"""Tests for task and report YAML paths, task log path, and agent clarification."""
+"""Tests for task and report YAML paths, task log path, and agent
+clarification."""
 
 from datetime import datetime
 from pathlib import Path
@@ -40,7 +41,8 @@ def test_read_agent_clarification_missing_file(tmp_path: Path) -> None:
 
 
 def test_read_agent_clarification_no_key(tmp_path: Path) -> None:
-    """read_agent_clarification returns None when agent_clarification key is absent."""
+    """read_agent_clarification returns None when agent_clarification key is
+    absent."""
     path = tmp_path / ".coddy" / "task-1.yaml"
     path.parent.mkdir(parents=True, exist_ok=True)
     path.write_text(yaml.dump({"number": 1, "title": "Task", "body": "Do something."}), encoding="utf-8")
@@ -80,7 +82,8 @@ def test_review_task_file_path() -> None:
 
 
 def test_review_reply_file_path() -> None:
-    """review_reply_file_path returns .coddy/review-reply-{pr}-{comment_id}.yaml."""
+    """review_reply_file_path returns .coddy/review-
+    reply-{pr}-{comment_id}.yaml."""
     assert review_reply_file_path(Path("/repo"), 5, 100) == Path("/repo/.coddy/review-reply-5-100.yaml")
 
 

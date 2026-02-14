@@ -1,7 +1,7 @@
 """Handle GitHub webhook events (e.g. PR review comment, PR merged).
 
-Parses payload and delegates to review handler or runs git
-pull and restarts on PR merged.
+Parses payload and delegates to review handler or runs git pull and
+restarts on PR merged.
 """
 
 import logging
@@ -11,11 +11,17 @@ from pathlib import Path
 from typing import Any, Dict
 
 from coddy.observer.adapters.github import GitHubAdapter
-from coddy.observer.issues.issue_store import create_issue, load_issue, set_status as set_issue_status
 from coddy.observer.models import ReviewComment
-from coddy.observer.prs.pr_store import set_pr_status
 from coddy.observer.planner import is_affirmative_comment, on_user_confirmed
 from coddy.observer.pr.review_handler import process_pr_review
+from coddy.observer.store import (
+    create_issue,
+    load_issue,
+    set_pr_status,
+)
+from coddy.observer.store import (
+    set_status as set_issue_status,
+)
 from coddy.utils.git_runner import GitRunnerError, run_git_pull
 from coddy.worker.agents.cursor_cli_agent import make_cursor_cli_agent
 

@@ -1,6 +1,6 @@
 """Tests for YAML issue -> markdown converter (for agent)."""
 
-from coddy.observer.issues import IssueFile, IssueMessage
+from coddy.observer.issues import IssueComment, IssueFile
 from coddy.utils.issue_to_markdown import issue_to_markdown
 
 
@@ -21,27 +21,27 @@ def test_issue_to_markdown_title_and_description() -> None:
     assert "Please add a button." in md
 
 
-def test_issue_to_markdown_with_messages() -> None:
-    """Converter includes messages section with name, content, timestamp."""
+def test_issue_to_markdown_with_comments() -> None:
+    """Converter includes comments section with name, content, created_at, updated_at."""
     issue = IssueFile(
         author="@user",
         created_at="2024-01-01T00:00:00Z",
         updated_at="2024-01-01T00:00:00Z",
         title="T",
         description="D",
-        messages=[
-            IssueMessage(name="@user", content="T\n\nD", timestamp=1000),
-            IssueMessage(name="@bot", content="Here is the plan.", timestamp=2000),
+        comments=[
+            IssueComment(name="@user", content="T\n\nD", created_at=1000, updated_at=1000),
+            IssueComment(name="@bot", content="Here is the plan.", created_at=2000, updated_at=2000),
         ],
     )
     md = issue_to_markdown(issue, issue_number=7)
-    assert "## Messages" in md
+    assert "## Comments" in md
     assert "### @user" in md
     assert "T\n\nD" in md
     assert "### @bot" in md
     assert "Here is the plan." in md
-    assert "timestamp: 1000" in md
-    assert "timestamp: 2000" in md
+    assert "created_at: 1000" in md
+    assert "created_at: 2000" in md
 
 
 def test_issue_to_markdown_without_issue_number() -> None:
@@ -71,15 +71,16 @@ def test_issue_to_markdown_empty_description() -> None:
     assert "(no description)" in md
 
 
-def test_issue_to_markdown_no_messages_section_when_empty() -> None:
-    """When messages is empty, Messages section is not added with empty content."""
+def test_issue_to_markdown_no_comments_section_when_empty() -> None:
+    """When comments is empty, Comments section is not added with empty
+    content."""
     issue = IssueFile(
         author="@u",
         created_at="2024-01-01T00:00:00Z",
         updated_at="2024-01-01T00:00:00Z",
         title="T",
         description="D",
-        messages=[],
+        comments=[],
     )
     md = issue_to_markdown(issue)
-    assert "## Messages" not in md
+    assert "## Comments" not in md

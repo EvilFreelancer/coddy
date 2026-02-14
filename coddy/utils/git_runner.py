@@ -62,7 +62,8 @@ def fetch_and_checkout_branch(
     repo_dir: Path | None = None,
     log: logging.Logger | None = None,
 ) -> None:
-    """Fetch from origin and checkout the given branch (must exist on remote)."""
+    """Fetch from origin and checkout the given branch (must exist on
+    remote)."""
     cwd = Path(repo_dir) if repo_dir is not None else Path.cwd()
     _run_git(["fetch", "origin", branch_name], cwd=cwd, log=log)
     _run_git(["checkout", branch_name], cwd=cwd, log=log)
@@ -94,7 +95,8 @@ def commit_all_and_push(
     repo_dir: Path | None = None,
     log: logging.Logger | None = None,
 ) -> None:
-    """Stage all changes, commit with bot identity, and push branch to origin."""
+    """Stage all changes, commit with bot identity, and push branch to
+    origin."""
     cwd = Path(repo_dir) if repo_dir is not None else Path.cwd()
     _run_git(["add", "-A"], cwd=cwd, log=log)
     try:

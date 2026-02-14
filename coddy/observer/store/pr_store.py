@@ -9,11 +9,11 @@ from pathlib import Path
 
 import yaml
 
-from coddy.observer.prs.pr_file import PRFile
+from coddy.observer.store.schemas import PRFile
 
 PRS_DIR = ".coddy/prs"
 
-LOG = logging.getLogger("coddy.observer.prs.pr_store")
+LOG = logging.getLogger("coddy.observer.store.pr_store")
 
 
 def _prs_dir(repo_dir: Path) -> Path:

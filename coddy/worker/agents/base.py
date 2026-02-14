@@ -32,7 +32,8 @@ class AIAgent:
         raise NotImplementedError
 
     def generate_plan(self, issue: Issue, comments: List[Comment]) -> str:
-        """Produce a short implementation plan in the same language as the issue.
+        """Produce a short implementation plan in the same language as the
+        issue.
 
         Used before taking the task in work: post plan and ask user to confirm.
         Returns plan text (markdown), no code.

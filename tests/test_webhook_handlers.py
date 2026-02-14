@@ -105,7 +105,8 @@ def test_handle_pr_merged_no_exit_on_pull_failure(config_pr_merged: "object") ->
 
 
 def test_handle_issues_assigned_creates_issue_file_when_bot_in_assignees(tmp_path: Path) -> None:
-    """On issues.assigned with bot in assignees, create_issue is called (issue file in .coddy/issues/)."""
+    """On issues.assigned with bot in assignees, create_issue is called (issue
+    file in .coddy/issues/)."""
     config = type("Config", (), {})()
     config.bot = type("Bot", (), {})()
     config.bot.git_platform = "github"
@@ -137,7 +138,8 @@ def test_handle_issues_assigned_creates_issue_file_when_bot_in_assignees(tmp_pat
 
 
 def test_handle_issues_assigned_ignores_when_bot_not_assignee(tmp_path: Path) -> None:
-    """On issues.assigned without bot in assignees, create_issue is not called."""
+    """On issues.assigned without bot in assignees, create_issue is not
+    called."""
     config = type("Config", (), {})()
     config.bot = type("Bot", (), {})()
     config.bot.repository = "owner/repo"
@@ -155,7 +157,8 @@ def test_handle_issues_assigned_ignores_when_bot_not_assignee(tmp_path: Path) ->
 
 
 def test_handle_issue_comment_calls_on_user_confirmed_when_affirmative(tmp_path: Path) -> None:
-    """On issue_comment with issue status waiting_confirmation and affirmative body, on_user_confirmed is called."""
+    """On issue_comment with issue status waiting_confirmation and affirmative
+    body, on_user_confirmed is called."""
     config = type("Config", (), {})()
     config.bot = type("Bot", (), {})()
     config.bot.repository = "owner/repo"
@@ -189,7 +192,8 @@ def test_handle_issue_comment_calls_on_user_confirmed_when_affirmative(tmp_path:
 
 
 def test_handle_issue_comment_ignores_when_not_waiting_confirmation(tmp_path: Path) -> None:
-    """On issue_comment when issue is not waiting_confirmation, on_user_confirmed is not called."""
+    """On issue_comment when issue is not waiting_confirmation,
+    on_user_confirmed is not called."""
     config = type("Config", (), {})()
     config.bot = type("Bot", (), {})()
     config.bot.repository = "owner/repo"
@@ -251,7 +255,8 @@ def _issues_assigned_config(tmp_path: Path) -> "object":
 
 
 def test_webhook_issues_assigned_creates_issue_file(tmp_path: Path) -> None:
-    """On issues.assigned (bot in assignees), issue file is created under .coddy/issues/."""
+    """On issues.assigned (bot in assignees), issue file is created under
+    .coddy/issues/."""
     config = _issues_assigned_config(tmp_path)
     payload = {
         "action": "assigned",
@@ -280,12 +285,13 @@ def test_webhook_issues_assigned_creates_issue_file(tmp_path: Path) -> None:
     assert issue.issue_number == 42
     assert issue.repo == "owner/repo"
     assert issue.title == "Add login form"
-    assert len(issue.messages) == 1
-    assert "Add login form" in issue.messages[0].content
+    assert len(issue.comments) == 1
+    assert "Add login form" in issue.comments[0].content
 
 
 def test_webhook_issue_comment_affirmative_sets_queued(tmp_path: Path) -> None:
-    """On issue_comment with waiting_confirmation and affirmative reply, status=queued (worker picks from .coddy/issues/)."""
+    """On issue_comment with waiting_confirmation and affirmative reply,
+    status=queued (worker picks from .coddy/issues/)."""
     from coddy.observer.issues import create_issue, list_queued, set_status
 
     create_issue(tmp_path, 7, "owner/repo", "Fix bug", "Description", "user1")

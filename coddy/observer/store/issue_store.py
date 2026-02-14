@@ -1,6 +1,6 @@
 """Issue storage in .coddy/issues/ as YAML files.
 
-One file per issue: {issue_number}.yaml with meta, title, description, messages.
+One file per issue: {issue_number}.yaml with meta, title, description, comments.
 Status is updated in place (no moving files). Worker picks issues with status=queued.
 """
 
@@ -10,11 +10,11 @@ from pathlib import Path
 
 import yaml
 
-from coddy.observer.issues.issue_file import IssueFile, IssueMessage
+from coddy.observer.store.schemas import IssueFile, IssueComment
 
 ISSUES_DIR = ".coddy/issues"
 
-LOG = logging.getLogger("coddy.observer.issues.issue_store")
+LOG = logging.getLogger("coddy.observer.store.issue_store")
 
 
 def _issues_dir(repo_dir: Path) -> Path:
@@ -75,7 +75,8 @@ def create_issue(
     created = created_at or now
     updated = updated_at or now
     first_content = f"{title}\n\n{description}".strip() if title or description else "(no content)"
-    msg = IssueMessage(name=author, content=first_content, timestamp=int(datetime.now(UTC).timestamp()))
+    now_ts = int(datetime.now(UTC).timestamp())
+    comment = IssueComment(name=author, content=first_content, created_at=now_ts, updated_at=now_ts)
     issue = IssueFile(
         author=author,
         created_at=created,
@@ -83,7 +84,7 @@ def create_issue(
         status="pending_plan",
         title=title,
         description=description,
-        messages=[msg],
+        comments=[comment],
         repo=repo,
         issue_number=issue_number,
         assigned_at=now,
@@ -98,15 +99,20 @@ def add_message(
     issue_number: int,
     name: str,
     content: str,
-    timestamp: int | None = None,
+    created_at: int | None = None,
+    updated_at: int | None = None,
 ) -> None:
     """Append a message to the issue thread and bump updated_at."""
     issue = load_issue(repo_dir, issue_number)
     if not issue:
         LOG.warning("Cannot add message: issue #%s not found", issue_number)
         return
-    ts = timestamp or int(datetime.now(UTC).timestamp())
-    issue.messages.append(IssueMessage(name=name, content=content, timestamp=ts))
+    now_ts = int(datetime.now(UTC).timestamp())
+    ts_created = created_at if created_at is not None else now_ts
+    ts_updated = updated_at if updated_at is not None else now_ts
+    issue.comments.append(
+        IssueComment(name=name, content=content, created_at=ts_created, updated_at=ts_updated)
+    )
     issue.updated_at = datetime.now(UTC).isoformat()
     save_issue(repo_dir, issue_number, issue)
     LOG.debug("Added message to issue #%s from %s", issue_number, name)

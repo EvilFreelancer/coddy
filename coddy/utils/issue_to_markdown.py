@@ -1,12 +1,12 @@
 """Convert issue YAML (IssueFile) to markdown for the coddy agent to read."""
 
-from coddy.observer.issues.issue_file import IssueFile
+from coddy.observer.store import IssueFile
 
 
 def issue_to_markdown(issue: IssueFile, issue_number: int | None = None) -> str:
     """Convert an IssueFile to a single markdown document.
 
-    Output: title, description, then a thread of messages (user comments and bot replies).
+    Output: title, description, then a thread of comments (user comments and bot replies).
     The agent can use this as context when working on the task.
     """
     lines = []
@@ -19,14 +19,14 @@ def issue_to_markdown(issue: IssueFile, issue_number: int | None = None) -> str:
     lines.append("## Description")
     lines.append(issue.description or "(no description)")
     lines.append("")
-    if issue.messages:
-        lines.append("## Messages")
+    if issue.comments:
+        lines.append("## Comments")
         lines.append("")
-        for msg in issue.messages:
+        for msg in issue.comments:
             lines.append(f"### {msg.name}")
             lines.append("")
             lines.append(msg.content)
             lines.append("")
-            lines.append(f"*timestamp: {msg.timestamp}*")
+            lines.append(f"*created_at: {msg.created_at}, updated_at: {msg.updated_at}*")
             lines.append("")
     return "\n".join(lines).strip() + "\n"

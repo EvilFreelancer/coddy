@@ -9,8 +9,8 @@ import re
 from pathlib import Path
 
 from coddy.observer.adapters.base import GitPlatformAdapter, GitPlatformError
-from coddy.observer.issues.issue_store import add_message, set_status
 from coddy.observer.models import Issue
+from coddy.observer.store import add_message, set_status
 from coddy.worker.agents.base import AIAgent
 
 LOG = logging.getLogger("coddy.observer.planner")
@@ -54,7 +54,8 @@ def run_planner(
     bot_username: str = "",
     log: logging.Logger | None = None,
 ) -> None:
-    """Generate plan (in issue language), post message, add to issue store, set status waiting_confirmation."""
+    """Generate plan (in issue language), post message, add to issue store, set
+    status waiting_confirmation."""
     logger = log or LOG
     comments = adapter.get_issue_comments(repo, issue.number, since=None)
     plan = agent.generate_plan(issue, comments)
@@ -81,7 +82,8 @@ def on_user_confirmed(
     bot_username: str = "",
     log: logging.Logger | None = None,
 ) -> None:
-    """Add user comment to issue store, set status queued (worker picks from .coddy/issues/), post work started."""
+    """Add user comment to issue store, set status queued (worker picks from
+    .coddy/issues/), post work started."""
     logger = log or LOG
     add_message(repo_dir, issue_number, f"@{comment_author}", comment_body)
     set_status(repo_dir, issue_number, "queued")

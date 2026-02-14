@@ -48,7 +48,10 @@ enqueued_at: {enqueued_at}
 
 
 def _parse_task_md(content: str, issue_number: int) -> dict[str, Any] | None:
-    """Parse markdown task file into dict. Returns None if invalid."""
+    """Parse markdown task file into dict.
+
+    Returns None if invalid.
+    """
     data = {}
     for line in content.splitlines():
         line = line.strip()
@@ -113,8 +116,12 @@ def list_pending(repo_dir: Path) -> list[dict[str, Any]]:
 
 
 def take_next(repo_dir: Path) -> dict[str, Any] | None:
-    """Return next task from .coddy/issues/ (status=queued), smallest issue number. Does not remove it."""
-    from coddy.observer.issues.issue_store import list_queued
+    """Return next task from .coddy/issues/ (status=queued), smallest issue
+    number.
+
+    Does not remove it.
+    """
+    from coddy.observer.store import list_queued
 
     queued = list_queued(repo_dir)
     if not queued:
@@ -130,14 +137,14 @@ def take_next(repo_dir: Path) -> dict[str, Any] | None:
 
 def mark_done(repo_dir: Path, issue_number: int) -> None:
     """Set issue status to done in .coddy/issues/."""
-    from coddy.observer.issues.issue_store import set_status
+    from coddy.observer.store import set_status
 
     set_status(repo_dir, issue_number, "done")
 
 
 def mark_failed(repo_dir: Path, issue_number: int) -> None:
     """Set issue status to failed in .coddy/issues/."""
-    from coddy.observer.issues.issue_store import set_status
+    from coddy.observer.store import set_status
 
     set_status(repo_dir, issue_number, "failed")
 

@@ -1,4 +1,5 @@
-"""Tests for task queue (take_next from .coddy/issues/ queued; mark_done/mark_failed set issue status)."""
+"""Tests for task queue (take_next from .coddy/issues/ queued;
+mark_done/mark_failed set issue status)."""
 
 from pathlib import Path
 
@@ -7,7 +8,8 @@ from coddy.observer.queue import enqueue, list_pending, mark_done, mark_failed, 
 
 
 def test_enqueue_and_list_pending(tmp_path: Path) -> None:
-    """Legacy enqueue adds a task file in .coddy/queue/pending/; list_pending returns it."""
+    """Legacy enqueue adds a task file in .coddy/queue/pending/; list_pending
+    returns it."""
     enqueue(tmp_path, "owner/repo", 42)
     tasks = list_pending(tmp_path)
     assert len(tasks) == 1
@@ -16,7 +18,8 @@ def test_enqueue_and_list_pending(tmp_path: Path) -> None:
 
 
 def test_take_next_returns_smallest_issue(tmp_path: Path) -> None:
-    """take_next returns task from .coddy/issues/ (status=queued) with smallest issue_number."""
+    """take_next returns task from .coddy/issues/ (status=queued) with smallest
+    issue_number."""
     create_issue(tmp_path, 10, "owner/repo", "Ten", "", "u")
     create_issue(tmp_path, 5, "owner/repo", "Five", "", "u")
     set_status(tmp_path, 10, "queued")

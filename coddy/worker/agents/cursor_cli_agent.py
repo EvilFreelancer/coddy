@@ -30,8 +30,9 @@ from coddy.worker.task_yaml import (
 class CursorCLIAgent(AIAgent):
     """Run Cursor CLI in headless mode (-p --force) with task YAML context.
 
-    Task is written to .coddy/task-{issue_number}.yaml; agent is asked to
-    execute it and write PR description to .coddy/pr-{issue_number}.yaml.
+    Task is written to .coddy/task-{issue_number}.yaml; agent is asked
+    to execute it and write PR description to
+    .coddy/pr-{issue_number}.yaml.
     """
 
     def __init__(
@@ -57,7 +58,8 @@ class CursorCLIAgent(AIAgent):
         self._log = log or logging.getLogger("coddy.worker.agents.cursor_cli")
 
     def generate_plan(self, issue: Issue, comments: List[Comment]) -> str:
-        """Run Cursor CLI with a plan-only prompt; return plan text in issue language."""
+        """Run Cursor CLI with a plan-only prompt; return plan text in issue
+        language."""
         prompt = (
             f"You are a planner. The user created an issue. Output ONLY a short implementation plan "
             f"(bullet points, no code). Use the same language as the issue. "

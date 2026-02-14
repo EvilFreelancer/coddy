@@ -75,7 +75,8 @@ def write_task_file(
 
 
 def read_agent_clarification(repo_dir: Path, issue_number: int) -> str | None:
-    """Read agent_clarification from .coddy/task-{issue_number}.yaml if present."""
+    """Read agent_clarification from .coddy/task-{issue_number}.yaml if
+    present."""
     path = task_file_path(repo_dir, issue_number)
     if not path.is_file():
         return None
@@ -108,7 +109,8 @@ def review_task_file_path(repo_dir: Path, pr_number: int) -> Path:
 
 
 def review_reply_file_path(repo_dir: Path, pr_number: int, comment_id: int) -> Path:
-    """Path where the agent writes the reply YAML for a given review comment."""
+    """Path where the agent writes the reply YAML for a given review
+    comment."""
     return repo_dir / CODDY_DIR / f"review-reply-{pr_number}-{comment_id}.yaml"
 
 
