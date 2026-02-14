@@ -97,12 +97,10 @@ coddy/
 │   ├── services/            # Shared by observer and worker
 │   │   ├── store/           # Issue and PR storage (.coddy/issues/, .coddy/prs/)
 │   │   └── git/             # Git operations (branches, commits, push_pull)
-│   ├── observer/            # Daemon: adapters, issues, planner, webhook
+│   ├── observer/            # Daemon: adapters, planner, webhook
 │   │   ├── adapters/       # Git platform adapters
-│   │   ├── issues/          # Re-exports from services.store
-│   │   ├── models/          # Pydantic models (Issue, PR, Comment, ReviewComment)
-│   │   ├── pr/              # Review handler
-│   │   ├── webhook/         # Webhook server and handlers
+│   │   ├── models/         # Pydantic models (Issue, PR, Comment, ReviewComment)
+│   │   ├── webhook/        # Webhook server and handlers
 │   │   ├── planner.py       # Plan and confirmation flow
 │   │   └── run.py           # Observer entry point
 │   ├── worker/              # Worker: ralph loop, agents

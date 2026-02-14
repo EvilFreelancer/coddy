@@ -151,11 +151,9 @@ coddy/
 │   ├── services/           # Shared services (observer + worker)
 │   │   ├── store/          # Issue and PR storage (.coddy/issues/, .coddy/prs/)
 │   │   └── git/            # Git operations (branches, commits, push_pull)
-│   ├── observer/           # Observer: adapters, issues, planner, webhook
+│   ├── observer/           # Observer: adapters, planner, webhook
 │   │   ├── adapters/       # Git platform adapters (GitHub, etc.)
-│   │   ├── issues/         # Re-exports from services.store
 │   │   ├── models/         # Pydantic models (Issue, PR, Comment, ReviewComment)
-│   │   ├── pr/             # Review handler
 │   │   ├── webhook/        # Webhook server and handlers
 │   │   ├── planner.py      # Plan and user confirmation
 │   │   └── run.py          # Observer entry point

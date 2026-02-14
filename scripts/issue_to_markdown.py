@@ -4,7 +4,7 @@ import argparse
 import sys
 from pathlib import Path
 
-from coddy.observer.issues import load_issue
+from coddy.services.store import load_issue
 
 
 def main() -> int:

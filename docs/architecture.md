@@ -49,9 +49,7 @@ Everything that observes events, stores state, and enqueues work. Does not run t
 |------|-------------|
 | `observer/adapters/` | Git platform adapters (base, GitHub). |
 | `observer/models/` | Pydantic models: Issue, Comment, PR, ReviewComment. |
-| `observer/issues/` | Re-exports from `coddy.services.store` for backward compatibility. |
 | `observer/planner.py` | Plan generation and user confirmation flow. |
-| `observer/pr/` | PR review handler (process review comments, agent fixes, reply). |
 | `observer/webhook/` | Webhook server and event handlers. |
 | `observer/run.py` | Observer entry: webhook server only (plan on assignment). |
 
@@ -120,10 +118,9 @@ Pluggable interface for AI code generation agents.
 Business logic for events, state, queue, and planning. No agent execution.
 
 - `planner.py` - Plan generation, confirmation flow
-- `pr/review_handler.py` - Process PR review comments (uses agent for fixes)
 - `webhook/` - Event handling
 
-**Dependencies**: Adapters, issues, queue, worker.agents (for planner/review)
+**Dependencies**: Adapters, coddy.services.store, worker.agents (for planner)
 
 ### Layer 4: Worker
 
@@ -143,7 +140,6 @@ Orchestrates the development loop and uses the agent.
   Webhook Server -> on assigned: planner -> .coddy/issues/ (waiting_confirmation -> queued)
   Worker (worker.run) polls .coddy/issues/ (status=queued) -> for each task: ralph loop -> Cursor CLI (per iteration)
   -> PR report (.coddy/pr-{n}.yaml) or agent_clarification -> Create PR / post comment; labels; checkout default.
-  Review: webhook -> observer.pr.review_handler -> agent (fixes + reply).
 ```
 
 ## Design Patterns
@@ -173,12 +169,6 @@ Used for:
 2. **User confirms** -> Webhook issue_comment (affirmative); issue status set to queued in `.coddy/issues/{n}.yaml`
 3. **Worker** -> Picks queued issue; ralph loop: sufficiency, branch, write `.coddy/task-{n}.yaml`, run agent until `.coddy/pr-{n}.yaml` or agent_clarification
 4. **PR Creation** -> Worker creates PR from report body, sets label, checkout default branch
-
-### Review Processing Flow
-
-1. **Review Event** -> Webhook delivers new review comment
-2. **Review Handler** -> Parse comment, checkout PR branch, call agent per item (write review task YAML, run agent, read reply YAML)
-3. **Commit and Reply** -> Handler commits changes, posts reply to comment
 
 ## Configuration Management
 

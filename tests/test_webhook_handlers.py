@@ -5,7 +5,7 @@ from unittest.mock import MagicMock, patch
 
 import pytest
 
-from coddy.observer.issues import IssueFile, load_issue
+from coddy.services.store import IssueFile, load_issue
 from coddy.observer.webhook.handlers import handle_github_event
 
 
@@ -334,7 +334,7 @@ def test_webhook_issues_assigned_runs_planner_when_token_set(tmp_path: Path) -> 
 def test_webhook_issue_comment_affirmative_sets_queued(tmp_path: Path) -> None:
     """On issue_comment with waiting_confirmation and affirmative reply,
     status=queued (worker picks from .coddy/issues/)."""
-    from coddy.observer.issues import create_issue, list_queued, set_issue_status
+    from coddy.services.store import create_issue, list_queued, set_issue_status
 
     create_issue(tmp_path, 7, "owner/repo", "Fix bug", "Description", "user1")
     set_issue_status(tmp_path, 7, "waiting_confirmation")

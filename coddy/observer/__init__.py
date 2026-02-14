@@ -1,1 +1,1 @@
-"""Observer package: adapters, issues, models, planner, webhook."""
+"""Observer package: adapters, models, planner, webhook."""

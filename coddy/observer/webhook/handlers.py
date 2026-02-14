@@ -1,64 +1,24 @@
-"""Handle GitHub webhook events (e.g. PR review comment, PR merged).
+"""Handle GitHub webhook events (PR merged, issues assigned, issue comment).
 
-Parses payload and delegates to review handler or runs git pull and
-restarts on PR merged.
+On PR merged runs git pull and exits for restart. On issue assigned
+creates issue file and runs planner; on user confirmation sets status queued.
 """
 
 import logging
 import sys
-from datetime import datetime
 from pathlib import Path
 from typing import Any, Dict
 
 from coddy.observer.adapters.github import GitHubAdapter
-from coddy.observer.models import ReviewComment
 from coddy.observer.planner import is_affirmative_comment, on_user_confirmed, run_planner
-from coddy.observer.pr.review_handler import process_pr_review
 from coddy.services.git import GitRunnerError, run_git_pull
+from coddy.worker.agents.cursor_cli_agent import make_cursor_cli_agent
 from coddy.services.store import (
     create_issue,
     load_issue,
     set_issue_status,
     set_pr_status,
 )
-from coddy.worker.agents.cursor_cli_agent import make_cursor_cli_agent
-
-
-def _parse_review_comment_from_payload(comment_payload: Dict[str, Any]) -> ReviewComment | None:
-    """Build ReviewComment from GitHub webhook comment object."""
-    try:
-        cid = comment_payload.get("id")
-        if cid is None:
-            return None
-        body = comment_payload.get("body") or ""
-        user = comment_payload.get("user") or {}
-        author = user.get("login", "")
-        path = comment_payload.get("path") or ""
-        line = comment_payload.get("line")
-        side = comment_payload.get("side", "RIGHT")
-        created = comment_payload.get("created_at")
-        updated = comment_payload.get("updated_at")
-        if isinstance(created, str):
-            created = datetime.fromisoformat(created.replace("Z", "+00:00"))
-        else:
-            created = datetime.now()
-        if isinstance(updated, str):
-            updated = datetime.fromisoformat(updated.replace("Z", "+00:00"))
-        in_reply_to_id = comment_payload.get("in_reply_to_id")
-        return ReviewComment(
-            id=int(cid),
-            body=body,
-            author=author,
-            path=path,
-            line=int(line) if line is not None else None,
-            side=side,
-            created_at=created,
-            updated_at=updated,
-            in_reply_to_id=int(in_reply_to_id) if in_reply_to_id is not None else None,
-        )
-    except (TypeError, ValueError) as e:
-        logging.getLogger("coddy.observer.webhook.handlers").warning("Failed to parse review comment: %s", e)
-        return None
 
 
 def _working_dir_from_config(config: Any) -> Path:
@@ -253,7 +213,7 @@ def handle_github_event(
     Supported events:
     - pull_request (action=closed, merged=true): git pull from default branch, then exit 0 to allow restart.
     - issues (action=assigned): if bot is in assignees, enqueue task for worker.
-    - pull_request_review_comment (action=created): run review handler for the new comment.
+    - issue_comment: on user confirmation set issue status to queued.
     """
     logger = log or logging.getLogger("coddy.observer.webhook.handlers")
     work_dir = Path(repo_dir) if repo_dir is not None else _working_dir_from_config(config)
@@ -269,55 +229,3 @@ def handle_github_event(
     if event == "issue_comment":
         _handle_issue_comment(config, payload, work_dir, logger)
         return
-
-    if event != "pull_request_review_comment":
-        return
-    if payload.get("action") != "created":
-        return
-    comment_payload = payload.get("comment")
-    if not comment_payload:
-        logger.warning("pull_request_review_comment payload missing 'comment'")
-        return
-    review_comment = _parse_review_comment_from_payload(comment_payload)
-    if not review_comment:
-        return
-    pull = payload.get("pull_request") or {}
-    pr_number = pull.get("number")
-    if pr_number is None:
-        logger.warning("pull_request_review_comment payload missing pull_request.number")
-        return
-    repo_payload = payload.get("repository") or {}
-    repo = repo_payload.get("full_name") or getattr(config.bot, "repository", "")
-    if not repo:
-        logger.warning("Could not determine repository from payload or config")
-        return
-
-    token = getattr(config, "github_token_resolved", None)
-    if not token:
-        logger.warning("No GitHub token; cannot process review comment")
-        return
-    if getattr(config.bot, "git_platform", "") != "github":
-        logger.debug("Skipping review comment: platform is not github")
-        return
-
-    adapter = GitHubAdapter(
-        token=token,
-        api_url=getattr(config.github, "api_url", "https://api.github.com"),
-    )
-    agent = make_cursor_cli_agent(config)
-    working_dir = work_dir
-    if config.ai_agents and "cursor_cli" in config.ai_agents:
-        wd = getattr(config.ai_agents["cursor_cli"], "working_directory", None)
-        if wd:
-            working_dir = Path(wd)
-    process_pr_review(
-        adapter,
-        agent,
-        repo,
-        int(pr_number),
-        [review_comment],
-        repo_dir=working_dir,
-        bot_name=getattr(config.bot, "name", None),
-        bot_email=getattr(config.bot, "email", None),
-        log=logger,
-    )
