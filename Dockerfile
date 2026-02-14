@@ -2,10 +2,6 @@ FROM python:3.14-slim
 
 WORKDIR /app
 
-# Create non-root user
-RUN useradd -m -u 1000 coddy && chown -R coddy:coddy /app
-USER coddy
-
 # Install system dependencies
 RUN apt update \
  && apt install -y --no-install-recommends git curl openssh-client \
@@ -21,6 +17,10 @@ RUN pip install --no-cache-dir -e .
 
 # Cooy soures
 COPY coddy/ ./coddy/
+
+# Create non-root user
+RUN useradd -m -u 1000 coddy && chown -R coddy:coddy /app
+USER coddy
 
 # Health check for daemon (HTTP server on 8000)
 HEALTHCHECK --interval=30s --timeout=10s --start-period=5s --retries=3 \
