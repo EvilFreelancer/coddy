@@ -12,13 +12,13 @@ import re
 from pathlib import Path
 from typing import List
 
-from coddy.adapters.base import GitPlatformAdapter, GitPlatformError
-from coddy.agents.base import AIAgent
+from coddy.observer.adapters.base import GitPlatformAdapter, GitPlatformError
 from coddy.observer.models import ReviewComment
-from coddy.services.git_runner import (
+from coddy.utils.git_runner import (
     commit_all_and_push,
     fetch_and_checkout_branch,
 )
+from coddy.worker.agents.base import AIAgent
 
 
 def _issue_number_from_branch(branch_name: str) -> int | None:
@@ -50,19 +50,8 @@ def process_pr_review(
     2. For each comment (in order): run agent for that item; commit and push if
        there are changes; post reply if the agent produced one.
     3. Replies are posted to the corresponding comment thread.
-
-    Args:
-        adapter: Git platform adapter (get_pr, reply_to_review_comment).
-        agent: AI agent (process_review_item).
-        repo: Repository in format owner/repo.
-        pr_number: Pull request number.
-        review_comments: List of review comments to address (e.g. new since last poll).
-        repo_dir: Repository root; default current directory.
-        bot_name: Git user.name for commits.
-        bot_email: Git user.email for commits.
-        log: Optional logger.
     """
-    logger = log or logging.getLogger("coddy.review_handler")
+    logger = log or logging.getLogger("coddy.observer.pr.review_handler")
     repo_path = Path(repo_dir) if repo_dir is not None else Path.cwd()
 
     if not review_comments:

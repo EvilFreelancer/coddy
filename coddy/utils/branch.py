@@ -1,4 +1,4 @@
-"""Shared utilities (e.g. branch name sanitization)."""
+"""Shared utilities for branch name sanitization."""
 
 import re
 

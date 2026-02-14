@@ -17,8 +17,8 @@ def main() -> int:
     )
     args = parser.parse_args()
 
-    from coddy.issue_store import load_issue
-    from coddy.services.issue_to_markdown import issue_to_markdown
+    from coddy.observer.issues import load_issue
+    from coddy.utils.issue_to_markdown import issue_to_markdown
 
     issue = load_issue(args.repo_dir, args.issue_number)
     if not issue:

@@ -1,9 +1,9 @@
 """
-Cursor CLI agent: headless mode with task file and PR report file.
+Cursor CLI agent: headless mode with task YAML and PR report YAML.
 
-Coddy writes .coddy/task-{n}.md. Agent runs and either: (1) implements and writes
-.coddy/pr-{n}.md for PR body, or (2) finds data insufficient and appends
-"## Agent clarification request" to the task file and stops; Coddy reads that
+Coddy writes .coddy/task-{n}.yaml. Agent runs and either: (1) implements and writes
+.coddy/pr-{n}.yaml for PR body, or (2) finds data insufficient and adds
+agent_clarification to the task YAML and stops; Coddy reads that
 and posts it to the issue. Run log is in .coddy/task-{n}.log.
 """
 
@@ -14,8 +14,8 @@ from datetime import UTC, datetime
 from pathlib import Path
 from typing import Any, List
 
-from coddy.agents.base import AIAgent, SufficiencyResult
 from coddy.observer.models import Comment, Issue, ReviewComment
+from coddy.worker.agents.base import AIAgent, SufficiencyResult
 from coddy.worker.task_yaml import (
     read_pr_report,
     read_review_reply,
@@ -28,10 +28,10 @@ from coddy.worker.task_yaml import (
 
 
 class CursorCLIAgent(AIAgent):
-    """Run Cursor CLI in headless mode (-p --force) with task file context.
+    """Run Cursor CLI in headless mode (-p --force) with task YAML context.
 
-    Task is written to .coddy/task-{issue_number}.md; agent is asked to
-    execute it and write PR description to .coddy/pr-{issue_number}.md.
+    Task is written to .coddy/task-{issue_number}.yaml; agent is asked to
+    execute it and write PR description to .coddy/pr-{issue_number}.yaml.
     """
 
     def __init__(
@@ -54,7 +54,7 @@ class CursorCLIAgent(AIAgent):
         self.stream_partial_output = stream_partial_output
         self.model = model
         self.mode = mode
-        self._log = log or logging.getLogger("coddy.agents.cursor_cli")
+        self._log = log or logging.getLogger("coddy.worker.agents.cursor_cli")
 
     def generate_plan(self, issue: Issue, comments: List[Comment]) -> str:
         """Run Cursor CLI with a plan-only prompt; return plan text in issue language."""
@@ -99,7 +99,7 @@ class CursorCLIAgent(AIAgent):
         return SufficiencyResult(sufficient=True)
 
     def generate_code(self, issue: Issue, comments: List[Comment]) -> str | None:
-        """Write task file, run Cursor CLI headless, read PR report.
+        """Write task YAML, run Cursor CLI headless, read PR report.
 
         All run info and CLI stdout/stderr are written to
         .coddy/task-{issue}.log. Returns PR description string for

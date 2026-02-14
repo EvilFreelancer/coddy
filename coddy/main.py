@@ -62,8 +62,8 @@ def main(argv: list[str] | None = None) -> int:
         return 0
 
     if args.subcommand == "worker":
-        from coddy.worker import parse_args as worker_parse
-        from coddy.worker import run_worker
+        from coddy.worker.run import parse_args as worker_parse
+        from coddy.worker.run import run_worker
 
         worker_args = worker_parse(args.rest)
         try:
@@ -80,7 +80,7 @@ def main(argv: list[str] | None = None) -> int:
         return 0
 
     # daemon (default)
-    from coddy.daemon import run_daemon
+    from coddy.observer.daemon import run_daemon
 
     try:
         run_daemon(config)

@@ -2,8 +2,9 @@
 
 from pathlib import Path
 
-from coddy.issue_file import IssueFile, IssueMessage
-from coddy.issue_store import (
+from coddy.observer.issues import (
+    IssueFile,
+    IssueMessage,
     add_message,
     create_issue,
     list_issues_by_status,

@@ -7,7 +7,12 @@ from datetime import UTC, datetime
 from pathlib import Path
 from typing import Any
 
-LOG = logging.getLogger("coddy.scheduler")
+from coddy.observer.adapters.github import GitHubAdapter
+from coddy.observer.issues.issue_store import list_pending_plan
+from coddy.observer.planner import run_planner
+from coddy.worker.agents.cursor_cli_agent import make_cursor_cli_agent
+
+LOG = logging.getLogger("coddy.observer.scheduler")
 
 
 def _parse_iso(s: str) -> datetime | None:
@@ -23,18 +28,14 @@ def run_scheduler_loop(
     interval_seconds: int = 60,
 ) -> None:
     """Loop: every interval_seconds, find pending_plan older than idle_minutes and run planner."""
-    log = logging.getLogger("coddy.scheduler")
+    log = logging.getLogger("coddy.observer.scheduler")
     idle_minutes = getattr(config.bot, "idle_minutes", 10)
     token = getattr(config, "github_token_resolved", None)
     if not token or getattr(config.bot, "git_platform", "") != "github":
         return
 
-    from coddy.adapters.github import GitHubAdapter
-    from coddy.issue_store import list_pending_plan
-    from coddy.services.planner import run_planner
-
     adapter = GitHubAdapter(token=token, api_url=getattr(config.github, "api_url", "https://api.github.com"))
-    agent = _make_agent(config)
+    agent = make_cursor_cli_agent(config)
     repo = config.bot.repository
     bot_username = getattr(config.bot, "github_username", "") or ""
 
@@ -59,18 +60,10 @@ def run_scheduler_loop(
                     continue
                 log.info("Scheduler: running planner for issue #%s (idle %.0f min)", issue_number, delta_minutes)
                 run_planner(adapter, agent, issue, repo, repo_dir, bot_username=bot_username, log=log)
-                # Only one per tick to avoid burst
                 break
         except Exception as e:
             log.exception("Scheduler tick error: %s", e)
         time.sleep(interval_seconds)
-
-
-def _make_agent(config: Any) -> Any:
-    """Build AI agent from config (cursor_cli only)."""
-    from coddy.agents.cursor_cli_agent import make_cursor_cli_agent
-
-    return make_cursor_cli_agent(config)
 
 
 def start_scheduler_thread(config: Any, repo_dir: Path) -> threading.Thread:

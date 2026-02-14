@@ -5,9 +5,8 @@ from unittest.mock import MagicMock, patch
 
 import pytest
 
-from coddy.issue_file import IssueFile
-from coddy.issue_store import load_issue
-from coddy.webhook.handlers import handle_github_event
+from coddy.observer.issues import IssueFile, load_issue
+from coddy.observer.webhook.handlers import handle_github_event
 
 
 @pytest.fixture
@@ -30,8 +29,8 @@ def test_handle_pr_merged_pulls_and_exits(config_pr_merged: "object") -> None:
         "pull_request": {"merged": True, "number": 1},
         "repository": {"full_name": "owner/repo"},
     }
-    with patch("coddy.services.git_runner.run_git_pull", create=True) as mock_pull:
-        with patch("coddy.webhook.handlers.sys.exit") as mock_exit:
+    with patch("coddy.observer.webhook.handlers.run_git_pull", create=True) as mock_pull:
+        with patch("coddy.observer.webhook.handlers.sys.exit") as mock_exit:
             mock_exit.side_effect = SystemExit(0)
             with pytest.raises(SystemExit, match="0"):
                 handle_github_event(config_pr_merged, "pull_request", payload)
@@ -48,8 +47,8 @@ def test_handle_pr_merged_ignores_when_not_merged(config_pr_merged: "object") ->
         "pull_request": {"merged": False},
         "repository": {"full_name": "owner/repo"},
     }
-    with patch("coddy.services.git_runner.run_git_pull", create=True) as mock_pull:
-        with patch("coddy.webhook.handlers.sys.exit") as mock_exit:
+    with patch("coddy.observer.webhook.handlers.run_git_pull", create=True) as mock_pull:
+        with patch("coddy.observer.webhook.handlers.sys.exit") as mock_exit:
             handle_github_event(config_pr_merged, "pull_request", payload)
     mock_pull.assert_not_called()
     mock_exit.assert_not_called()
@@ -62,8 +61,8 @@ def test_handle_pr_merged_ignores_other_repo(config_pr_merged: "object") -> None
         "pull_request": {"merged": True},
         "repository": {"full_name": "other/repo"},
     }
-    with patch("coddy.services.git_runner.run_git_pull", create=True) as mock_pull:
-        with patch("coddy.webhook.handlers.sys.exit") as mock_exit:
+    with patch("coddy.observer.webhook.handlers.run_git_pull", create=True) as mock_pull:
+        with patch("coddy.observer.webhook.handlers.sys.exit") as mock_exit:
             handle_github_event(config_pr_merged, "pull_request", payload)
     mock_pull.assert_not_called()
     mock_exit.assert_not_called()
@@ -77,8 +76,8 @@ def test_handle_pr_merged_uses_repo_dir_when_passed(config_pr_merged: "object") 
         "repository": {"full_name": "owner/repo"},
     }
     custom_dir = Path("/tmp/bot-repo")
-    with patch("coddy.services.git_runner.run_git_pull", create=True) as mock_pull:
-        with patch("coddy.webhook.handlers.sys.exit", side_effect=SystemExit(0)):
+    with patch("coddy.observer.webhook.handlers.run_git_pull", create=True) as mock_pull:
+        with patch("coddy.observer.webhook.handlers.sys.exit", side_effect=SystemExit(0)):
             with pytest.raises(SystemExit):
                 handle_github_event(
                     config_pr_merged,
@@ -92,15 +91,15 @@ def test_handle_pr_merged_uses_repo_dir_when_passed(config_pr_merged: "object") 
 
 def test_handle_pr_merged_no_exit_on_pull_failure(config_pr_merged: "object") -> None:
     """When run_git_pull raises, we do not call sys.exit."""
-    from coddy.services.git_runner import GitRunnerError
+    from coddy.utils.git_runner import GitRunnerError
 
     payload = {
         "action": "closed",
         "pull_request": {"merged": True},
         "repository": {"full_name": "owner/repo"},
     }
-    with patch("coddy.services.git_runner.run_git_pull", create=True, side_effect=GitRunnerError("pull failed")):
-        with patch("coddy.webhook.handlers.sys.exit") as mock_exit:
+    with patch("coddy.observer.webhook.handlers.run_git_pull", create=True, side_effect=GitRunnerError("pull failed")):
+        with patch("coddy.observer.webhook.handlers.sys.exit") as mock_exit:
             handle_github_event(config_pr_merged, "pull_request", payload)
     mock_exit.assert_not_called()
 
@@ -125,7 +124,7 @@ def test_handle_issues_assigned_creates_issue_file_when_bot_in_assignees(tmp_pat
         },
         "repository": {"full_name": "owner/repo"},
     }
-    with patch("coddy.issue_store.create_issue") as mock_create:
+    with patch("coddy.observer.webhook.handlers.create_issue") as mock_create:
         handle_github_event(config, "issues", payload, repo_dir=tmp_path)
     mock_create.assert_called_once()
     call_args = mock_create.call_args[0]
@@ -150,7 +149,7 @@ def test_handle_issues_assigned_ignores_when_bot_not_assignee(tmp_path: Path) ->
         "issue": {"number": 42, "assignees": [{"login": "other-user"}]},
         "repository": {"full_name": "owner/repo"},
     }
-    with patch("coddy.issue_store.create_issue") as mock_create:
+    with patch("coddy.observer.webhook.handlers.create_issue") as mock_create:
         handle_github_event(config, "issues", payload, repo_dir=tmp_path)
     mock_create.assert_not_called()
 
@@ -179,8 +178,8 @@ def test_handle_issue_comment_calls_on_user_confirmed_when_affirmative(tmp_path:
         title="Fix bug",
         description="",
     )
-    with patch("coddy.issue_store.load_issue", return_value=issue_file):
-        with patch("coddy.services.planner.on_user_confirmed") as mock_confirm:
+    with patch("coddy.observer.webhook.handlers.load_issue", return_value=issue_file):
+        with patch("coddy.observer.webhook.handlers.on_user_confirmed") as mock_confirm:
             handle_github_event(config, "issue_comment", payload, repo_dir=tmp_path)
     mock_confirm.assert_called_once()
     call_kw = mock_confirm.call_args[1]
@@ -204,8 +203,8 @@ def test_handle_issue_comment_ignores_when_not_waiting_confirmation(tmp_path: Pa
         "issue": {"number": 8},
         "repository": {"full_name": "owner/repo"},
     }
-    with patch("coddy.issue_store.load_issue", return_value=None):
-        with patch("coddy.services.planner.on_user_confirmed") as mock_confirm:
+    with patch("coddy.observer.webhook.handlers.load_issue", return_value=None):
+        with patch("coddy.observer.webhook.handlers.on_user_confirmed") as mock_confirm:
             handle_github_event(config, "issue_comment", payload, repo_dir=tmp_path)
     mock_confirm.assert_not_called()
 
@@ -232,8 +231,8 @@ def test_handle_issue_comment_ignores_bot_comment(tmp_path: Path) -> None:
         status="waiting_confirmation",
         title="T",
     )
-    with patch("coddy.issue_store.load_issue", return_value=issue_file):
-        with patch("coddy.services.planner.on_user_confirmed") as mock_confirm:
+    with patch("coddy.observer.webhook.handlers.load_issue", return_value=issue_file):
+        with patch("coddy.observer.webhook.handlers.on_user_confirmed") as mock_confirm:
             handle_github_event(config, "issue_comment", payload, repo_dir=tmp_path)
     mock_confirm.assert_not_called()
 
@@ -287,7 +286,7 @@ def test_webhook_issues_assigned_creates_issue_file(tmp_path: Path) -> None:
 
 def test_webhook_issue_comment_affirmative_sets_queued_and_enqueues(tmp_path: Path) -> None:
     """On issue_comment with waiting_confirmation and affirmative reply, status=queued and task enqueued."""
-    from coddy.issue_store import create_issue, set_status
+    from coddy.observer.issues import create_issue, set_status
 
     create_issue(tmp_path, 7, "owner/repo", "Fix bug", "Description", "user1")
     set_status(tmp_path, 7, "waiting_confirmation")
@@ -304,7 +303,7 @@ def test_webhook_issue_comment_affirmative_sets_queued_and_enqueues(tmp_path: Pa
     }
 
     mock_adapter = MagicMock()
-    with patch("coddy.adapters.github.GitHubAdapter", return_value=mock_adapter):
+    with patch("coddy.observer.webhook.handlers.GitHubAdapter", return_value=mock_adapter):
         handle_github_event(config, "issue_comment", payload, repo_dir=tmp_path)
 
     issue = load_issue(tmp_path, 7)

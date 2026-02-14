@@ -11,7 +11,7 @@ from typing import Any
 
 from coddy.config import AppConfig
 
-LOG = logging.getLogger("coddy.webhook")
+LOG = logging.getLogger("coddy.observer.webhook")
 
 
 class WebhookHandler(BaseHTTPRequestHandler):
@@ -39,12 +39,11 @@ class WebhookHandler(BaseHTTPRequestHandler):
     def _handle_github_webhook(self) -> None:
         length = int(self.headers.get("Content-Length", 0))
         body = self.rfile.read(length) if length else b""
-        # TODO: verify X-Hub-Signature-256 using config.webhook_secret_resolved
         try:
             payload = json.loads(body.decode()) if body else {}
             event = self.headers.get("X-GitHub-Event", "")
             LOG.info("Webhook event: %s (payload keys: %s)", event, list(payload.keys()) if payload else [])
-            from coddy.webhook.handlers import handle_github_event
+            from coddy.observer.webhook.handlers import handle_github_event
 
             handle_github_event(self.config, event, payload)
         except json.JSONDecodeError:

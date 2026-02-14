@@ -11,7 +11,7 @@ from typing import Any
 
 STATE_DIR = ".coddy/state"
 
-LOG = logging.getLogger("coddy.issue_state")
+LOG = logging.getLogger("coddy.observer.issues.issue_state")
 
 
 def _state_dir(repo_dir: Path) -> Path:

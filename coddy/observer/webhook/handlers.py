@@ -1,6 +1,6 @@
 """Handle GitHub webhook events (e.g. PR review comment, PR merged).
 
-Parses payload and delegates to services (review handler) or runs git
+Parses payload and delegates to review handler or runs git
 pull and restarts on PR merged.
 """
 
@@ -10,7 +10,13 @@ from datetime import datetime
 from pathlib import Path
 from typing import Any, Dict
 
+from coddy.observer.adapters.github import GitHubAdapter
+from coddy.observer.issues.issue_store import create_issue, load_issue
 from coddy.observer.models import ReviewComment
+from coddy.observer.planner import is_affirmative_comment, on_user_confirmed
+from coddy.observer.pr.review_handler import process_pr_review
+from coddy.utils.git_runner import GitRunnerError, run_git_pull
+from coddy.worker.agents.cursor_cli_agent import make_cursor_cli_agent
 
 
 def _parse_review_comment_from_payload(comment_payload: Dict[str, Any]) -> ReviewComment | None:
@@ -46,7 +52,7 @@ def _parse_review_comment_from_payload(comment_payload: Dict[str, Any]) -> Revie
             in_reply_to_id=int(in_reply_to_id) if in_reply_to_id is not None else None,
         )
     except (TypeError, ValueError) as e:
-        logging.getLogger("coddy.webhook.handlers").warning("Failed to parse review comment: %s", e)
+        logging.getLogger("coddy.observer.webhook.handlers").warning("Failed to parse review comment: %s", e)
         return None
 
 
@@ -66,7 +72,7 @@ def _handle_pr_merged(
     log: logging.Logger | None = None,
 ) -> None:
     """On PR merged: pull from default branch then exit 0 so supervisor can restart."""
-    logger = log or logging.getLogger("coddy.webhook.handlers")
+    logger = log or logging.getLogger("coddy.observer.webhook.handlers")
     if payload.get("action") != "closed":
         return
     pull = payload.get("pull_request") or {}
@@ -82,8 +88,6 @@ def _handle_pr_merged(
         return
     working_dir = Path(repo_dir) if repo_dir is not None else _working_dir_from_config(config)
     default_branch = getattr(config.bot, "default_branch", "main")
-    from coddy.services.git_runner import GitRunnerError, run_git_pull
-
     try:
         run_git_pull(default_branch, repo_dir=working_dir, log=logger)
     except GitRunnerError as e:
@@ -117,9 +121,6 @@ def _handle_issue_comment(
     repo = repo_payload.get("full_name") or getattr(config.bot, "repository", "")
     if not repo or repo != getattr(config.bot, "repository", ""):
         return
-    from coddy.issue_store import load_issue
-    from coddy.services.planner import is_affirmative_comment, on_user_confirmed
-
     issue_file = load_issue(repo_dir, int(issue_number))
     if not issue_file or issue_file.status != "waiting_confirmation":
         return
@@ -129,8 +130,6 @@ def _handle_issue_comment(
     if not token:
         log.warning("No GitHub token; cannot post reply")
         return
-    from coddy.adapters.github import GitHubAdapter
-
     adapter = GitHubAdapter(
         token=token,
         api_url=getattr(config.github, "api_url", "https://api.github.com"),
@@ -175,8 +174,6 @@ def _handle_issues_assigned(
     title = issue_payload.get("title") or ""
     if issue_number is None:
         return
-    from coddy.issue_store import create_issue
-
     user_payload = issue_payload.get("user") or {}
     author = user_payload.get("login") or "unknown"
     body = issue_payload.get("body") or ""
@@ -206,7 +203,7 @@ def handle_github_event(
     - issues (action=assigned): if bot is in assignees, enqueue task for worker.
     - pull_request_review_comment (action=created): run review handler for the new comment.
     """
-    logger = log or logging.getLogger("coddy.webhook.handlers")
+    logger = log or logging.getLogger("coddy.observer.webhook.handlers")
     work_dir = Path(repo_dir) if repo_dir is not None else _working_dir_from_config(config)
 
     if event == "pull_request":
@@ -251,14 +248,11 @@ def handle_github_event(
         logger.debug("Skipping review comment: platform is not github")
         return
 
-    from coddy.adapters.github import GitHubAdapter
-    from coddy.services.review_handler import process_pr_review
-
     adapter = GitHubAdapter(
         token=token,
         api_url=getattr(config.github, "api_url", "https://api.github.com"),
     )
-    agent = _make_agent_from_config(config)
+    agent = make_cursor_cli_agent(config)
     working_dir = work_dir
     if config.ai_agents and "cursor_cli" in config.ai_agents:
         wd = getattr(config.ai_agents["cursor_cli"], "working_directory", None)
@@ -275,10 +269,3 @@ def handle_github_event(
         bot_email=getattr(config.bot, "email", None),
         log=logger,
     )
-
-
-def _make_agent_from_config(config: Any) -> Any:
-    """Build AI agent from config (cursor_cli only)."""
-    from coddy.agents.cursor_cli_agent import make_cursor_cli_agent
-
-    return make_cursor_cli_agent(config)

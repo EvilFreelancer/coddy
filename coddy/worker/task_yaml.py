@@ -42,10 +42,7 @@ def write_task_file(
     path = task_file_path(repo_dir, issue.number)
     path.parent.mkdir(parents=True, exist_ok=True)
     report_path_relative = str(Path(CODDY_DIR) / f"pr-{issue.number}.yaml")
-    comments_data = [
-        {"author": c.author, "body": c.body}
-        for c in sorted(comments, key=lambda x: x.created_at or x.id)
-    ]
+    comments_data = [{"author": c.author, "body": c.body} for c in sorted(comments, key=lambda x: x.created_at or x.id)]
     instructions = (
         "Follow project rules (.cursor/rules, docs).\n\n"
         "If the task description and comments do NOT contain enough information to implement "
@@ -129,9 +126,7 @@ def write_review_task_file(
     todo_lines = []
     for i, c in enumerate(comments, 1):
         line_display = str(c.line) if c.line is not None else "?"
-        todo_lines.append(
-            f"{i}. `{c.path}` line {line_display}: {c.body[:60]}{'...' if len(c.body) > 60 else ''}"
-        )
+        todo_lines.append(f"{i}. `{c.path}` line {line_display}: {c.body[:60]}{'...' if len(c.body) > 60 else ''}")
     current = comments[current_index - 1]
     line_display = str(current.line) if current.line is not None else "?"
     reply_path = review_reply_file_path(repo_dir, pr_number, current.id)

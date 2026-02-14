@@ -5,13 +5,13 @@ from unittest.mock import patch
 
 import pytest
 
-from coddy.services.git_runner import (
+from coddy.utils.branch import is_valid_branch_name
+from coddy.utils.git_runner import (
     GitRunnerError,
     branch_name_from_issue,
     checkout_branch,
     run_git_pull,
 )
-from coddy.utils import is_valid_branch_name
 
 
 def test_branch_name_from_issue() -> None:
@@ -40,14 +40,14 @@ def test_branch_name_from_issue_produces_valid_branch_name() -> None:
 
 def test_run_git_pull_success() -> None:
     """run_git_pull runs git pull origin <branch> in repo_dir."""
-    with patch("coddy.services.git_runner._run_git") as mock_run:
+    with patch("coddy.utils.git_runner._run_git") as mock_run:
         run_git_pull("main", repo_dir=Path("/tmp/repo"), log=None)
     mock_run.assert_called_once_with(["pull", "origin", "main"], cwd=Path("/tmp/repo"), log=None)
 
 
 def test_run_git_pull_uses_cwd_when_no_repo_dir() -> None:
     """run_git_pull uses Path.cwd() when repo_dir is None."""
-    with patch("coddy.services.git_runner._run_git") as mock_run:
+    with patch("coddy.utils.git_runner._run_git") as mock_run:
         run_git_pull("main", log=None)
     assert mock_run.call_count == 1
     assert mock_run.call_args[0][0] == ["pull", "origin", "main"]
@@ -56,21 +56,21 @@ def test_run_git_pull_uses_cwd_when_no_repo_dir() -> None:
 
 def test_run_git_pull_raises_on_failure() -> None:
     """run_git_pull propagates GitRunnerError from _run_git."""
-    with patch("coddy.services.git_runner._run_git", side_effect=GitRunnerError("pull failed")):
+    with patch("coddy.utils.git_runner._run_git", side_effect=GitRunnerError("pull failed")):
         with pytest.raises(GitRunnerError, match="pull failed"):
             run_git_pull("main", repo_dir=Path("/tmp/repo"))
 
 
 def test_checkout_branch_success() -> None:
     """checkout_branch runs git checkout <branch> in repo_dir."""
-    with patch("coddy.services.git_runner._run_git") as mock_run:
+    with patch("coddy.utils.git_runner._run_git") as mock_run:
         checkout_branch("main", repo_dir=Path("/tmp/repo"), log=None)
     mock_run.assert_called_once_with(["checkout", "main"], cwd=Path("/tmp/repo"), log=None)
 
 
 def test_checkout_branch_fetches_if_not_exists_locally() -> None:
     """checkout_branch fetches branch if checkout fails initially."""
-    with patch("coddy.services.git_runner._run_git") as mock_run:
+    with patch("coddy.utils.git_runner._run_git") as mock_run:
         # First call fails (branch doesn't exist locally), second succeeds
         mock_run.side_effect = [GitRunnerError("branch not found"), None, None]
         checkout_branch("main", repo_dir=Path("/tmp/repo"), log=None)
@@ -82,7 +82,7 @@ def test_checkout_branch_fetches_if_not_exists_locally() -> None:
 
 def test_checkout_branch_uses_cwd_when_no_repo_dir() -> None:
     """checkout_branch uses Path.cwd() when repo_dir is None."""
-    with patch("coddy.services.git_runner._run_git") as mock_run:
+    with patch("coddy.utils.git_runner._run_git") as mock_run:
         checkout_branch("main", log=None)
     assert mock_run.call_count == 1
     assert mock_run.call_args[0][0] == ["checkout", "main"]

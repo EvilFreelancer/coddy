@@ -1,6 +1,6 @@
 """Convert issue YAML (IssueFile) to markdown for the coddy agent to read."""
 
-from coddy.issue_file import IssueFile
+from coddy.observer.issues.issue_file import IssueFile
 
 
 def issue_to_markdown(issue: IssueFile, issue_number: int | None = None) -> str:

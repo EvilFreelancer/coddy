@@ -8,13 +8,13 @@ import logging
 import re
 from pathlib import Path
 
-from coddy.adapters.base import GitPlatformAdapter, GitPlatformError
-from coddy.agents.base import AIAgent
-from coddy.issue_store import add_message, set_status
+from coddy.observer.adapters.base import GitPlatformAdapter, GitPlatformError
+from coddy.observer.issues.issue_store import add_message, set_status
 from coddy.observer.models import Issue
 from coddy.observer.queue import enqueue
+from coddy.worker.agents.base import AIAgent
 
-LOG = logging.getLogger("coddy.planner")
+LOG = logging.getLogger("coddy.observer.planner")
 
 # Phrases that mean user confirms (EN + RU accepted)
 AFFIRMATIVE_PATTERNS = [

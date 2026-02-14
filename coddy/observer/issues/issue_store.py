@@ -10,11 +10,11 @@ from pathlib import Path
 
 import yaml
 
-from coddy.issue_file import IssueFile, IssueMessage
+from coddy.observer.issues.issue_file import IssueFile, IssueMessage
 
 ISSUES_DIR = ".coddy/issues"
 
-LOG = logging.getLogger("coddy.issue_store")
+LOG = logging.getLogger("coddy.observer.issues.issue_store")
 
 
 def _issues_dir(repo_dir: Path) -> Path:
@@ -45,7 +45,6 @@ def save_issue(repo_dir: Path, issue_number: int, issue: IssueFile) -> Path:
     """Write issue to .coddy/issues/{issue_number}.yaml. Creates dir if needed."""
     path = _issue_path(repo_dir, issue_number)
     path.parent.mkdir(parents=True, exist_ok=True)
-    # Keep issue_number in file for readability
     payload = issue.model_dump(mode="json", exclude_none=True)
     if issue.issue_number is None:
         payload["issue_number"] = issue_number

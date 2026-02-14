@@ -4,7 +4,7 @@ from pathlib import Path
 from unittest.mock import MagicMock, patch
 
 from coddy.observer.models import Issue
-from coddy.services.ralph_loop import run_ralph_loop_for_issue
+from coddy.worker.ralph_loop import run_ralph_loop_for_issue
 
 
 def _issue(number: int = 1, body: str = "Enough body for sufficiency.") -> Issue:
@@ -67,13 +67,13 @@ def test_ralph_loop_returns_success_when_pr_report_written(tmp_path: Path) -> No
     issue = _issue(number=1)
     with (
         patch(
-            "coddy.services.ralph_loop.fetch_and_checkout_branch",
+            "coddy.worker.ralph_loop.fetch_and_checkout_branch",
         ),
         patch(
-            "coddy.services.ralph_loop.checkout_branch",
+            "coddy.worker.ralph_loop.checkout_branch",
         ),
         patch(
-            "coddy.services.ralph_loop.commit_all_and_push",
+            "coddy.worker.ralph_loop.commit_all_and_push",
         ),
     ):
         result = run_ralph_loop_for_issue(

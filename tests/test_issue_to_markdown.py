@@ -1,8 +1,7 @@
 """Tests for YAML issue -> markdown converter (for agent)."""
 
-
-from coddy.issue_file import IssueFile, IssueMessage
-from coddy.services.issue_to_markdown import issue_to_markdown
+from coddy.observer.issues import IssueFile, IssueMessage
+from coddy.utils.issue_to_markdown import issue_to_markdown
 
 
 def test_issue_to_markdown_title_and_description() -> None:

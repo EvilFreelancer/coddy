@@ -4,8 +4,8 @@ from unittest.mock import Mock, patch
 
 import pytest
 
-from coddy.adapters.base import GitPlatformError
-from coddy.adapters.github import GitHubAdapter
+from coddy.observer.adapters.base import GitPlatformError
+from coddy.observer.adapters.github import GitHubAdapter
 from coddy.observer.models import PR, Comment, Issue, ReviewComment
 
 

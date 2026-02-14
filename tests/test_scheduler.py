@@ -6,14 +6,14 @@ from unittest.mock import MagicMock, patch
 
 import pytest
 
-from coddy.scheduler import run_scheduler_loop
+from coddy.observer.scheduler import run_scheduler_loop
 
 
 def test_scheduler_runs_planner_when_pending_plan_older_than_idle_minutes(tmp_path: Path) -> None:
     """When a pending_plan issue has assigned_at older than idle_minutes, planner runs once per tick."""
     import yaml
 
-    from coddy.issue_store import create_issue
+    from coddy.observer.issues import create_issue, load_issue
 
     create_issue(
         tmp_path,
@@ -30,6 +30,9 @@ def test_scheduler_runs_planner_when_pending_plan_older_than_idle_minutes(tmp_pa
         yaml.dump(data, default_flow_style=False, allow_unicode=True, sort_keys=False),
         encoding="utf-8",
     )
+    # Ensure issue is loadable and has pending_plan
+    loaded = load_issue(tmp_path, 5)
+    assert loaded is not None and loaded.status == "pending_plan", "setup: issue file must be pending_plan"
 
     config = MagicMock()
     config.bot.idle_minutes = 10
@@ -39,6 +42,8 @@ def test_scheduler_runs_planner_when_pending_plan_older_than_idle_minutes(tmp_pa
     config.github_token_resolved = "token"
     config.github.api_url = "https://api.github.com"
     config.ai_agents = {}
+    config.scheduler = MagicMock()
+    config.scheduler.interval_seconds = 60
 
     mock_issue = MagicMock()
     mock_issue.number = 5
@@ -46,9 +51,9 @@ def test_scheduler_runs_planner_when_pending_plan_older_than_idle_minutes(tmp_pa
     mock_adapter = MagicMock()
     mock_adapter.get_issue.return_value = mock_issue
 
-    with patch("coddy.adapters.github.GitHubAdapter", return_value=mock_adapter):
-        with patch("coddy.services.planner.run_planner") as mock_run_planner:
-            with patch("coddy.scheduler.time.sleep", side_effect=StopIteration("one tick")):
+    with patch("coddy.observer.scheduler.GitHubAdapter", return_value=mock_adapter):
+        with patch("coddy.observer.scheduler.run_planner") as mock_run_planner:
+            with patch("coddy.observer.scheduler.time.sleep", side_effect=StopIteration("one tick")):
                 with pytest.raises(StopIteration, match="one tick"):
                     run_scheduler_loop(config, tmp_path, interval_seconds=60)
 
@@ -60,7 +65,7 @@ def test_scheduler_runs_planner_when_pending_plan_older_than_idle_minutes(tmp_pa
 
 def test_scheduler_skips_pending_plan_when_not_idle_yet(tmp_path: Path) -> None:
     """When assigned_at is within idle_minutes, planner is not called."""
-    from coddy.issue_store import create_issue
+    from coddy.observer.issues import create_issue
 
     create_issue(tmp_path, 3, "owner/repo", "Fix bug", "", "@u")
     # assigned_at is set to now by create_issue; for "2 min ago" we'd need to patch or rewrite
@@ -74,9 +79,9 @@ def test_scheduler_skips_pending_plan_when_not_idle_yet(tmp_path: Path) -> None:
     config.github.api_url = "https://api.github.com"
     config.ai_agents = {}
 
-    with patch("coddy.adapters.github.GitHubAdapter") as mock_adapter_cls:
-        with patch("coddy.services.planner.run_planner") as mock_run_planner:
-            with patch("coddy.scheduler.time.sleep", side_effect=StopIteration("one tick")):
+    with patch("coddy.observer.scheduler.GitHubAdapter") as mock_adapter_cls:
+        with patch("coddy.observer.scheduler.run_planner") as mock_run_planner:
+            with patch("coddy.observer.scheduler.time.sleep", side_effect=StopIteration("one tick")):
                 with pytest.raises(StopIteration, match="one tick"):
                     run_scheduler_loop(config, tmp_path, interval_seconds=60)
 

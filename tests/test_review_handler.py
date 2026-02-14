@@ -5,7 +5,7 @@ from pathlib import Path
 from unittest.mock import Mock, patch
 
 from coddy.observer.models import PR, ReviewComment
-from coddy.services.review_handler import _issue_number_from_branch, process_pr_review
+from coddy.observer.pr.review_handler import _issue_number_from_branch, process_pr_review
 
 
 def test_issue_number_from_branch() -> None:
@@ -60,10 +60,10 @@ def test_process_pr_review_calls_agent_and_reply(tmp_path: Path) -> None:
 
     with (
         patch(
-            "coddy.services.review_handler.fetch_and_checkout_branch",
+            "coddy.observer.pr.review_handler.fetch_and_checkout_branch",
         ),
         patch(
-            "coddy.services.review_handler.commit_all_and_push",
+            "coddy.observer.pr.review_handler.commit_all_and_push",
         ),
     ):
         process_pr_review(

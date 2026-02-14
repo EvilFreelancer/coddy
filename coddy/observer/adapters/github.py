@@ -5,7 +5,7 @@ from typing import Any, Dict, List
 
 import requests
 
-from coddy.adapters.base import GitPlatformAdapter, GitPlatformError
+from coddy.observer.adapters.base import GitPlatformAdapter, GitPlatformError
 from coddy.observer.models import PR, Comment, Issue, ReviewComment
 
 

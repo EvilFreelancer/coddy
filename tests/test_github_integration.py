@@ -9,8 +9,8 @@ from pathlib import Path
 
 import pytest
 
-from coddy.adapters.github import GitHubAdapter
 from coddy.config import load_config
+from coddy.observer.adapters.github import GitHubAdapter
 from coddy.observer.models import Issue
 
 

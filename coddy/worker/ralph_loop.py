@@ -10,15 +10,15 @@ import logging
 from pathlib import Path
 from typing import Literal
 
-from coddy.adapters.base import GitPlatformAdapter, GitPlatformError
-from coddy.agents.base import AIAgent
+from coddy.observer.adapters.base import GitPlatformAdapter, GitPlatformError
 from coddy.observer.models import Issue
-from coddy.services.git_runner import (
+from coddy.utils.git_runner import (
     branch_name_from_issue,
     checkout_branch,
     commit_all_and_push,
     fetch_and_checkout_branch,
 )
+from coddy.worker.agents.base import AIAgent
 from coddy.worker.task_yaml import read_agent_clarification, read_pr_report
 
 ResultKind = Literal["success", "clarification", "failed"]
@@ -47,7 +47,7 @@ def run_ralph_loop_for_issue(
         "success" if PR was created; "clarification" if agent asked for
         clarification (posted to issue); "failed" otherwise.
     """
-    logger = log or logging.getLogger("coddy.ralph_loop")
+    logger = log or logging.getLogger("coddy.worker.ralph_loop")
     comments = adapter.get_issue_comments(repo, issue.number, since=None)
     result = agent.evaluate_sufficiency(issue, comments)
 
@@ -86,7 +86,6 @@ def run_ralph_loop_for_issue(
 
     for iteration in range(1, max_iterations + 1):
         logger.info("Issue #%s: ralph iteration %s/%s", issue.number, iteration, max_iterations)
-        # Refresh issue/comments in case of edits
         issue = adapter.get_issue(repo, issue.number)
         comments = adapter.get_issue_comments(repo, issue.number, since=None)
 
@@ -141,7 +140,6 @@ def run_ralph_loop_for_issue(
                 pass
             return "clarification"
 
-        # Check for PR report file written by agent without return value
         report_body = read_pr_report(repo_dir, issue.number).strip()
         if report_body:
             if bot_name and bot_email:

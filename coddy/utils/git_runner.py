@@ -8,7 +8,7 @@ import logging
 import subprocess
 from pathlib import Path
 
-from coddy.utils import is_valid_branch_name, sanitize_branch_name
+from coddy.utils.branch import is_valid_branch_name, sanitize_branch_name
 
 
 class GitRunnerError(Exception):
@@ -50,19 +50,7 @@ def run_git_pull(
     repo_dir: Path | None = None,
     log: logging.Logger | None = None,
 ) -> None:
-    """Run git pull origin <branch> in the repository.
-
-    Used after a PR is merged to update the local default branch before
-    restarting the server.
-
-    Args:
-        branch: Branch to pull (e.g. main)
-        repo_dir: Repository root; default current directory
-        log: Optional logger
-
-    Raises:
-        GitRunnerError: If git pull fails
-    """
+    """Run git pull origin <branch> in the repository."""
     cwd = Path(repo_dir) if repo_dir is not None else Path.cwd()
     _run_git(["pull", "origin", branch], cwd=cwd, log=log)
     if log:
@@ -74,16 +62,7 @@ def fetch_and_checkout_branch(
     repo_dir: Path | None = None,
     log: logging.Logger | None = None,
 ) -> None:
-    """Fetch from origin and checkout the given branch (must exist on remote).
-
-    Args:
-        branch_name: Branch to checkout (e.g. 1-implement-get-issue-assignees)
-        repo_dir: Repository root; default current directory
-        log: Optional logger
-
-    Raises:
-        GitRunnerError: If git fetch or checkout fails
-    """
+    """Fetch from origin and checkout the given branch (must exist on remote)."""
     cwd = Path(repo_dir) if repo_dir is not None else Path.cwd()
     _run_git(["fetch", "origin", branch_name], cwd=cwd, log=log)
     _run_git(["checkout", branch_name], cwd=cwd, log=log)
@@ -96,21 +75,11 @@ def checkout_branch(
     repo_dir: Path | None = None,
     log: logging.Logger | None = None,
 ) -> None:
-    """Checkout the given branch (must exist locally or on remote).
-
-    Args:
-        branch_name: Branch to checkout (e.g. main)
-        repo_dir: Repository root; default current directory
-        log: Optional logger
-
-    Raises:
-        GitRunnerError: If git checkout fails
-    """
+    """Checkout the given branch (must exist locally or on remote)."""
     cwd = Path(repo_dir) if repo_dir is not None else Path.cwd()
     try:
         _run_git(["checkout", branch_name], cwd=cwd, log=log)
     except GitRunnerError:
-        # If branch doesn't exist locally, fetch and checkout
         _run_git(["fetch", "origin", branch_name], cwd=cwd, log=log)
         _run_git(["checkout", branch_name], cwd=cwd, log=log)
     if log:
@@ -125,19 +94,7 @@ def commit_all_and_push(
     repo_dir: Path | None = None,
     log: logging.Logger | None = None,
 ) -> None:
-    """Stage all changes, commit with bot identity, and push branch to origin.
-
-    Args:
-        branch_name: Current branch to push
-        commit_message: Commit message (e.g. "#1 Implement get_issue_assignees")
-        bot_name: Git user.name for the commit
-        bot_email: Git user.email for the commit
-        repo_dir: Repository root; default current directory
-        log: Optional logger
-
-    Raises:
-        GitRunnerError: If git add, commit, or push fails
-    """
+    """Stage all changes, commit with bot identity, and push branch to origin."""
     cwd = Path(repo_dir) if repo_dir is not None else Path.cwd()
     _run_git(["add", "-A"], cwd=cwd, log=log)
     try:

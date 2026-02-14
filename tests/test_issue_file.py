@@ -1,7 +1,6 @@
 """Tests for Pydantic issue file models."""
 
-
-from coddy.issue_file import IssueFile, IssueMessage
+from coddy.observer.issues import IssueFile, IssueMessage
 
 
 def test_issue_message_model() -> None:

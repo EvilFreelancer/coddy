@@ -58,9 +58,7 @@ def test_read_agent_clarification_present(tmp_path: Path) -> None:
         "agent_clarification": "Please specify the acceptance criteria and target module.",
     }
     path.write_text(yaml.dump(data), encoding="utf-8")
-    assert read_agent_clarification(tmp_path, 2) == (
-        "Please specify the acceptance criteria and target module."
-    )
+    assert read_agent_clarification(tmp_path, 2) == ("Please specify the acceptance criteria and target module.")
 
 
 def test_read_pr_report_missing(tmp_path: Path) -> None:
@@ -83,9 +81,7 @@ def test_review_task_file_path() -> None:
 
 def test_review_reply_file_path() -> None:
     """review_reply_file_path returns .coddy/review-reply-{pr}-{comment_id}.yaml."""
-    assert review_reply_file_path(Path("/repo"), 5, 100) == Path(
-        "/repo/.coddy/review-reply-5-100.yaml"
-    )
+    assert review_reply_file_path(Path("/repo"), 5, 100) == Path("/repo/.coddy/review-reply-5-100.yaml")
 
 
 def test_write_review_task_file(tmp_path: Path) -> None:
