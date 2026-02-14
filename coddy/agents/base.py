@@ -31,6 +31,14 @@ class AIAgent:
         """
         raise NotImplementedError
 
+    def generate_plan(self, issue: Issue, comments: List[Comment]) -> str:
+        """Produce a short implementation plan in the same language as the issue.
+
+        Used before taking the task in work: post plan and ask user to confirm.
+        Returns plan text (markdown), no code.
+        """
+        raise NotImplementedError
+
     def generate_code(self, issue: Issue, comments: List[Comment]) -> str | None:
         """Generate code for the issue (e.g. run Cursor CLI, apply changes).
 

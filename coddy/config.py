@@ -44,6 +44,8 @@ class BotConfig(BaseSettings):
     )
     webhook_secret: str = Field(default="", description="Secret for webhook verification")
     ai_agent: str = Field(default="cursor_cli", description="AI agent key from ai_agents")
+    # Minutes of issue inactivity before posting plan and asking for confirmation (env: BOT_IDLE_MINUTES)
+    idle_minutes: int = Field(default=10, ge=1, le=1440, description="Idle minutes before taking issue in work")
 
 
 class GitHubConfig(BaseSettings):
@@ -209,7 +211,7 @@ def load_config(config_path: Path | None = None) -> AppConfig:
     raw = yaml.safe_load(path.read_text()) or {}
     raw = _substitute_env(raw)
 
-    # Env overrides for nested values (e.g. BOT_REPOSITORY in Docker)
+    # Env overrides for nested values (e.g. BOT_REPOSITORY)
     bot_raw = raw.get("bot") or {}
     if _current_env.get("BOT_REPOSITORY"):
         bot_raw = {**bot_raw, "repository": _current_env.get("BOT_REPOSITORY")}

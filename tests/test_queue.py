@@ -25,19 +25,19 @@ def test_take_next_returns_smallest_issue(tmp_path: Path) -> None:
 
 def test_mark_done_moves_to_done_dir(tmp_path: Path) -> None:
     """mark_done moves task file from pending to done."""
-    enqueue(tmp_path, "owner/repo", 1)
-    assert (tmp_path / ".coddy" / "queue" / "pending" / "1.json").is_file()
+    enqueue(tmp_path, "owner/repo", 1, title="Task one")
+    assert (tmp_path / ".coddy" / "queue" / "pending" / "1.md").is_file()
     mark_done(tmp_path, 1)
-    assert not (tmp_path / ".coddy" / "queue" / "pending" / "1.json").is_file()
-    assert (tmp_path / ".coddy" / "queue" / "done" / "1.json").is_file()
+    assert not (tmp_path / ".coddy" / "queue" / "pending" / "1.md").is_file()
+    assert (tmp_path / ".coddy" / "queue" / "done" / "1.md").is_file()
 
 
 def test_mark_failed_moves_to_failed_dir(tmp_path: Path) -> None:
     """mark_failed moves task file from pending to failed."""
     enqueue(tmp_path, "owner/repo", 2)
     mark_failed(tmp_path, 2)
-    assert not (tmp_path / ".coddy" / "queue" / "pending" / "2.json").is_file()
-    assert (tmp_path / ".coddy" / "queue" / "failed" / "2.json").is_file()
+    assert not (tmp_path / ".coddy" / "queue" / "pending" / "2.md").is_file()
+    assert (tmp_path / ".coddy" / "queue" / "failed" / "2.md").is_file()
 
 
 def test_list_pending_empty_when_no_dir(tmp_path: Path) -> None:

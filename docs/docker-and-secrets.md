@@ -79,6 +79,12 @@ The token is **not** stored anywhere on your system by default. You must create 
 
 The app passes this token to the Cursor CLI as the `CURSOR_API_KEY` environment variable. If you only use `agent login` on the host, that stores credentials locally in Cursor's config but does not give you a file to copy; for Docker you need the **User API Key** from the dashboard.
 
+## Webhook and bot behaviour
+
+- In the GitHub repo webhook settings, enable the **issue_comment** event so the bot receives user replies (e.g. "yes" / "да") after posting the plan.
+- Set `bot.github_username` in config (e.g. the GitHub user that runs the bot) so the bot ignores its own comments and only reacts to assignees and user confirmations.
+- **Idle minutes**: after the bot is assigned to an issue, it waits `idle_minutes` (default 10) with no activity, then posts a plan and waits for user confirmation. Override via config `bot.idle_minutes` or env `BOT_IDLE_MINUTES`. See [dialog-template.md](dialog-template.md) for the plan/confirmation flow.
+
 ## Config file
 
 The `config.yaml` file is mounted from the host via bind mount in `docker-compose.yml`. Always copy `config.example.yaml` to `config.yaml` before first run - the example contains all available settings with defaults.

@@ -9,6 +9,10 @@ bot:
   default_branch: "main"   # used for git pull on PR merge and for PR base
   webhook_secret: "your-webhook-secret-here"
   ai_agent: "cursor_cli"
+  # Minutes of issue inactivity after assign before posting plan (env: BOT_IDLE_MINUTES)
+  idle_minutes: 10
+  # Bot GitHub username (to detect own comments; required for issue_comment and assigned)
+  # github_username: "coddy-bot"
 
 # GitHub Configuration
 github:

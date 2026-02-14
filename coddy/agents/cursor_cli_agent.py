@@ -55,6 +55,39 @@ class CursorCLIAgent(AIAgent):
         self.mode = mode
         self._log = log or logging.getLogger("coddy.agents.cursor_cli")
 
+    def generate_plan(self, issue: Issue, comments: List[Comment]) -> str:
+        """Run Cursor CLI with a plan-only prompt; return plan text in issue language."""
+        prompt = (
+            f"You are a planner. The user created an issue. Output ONLY a short implementation plan "
+            f"(bullet points, no code). Use the same language as the issue. "
+            f"Issue title: {issue.title!r}\n\nBody:\n{issue.body or '(none)'}\n\n"
+            "Output only the plan, nothing else."
+        )
+        cmd = [self.command, "-p", "--force"]
+        if self.output_format:
+            cmd.extend(["--output-format", self.output_format])
+        if self.model:
+            cmd.extend(["--model", self.model])
+        cmd.append(prompt)
+        env = os.environ.copy()
+        if self.token:
+            env["CURSOR_API_KEY"] = self.token
+        try:
+            result = subprocess.run(
+                cmd,
+                cwd=self.working_directory,
+                env=env,
+                timeout=min(self.timeout, 120),
+                check=False,
+                capture_output=True,
+                text=True,
+            )
+            out = (result.stdout or "") + (result.stderr or "")
+            return out.strip() or "1. Analyze issue\n2. Implement\n3. Test"
+        except (subprocess.TimeoutExpired, FileNotFoundError) as e:
+            self._log.warning("Plan generation failed: %s", e)
+            return "1. Analyze issue\n2. Implement\n3. Test"
+
     def evaluate_sufficiency(self, issue: Issue, comments: List[Comment]) -> SufficiencyResult:
         """Use simple heuristic: sufficient if body has some content."""
         if len((issue.body or "").strip()) < 20:

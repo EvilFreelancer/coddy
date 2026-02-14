@@ -42,20 +42,29 @@ def setup_logging(level: str = "INFO") -> None:
 
 
 def run_daemon(config: AppConfig) -> None:
-    """Run the webhook server (enqueues tasks on events)."""
+    """Run the webhook server and scheduler (plan after idle_minutes)."""
     setup_logging(config.logging.level)
     log = logging.getLogger("coddy.daemon")
+
+    repo_dir = Path.cwd()
+    if config.ai_agents and "cursor_cli" in config.ai_agents:
+        wd = getattr(config.ai_agents["cursor_cli"], "working_directory", None)
+        if wd:
+            repo_dir = Path(wd).resolve()
 
     if not config.webhook.enabled:
         log.warning("Webhook disabled in config; daemon will do nothing useful.")
     log.info(
-        "Coddy daemon started | repo=%s | webhook=%s",
+        "Coddy daemon started | repo=%s | webhook=%s | idle_minutes=%s",
         config.bot.repository,
         config.webhook.enabled,
+        getattr(config.bot, "idle_minutes", 10),
     )
 
+    from coddy.scheduler import start_scheduler_thread
     from coddy.webhook.server import run_webhook_server
 
+    start_scheduler_thread(config, repo_dir)
     run_webhook_server(config)
 
 

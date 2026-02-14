@@ -93,13 +93,68 @@ def _handle_pr_merged(
     sys.exit(0)
 
 
+def _handle_issue_comment(
+    config: Any,
+    payload: Dict[str, Any],
+    repo_dir: Path,
+    log: logging.Logger,
+) -> None:
+    """On new comment: if issue is waiting_confirmation and user says yes, set queued and post work started."""
+    if payload.get("action") != "created":
+        return
+    comment_payload = payload.get("comment") or {}
+    body = comment_payload.get("body") or ""
+    user = comment_payload.get("user") or {}
+    author = user.get("login", "")
+    bot_username = getattr(config.bot, "github_username", None)
+    if bot_username and author == bot_username:
+        return
+    issue_payload = payload.get("issue") or {}
+    issue_number = issue_payload.get("number")
+    if issue_number is None:
+        return
+    repo_payload = payload.get("repository") or {}
+    repo = repo_payload.get("full_name") or getattr(config.bot, "repository", "")
+    if not repo or repo != getattr(config.bot, "repository", ""):
+        return
+    from coddy.issue_store import load_issue
+    from coddy.services.planner import is_affirmative_comment, on_user_confirmed
+
+    issue_file = load_issue(repo_dir, int(issue_number))
+    if not issue_file or issue_file.status != "waiting_confirmation":
+        return
+    if not is_affirmative_comment(body):
+        return
+    token = getattr(config, "github_token_resolved", None)
+    if not token:
+        log.warning("No GitHub token; cannot post reply")
+        return
+    from coddy.adapters.github import GitHubAdapter
+
+    adapter = GitHubAdapter(
+        token=token,
+        api_url=getattr(config.github, "api_url", "https://api.github.com"),
+    )
+    on_user_confirmed(
+        adapter,
+        int(issue_number),
+        repo,
+        issue_file.title or "",
+        repo_dir,
+        comment_author=author,
+        comment_body=body,
+        bot_username=bot_username or "",
+        log=log,
+    )
+
+
 def _handle_issues_assigned(
     config: Any,
     payload: Dict[str, Any],
     repo_dir: Path,
     log: logging.Logger,
 ) -> None:
-    """On issue assigned: if bot is in assignees, enqueue task for worker."""
+    """On issue assigned: if bot is in assignees, create issue in .coddy/issues/ with status pending_plan."""
     if payload.get("action") != "assigned":
         return
     issue_payload = payload.get("issue") or {}
@@ -117,12 +172,24 @@ def _handle_issues_assigned(
         log.debug("Skipping issues.assigned: repository %s not configured", repo)
         return
     issue_number = issue_payload.get("number")
+    title = issue_payload.get("title") or ""
     if issue_number is None:
         return
-    from coddy.queue import enqueue
+    from coddy.issue_store import create_issue
 
-    enqueue(repo_dir, repo, int(issue_number), payload=payload)
-    log.info("Enqueued issue #%s for repo %s", issue_number, repo)
+    user_payload = issue_payload.get("user") or {}
+    author = user_payload.get("login") or "unknown"
+    body = issue_payload.get("body") or ""
+    create_issue(
+        repo_dir,
+        int(issue_number),
+        repo,
+        title,
+        body,
+        author,
+    )
+    idle = getattr(config.bot, "idle_minutes", 10)
+    log.info("Issue #%s assigned, status pending_plan (idle_minutes=%s)", issue_number, idle)
 
 
 def handle_github_event(
@@ -148,6 +215,10 @@ def handle_github_event(
 
     if event == "issues":
         _handle_issues_assigned(config, payload, work_dir, logger)
+        return
+
+    if event == "issue_comment":
+        _handle_issue_comment(config, payload, work_dir, logger)
         return
 
     if event != "pull_request_review_comment":

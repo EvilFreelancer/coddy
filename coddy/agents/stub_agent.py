@@ -24,6 +24,10 @@ class StubAgent(AIAgent):
         """
         self.min_body_length = min_body_length
 
+    def generate_plan(self, issue: Issue, comments: List[Comment]) -> str:
+        """Return a generic stub plan."""
+        return "- Review issue and comments\n- Implement required changes\n- Add tests\n- Run linter and fix"
+
     def evaluate_sufficiency(self, issue: Issue, comments: List[Comment]) -> SufficiencyResult:
         """Return sufficient unless body is too short (when min_body_length >
         0)."""

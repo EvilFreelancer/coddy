@@ -33,7 +33,7 @@ Coddy is split into two runnable applications that work together:
 1. **Daemon (coddy daemon)** - Task intake and webhooks
    - Listens for webhook events from Git platforms (e.g. GitHub: issue assigned, issue comment, PR review comment).
    - Optionally runs a scheduler that polls the platform API for new assignments and comments when webhooks are unavailable.
-   - When the bot is assigned to an issue (or an MR/PR is referenced), the daemon **enqueues** a task (e.g. "work on issue N") to a task queue. It does **not** run the AI agent or perform code generation.
+   - When the bot is assigned to an issue, the daemon writes a **state file** (pending_plan) under `.coddy/state/` and does not enqueue yet. A **scheduler** checks periodically; after **idle_minutes** with no activity it runs the **planner** (posts a plan and asks for confirmation). When the user confirms via a comment, the daemon **enqueues** the task to `.coddy/queue/pending/`. See [issue-flow.md](issue-flow.md).
    - Queue implementation: file-based under `.coddy/queue/pending/` (one file per task; worker moves to `.coddy/queue/done/` or `.coddy/queue/failed/` after processing). This allows the worker to run in a separate process or on another host that shares the repo and queue directory.
    - The daemon is long-running: HTTP server for webhooks, optional poll loop, and (if desired) a small loop that watches the queue and logs or notifies. It does not execute the development loop.
 
@@ -74,8 +74,10 @@ This separation allows:
 
 ### Issue Processing Flow
 
+**From assignment to queue**: When the bot is assigned to an issue, it is first put in a waiting state (`.coddy/state/{issue_number}.md`), not directly in the queue. After **idle_minutes** (default 10) with no activity, the planner posts a plan and asks for user confirmation. When the user replies affirmatively (e.g. "yes", "да"), the task is enqueued (`.coddy/queue/pending/{issue_number}.md`) and the worker can pick it up. See [issue-flow.md](issue-flow.md) for the full step-by-step and [dialog-template.md](dialog-template.md) for the plan/confirmation dialog.
+
 1. **Trigger (Bot Assigned or MR/PR Referenced)**
-   - **Option A**: User assigns the bot as assignee on an issue; a **webhook** (if configured) or the **scheduler** (polling the API) detects that the bot was assigned, and the issue is queued for processing.
+   - **Option A**: User assigns the bot as assignee on an issue; a **webhook** (if configured) or the **scheduler** (polling the API) detects that the bot was assigned. The issue is stored in **state** (pending_plan); after idle_minutes the planner runs and asks for confirmation; once the user confirms, the issue is **queued** for processing.
    - **Option B**: User provides an MR/PR number (e.g. in a comment or command); the bot loads that MR/PR and works on it (e.g. review feedback, or continuing work).
    - Only issues/MRs explicitly assigned or referenced are processed; the bot does not auto-pick every new issue.
    - **New messages in an issue**: If a user adds a comment to an issue the bot is working on, that input must be taken into account (see "Scheduler" and "Issue comments" below). The bot re-reads the issue body and all comments before continuing or when deciding next steps.
