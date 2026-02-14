@@ -7,7 +7,7 @@ bot:
   git_platform: "github"  # github, gitlab, bitbucket
   repository: "owner/repo"
   default_branch: "main"   # used for git pull on PR merge and for PR base
-  workspace: "."  # Workspace: path to repo root (sources + .coddy/ with issues and PRs); env BOT_WORKSPACE
+  workspace: "./workspace"  # Workspace: path to repo root (sources + .coddy/ with issues and PRs); env BOT_WORKSPACE
   webhook_secret: "your-webhook-secret-here"
   ai_agent: "cursor_cli"
   # github_username: "coddy-bot"  # Bot GitHub username (to detect own comments; required for issue_comment and assigned)
@@ -38,7 +38,6 @@ ai_agents:
     command: "agent"
     args: ["generate"]
     timeout: 300
-    working_directory: "."
     model: "auto"
     mode: "agent"   # agent (default), plan, or ask
     # token: CURSOR_AGENT_TOKEN or CURSOR_AGENT_TOKEN_FILE; or CURSOR_API_KEY for headless CLI
