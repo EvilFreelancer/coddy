@@ -15,7 +15,7 @@ PENDING = "pending"
 DONE = "done"
 FAILED = "failed"
 
-LOG = logging.getLogger("coddy.queue")
+LOG = logging.getLogger("coddy.observer.queue")
 
 
 def _queue_base(repo_dir: Path) -> Path:
@@ -97,7 +97,6 @@ def list_pending(repo_dir: Path) -> list[dict[str, Any]]:
     tasks = []
     for f in sorted(base.glob("*.md")):
         try:
-            # Issue number from filename (e.g. 42.md -> 42)
             stem = f.stem
             if not stem.isdigit():
                 continue

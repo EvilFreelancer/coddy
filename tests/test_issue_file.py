@@ -1,6 +1,5 @@
 """Tests for Pydantic issue file models."""
 
-import pytest
 
 from coddy.issue_file import IssueFile, IssueMessage
 

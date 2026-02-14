@@ -2,16 +2,14 @@
 
 from pathlib import Path
 
-import pytest
-
 from coddy.issue_file import IssueFile, IssueMessage
 from coddy.issue_store import (
     add_message,
     create_issue,
-    load_issue,
     list_issues_by_status,
     list_pending_plan,
     list_queued,
+    load_issue,
     save_issue,
     set_status,
 )

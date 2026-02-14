@@ -2,7 +2,7 @@
 
 from pathlib import Path
 
-from coddy.queue import enqueue, list_pending, mark_done, mark_failed, take_next
+from coddy.observer.queue import enqueue, list_pending, mark_done, mark_failed, take_next
 
 
 def test_enqueue_and_list_pending(tmp_path: Path) -> None:

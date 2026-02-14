@@ -4,7 +4,7 @@ feedback)."""
 from pathlib import Path
 from typing import List
 
-from coddy.models import Comment, Issue, ReviewComment
+from coddy.observer.models import Comment, Issue, ReviewComment
 
 
 class SufficiencyResult:

@@ -1,6 +1,5 @@
 """Tests for YAML issue -> markdown converter (for agent)."""
 
-import pytest
 
 from coddy.issue_file import IssueFile, IssueMessage
 from coddy.services.issue_to_markdown import issue_to_markdown

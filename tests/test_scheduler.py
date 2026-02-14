@@ -26,13 +26,16 @@ def test_scheduler_runs_planner_when_pending_plan_older_than_idle_minutes(tmp_pa
     issue_path = tmp_path / ".coddy" / "issues" / "5.yaml"
     data = yaml.safe_load(issue_path.read_text(encoding="utf-8"))
     data["assigned_at"] = (datetime.now(UTC) - timedelta(minutes=15)).isoformat()
-    issue_path.write_text(yaml.dump(data, default_flow_style=False, allow_unicode=True, sort_keys=False), encoding="utf-8")
+    issue_path.write_text(
+        yaml.dump(data, default_flow_style=False, allow_unicode=True, sort_keys=False),
+        encoding="utf-8",
+    )
 
     config = MagicMock()
     config.bot.idle_minutes = 10
     config.bot.git_platform = "github"
     config.bot.repository = "owner/repo"
-    config.bot.ai_agent = "stub_agent"
+    config.bot.ai_agent = "cursor_cli"
     config.github_token_resolved = "token"
     config.github.api_url = "https://api.github.com"
     config.ai_agents = {}

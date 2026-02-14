@@ -11,8 +11,8 @@ from pathlib import Path
 from coddy.adapters.base import GitPlatformAdapter, GitPlatformError
 from coddy.agents.base import AIAgent
 from coddy.issue_store import add_message, set_status
-from coddy.models import Issue
-from coddy.queue import enqueue
+from coddy.observer.models import Issue
+from coddy.observer.queue import enqueue
 
 LOG = logging.getLogger("coddy.planner")
 

@@ -11,14 +11,14 @@ from pathlib import Path
 
 from coddy.adapters.base import GitPlatformAdapter, GitPlatformError
 from coddy.agents.base import AIAgent
-from coddy.models import Issue
+from coddy.observer.models import Issue
 from coddy.services.git_runner import (
     branch_name_from_issue,
     checkout_branch,
     commit_all_and_push,
     fetch_and_checkout_branch,
 )
-from coddy.services.task_file import read_agent_clarification
+from coddy.worker.task_yaml import read_agent_clarification
 
 POLL_INTERVAL_SECONDS = 60
 POLL_MAX_ITERATIONS = 60 * 24  # 24 hours at 1/min

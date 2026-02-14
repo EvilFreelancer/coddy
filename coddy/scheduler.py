@@ -67,13 +67,10 @@ def run_scheduler_loop(
 
 
 def _make_agent(config: Any) -> Any:
-    if getattr(config.bot, "ai_agent", "") == "cursor_cli" and getattr(config, "ai_agents", {}).get("cursor_cli"):
-        from coddy.agents.cursor_cli_agent import make_cursor_cli_agent
+    """Build AI agent from config (cursor_cli only)."""
+    from coddy.agents.cursor_cli_agent import make_cursor_cli_agent
 
-        return make_cursor_cli_agent(config)
-    from coddy.agents.stub_agent import StubAgent
-
-    return StubAgent(min_body_length=0)
+    return make_cursor_cli_agent(config)
 
 
 def start_scheduler_thread(config: Any, repo_dir: Path) -> threading.Thread:

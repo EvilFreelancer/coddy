@@ -4,7 +4,7 @@ from datetime import datetime
 from pathlib import Path
 from unittest.mock import Mock, patch
 
-from coddy.models import PR, ReviewComment
+from coddy.observer.models import PR, ReviewComment
 from coddy.services.review_handler import _issue_number_from_branch, process_pr_review
 
 
@@ -30,9 +30,27 @@ def test_process_pr_review_calls_agent_and_reply(tmp_path: Path) -> None:
     """process_pr_review gets PR, checks out branch, runs agent, replies."""
     dt = datetime(2024, 1, 15, 10, 0, 0)
     comments = [
-        ReviewComment(100, "Use constant", "user", "src/a.py", 10, "RIGHT", dt, None, None),
+        ReviewComment(
+            id=100,
+            body="Use constant",
+            author="user",
+            path="src/a.py",
+            line=10,
+            side="RIGHT",
+            created_at=dt,
+            updated_at=None,
+            in_reply_to_id=None,
+        ),
     ]
-    pr = PR(3, "Title", "Body", "42-feature", "main", "open", None)
+    pr = PR(
+        number=3,
+        title="Title",
+        body="Body",
+        head_branch="42-feature",
+        base_branch="main",
+        state="open",
+        html_url=None,
+    )
     adapter = Mock()
     adapter.get_pr.return_value = pr
     adapter.reply_to_review_comment.return_value = None

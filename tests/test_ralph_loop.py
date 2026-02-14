@@ -3,7 +3,7 @@
 from pathlib import Path
 from unittest.mock import MagicMock, patch
 
-from coddy.models import Issue
+from coddy.observer.models import Issue
 from coddy.services.ralph_loop import run_ralph_loop_for_issue
 
 

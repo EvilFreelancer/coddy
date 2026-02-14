@@ -12,14 +12,14 @@ from typing import Literal
 
 from coddy.adapters.base import GitPlatformAdapter, GitPlatformError
 from coddy.agents.base import AIAgent
-from coddy.models import Issue
+from coddy.observer.models import Issue
 from coddy.services.git_runner import (
     branch_name_from_issue,
     checkout_branch,
     commit_all_and_push,
     fetch_and_checkout_branch,
 )
-from coddy.services.task_file import read_agent_clarification, read_pr_report
+from coddy.worker.task_yaml import read_agent_clarification, read_pr_report
 
 ResultKind = Literal["success", "clarification", "failed"]
 

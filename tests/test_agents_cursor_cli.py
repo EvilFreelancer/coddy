@@ -1,11 +1,12 @@
 """Tests for CursorCLIAgent (headless mode, task/report/log files)."""
 
+import subprocess
 from datetime import UTC, datetime
 from pathlib import Path
-from unittest.mock import MagicMock
+from unittest.mock import MagicMock, patch
 
 from coddy.agents.cursor_cli_agent import CursorCLIAgent
-from coddy.models import Issue
+from coddy.observer.models import Issue
 
 
 def _issue(number: int = 42, body: str = "Enough body for sufficiency check.") -> Issue:
@@ -21,22 +22,21 @@ def _issue(number: int = 42, body: str = "Enough body for sufficiency check.") -
     )
 
 
-def test_cursor_cli_agent_writes_log_file(tmp_path: Path, mocker: MagicMock) -> None:
+def test_cursor_cli_agent_writes_log_file(tmp_path: Path) -> None:
     """generate_code writes .coddy/task-{issue}.log with header and CLI
     output."""
-    mock_run = mocker.patch("coddy.agents.cursor_cli_agent.subprocess.run")
-    mock_run.return_value = MagicMock(returncode=0)
-    mocker.patch(
-        "coddy.agents.cursor_cli_agent.read_pr_report",
-        return_value="PR description",
-    )
-    agent = CursorCLIAgent(
-        command="agent",
-        timeout=60,
-        working_directory=str(tmp_path),
-    )
-    issue = _issue(number=7)
-    result = agent.generate_code(issue, [])
+    with (
+        patch("coddy.agents.cursor_cli_agent.subprocess.run") as mock_run,
+        patch("coddy.agents.cursor_cli_agent.read_pr_report", return_value="PR description"),
+    ):
+        mock_run.return_value = MagicMock(returncode=0)
+        agent = CursorCLIAgent(
+            command="agent",
+            timeout=60,
+            working_directory=str(tmp_path),
+        )
+        issue = _issue(number=7)
+        result = agent.generate_code(issue, [])
     assert result == "PR description"
     log_path = tmp_path / ".coddy" / "task-7.log"
     assert log_path.is_file()
@@ -49,18 +49,16 @@ def test_cursor_cli_agent_writes_log_file(tmp_path: Path, mocker: MagicMock) -> 
     assert "Exit code: 0" in content
 
 
-def test_cursor_cli_agent_log_file_on_timeout(tmp_path: Path, mocker: MagicMock) -> None:
+def test_cursor_cli_agent_log_file_on_timeout(tmp_path: Path) -> None:
     """On timeout, log file is appended with timeout message."""
-    mocker.patch("coddy.agents.cursor_cli_agent.subprocess.run").side_effect = __import__("subprocess").TimeoutExpired(
-        "agent", 60
-    )
-    agent = CursorCLIAgent(
-        command="agent",
-        timeout=60,
-        working_directory=str(tmp_path),
-    )
-    issue = _issue(number=8)
-    result = agent.generate_code(issue, [])
+    with patch("coddy.agents.cursor_cli_agent.subprocess.run", side_effect=subprocess.TimeoutExpired("agent", 60)):
+        agent = CursorCLIAgent(
+            command="agent",
+            timeout=60,
+            working_directory=str(tmp_path),
+        )
+        issue = _issue(number=8)
+        result = agent.generate_code(issue, [])
     assert result is None
     log_path = tmp_path / ".coddy" / "task-8.log"
     assert log_path.is_file()
@@ -68,16 +66,16 @@ def test_cursor_cli_agent_log_file_on_timeout(tmp_path: Path, mocker: MagicMock)
     assert "Timed out after 60s" in content
 
 
-def test_cursor_cli_agent_log_file_on_cli_not_found(tmp_path: Path, mocker: MagicMock) -> None:
+def test_cursor_cli_agent_log_file_on_cli_not_found(tmp_path: Path) -> None:
     """On FileNotFoundError, log file is appended with error."""
-    mocker.patch("coddy.agents.cursor_cli_agent.subprocess.run").side_effect = FileNotFoundError("agent not found")
-    agent = CursorCLIAgent(
-        command="agent",
-        timeout=60,
-        working_directory=str(tmp_path),
-    )
-    issue = _issue(number=9)
-    result = agent.generate_code(issue, [])
+    with patch("coddy.agents.cursor_cli_agent.subprocess.run", side_effect=FileNotFoundError("agent not found")):
+        agent = CursorCLIAgent(
+            command="agent",
+            timeout=60,
+            working_directory=str(tmp_path),
+        )
+        issue = _issue(number=9)
+        result = agent.generate_code(issue, [])
     assert result is None
     log_path = tmp_path / ".coddy" / "task-9.log"
     assert log_path.is_file()
@@ -85,22 +83,24 @@ def test_cursor_cli_agent_log_file_on_cli_not_found(tmp_path: Path, mocker: Magi
     assert "CLI not found" in content or "not found" in content
 
 
-def test_cursor_cli_agent_passes_cli_params_to_subprocess(tmp_path: Path, mocker: MagicMock) -> None:
+def test_cursor_cli_agent_passes_cli_params_to_subprocess(tmp_path: Path) -> None:
     """When output_format, model, mode, stream_partial_output are set, they
     appear in cmd."""
-    mock_run = mocker.patch("coddy.agents.cursor_cli_agent.subprocess.run")
-    mock_run.return_value = MagicMock(returncode=0)
-    mocker.patch("coddy.agents.cursor_cli_agent.read_pr_report", return_value="")
-    agent = CursorCLIAgent(
-        command="agent",
-        timeout=60,
-        working_directory=str(tmp_path),
-        output_format="stream-json",
-        stream_partial_output=True,
-        model="Claude 4 Sonnet",
-        mode="plan",
-    )
-    agent.generate_code(_issue(number=10), [])
+    with (
+        patch("coddy.agents.cursor_cli_agent.subprocess.run") as mock_run,
+        patch("coddy.agents.cursor_cli_agent.read_pr_report", return_value=""),
+    ):
+        mock_run.return_value = MagicMock(returncode=0)
+        agent = CursorCLIAgent(
+            command="agent",
+            timeout=60,
+            working_directory=str(tmp_path),
+            output_format="stream-json",
+            stream_partial_output=True,
+            model="Claude 4 Sonnet",
+            mode="plan",
+        )
+        agent.generate_code(_issue(number=10), [])
     call_args = mock_run.call_args
     cmd = call_args[0][0]
     assert cmd[0] == "agent"

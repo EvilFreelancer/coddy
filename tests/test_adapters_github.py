@@ -6,7 +6,7 @@ import pytest
 
 from coddy.adapters.base import GitPlatformError
 from coddy.adapters.github import GitHubAdapter
-from coddy.models import PR, Comment, Issue, ReviewComment
+from coddy.observer.models import PR, Comment, Issue, ReviewComment
 
 
 @pytest.fixture

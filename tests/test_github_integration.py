@@ -11,7 +11,7 @@ import pytest
 
 from coddy.adapters.github import GitHubAdapter
 from coddy.config import load_config
-from coddy.models import Issue
+from coddy.observer.models import Issue
 
 
 def _get_token() -> str | None:

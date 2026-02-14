@@ -15,11 +15,12 @@ from pathlib import Path
 from typing import Any, List
 
 from coddy.agents.base import AIAgent, SufficiencyResult
-from coddy.models import Comment, Issue, ReviewComment
-from coddy.services.task_file import (
+from coddy.observer.models import Comment, Issue, ReviewComment
+from coddy.worker.task_yaml import (
     read_pr_report,
     read_review_reply,
     report_file_path,
+    review_reply_file_path,
     task_log_path,
     write_review_task_file,
     write_task_file,
@@ -111,9 +112,9 @@ class CursorCLIAgent(AIAgent):
         log_path.parent.mkdir(parents=True, exist_ok=True)
 
         prompt = (
-            f"Read and execute the task described in {task_path}. "
-            f"The task file explains: if data is insufficient, append '## Agent clarification request' "
-            f"with your question and stop; otherwise implement and write the PR description to {report_path}."
+            f"Read and execute the task described in {task_path} (YAML). "
+            f"If data is insufficient, add the key 'agent_clarification' to that YAML with your question and stop. "
+            f"Otherwise implement and write the PR description to {report_path} (YAML with key 'body')."
         )
 
         cmd = [self.command, "-p", "--force"]
@@ -183,14 +184,14 @@ class CursorCLIAgent(AIAgent):
         """
         task_path = write_review_task_file(pr_number, issue_number, comments, current_index, Path(repo_dir))
         current = comments[current_index - 1]
-        reply_path = Path(repo_dir) / ".coddy" / f"review-reply-{pr_number}-{current.id}.md"
+        reply_path = review_reply_file_path(Path(repo_dir), pr_number, current.id)
         log_path = Path(repo_dir) / ".coddy" / f"task-{issue_number}.log"
         log_path.parent.mkdir(parents=True, exist_ok=True)
 
         prompt = (
-            f"Read and execute the review task in {task_path}. "
-            f"Address the current item only: apply code changes and/or write your reply to {reply_path}. "
-            f"Then stop."
+            f"Read and execute the review task in {task_path} (YAML). "
+            f"Address the current item only: apply code changes and/or write your reply to "
+            f"{reply_path} (YAML with key 'body'). Then stop."
         )
         cmd = [self.command, "-p", "--force"]
         if self.output_format:

@@ -10,7 +10,7 @@ from datetime import datetime
 from pathlib import Path
 from typing import Any, Dict
 
-from coddy.models import ReviewComment
+from coddy.observer.models import ReviewComment
 
 
 def _parse_review_comment_from_payload(comment_payload: Dict[str, Any]) -> ReviewComment | None:
@@ -278,11 +278,7 @@ def handle_github_event(
 
 
 def _make_agent_from_config(config: Any) -> Any:
-    """Build AI agent from config (same logic as main._make_agent)."""
-    if getattr(config.bot, "ai_agent", "") == "cursor_cli" and getattr(config, "ai_agents", {}).get("cursor_cli"):
-        from coddy.agents.cursor_cli_agent import make_cursor_cli_agent
+    """Build AI agent from config (cursor_cli only)."""
+    from coddy.agents.cursor_cli_agent import make_cursor_cli_agent
 
-        return make_cursor_cli_agent(config)
-    from coddy.agents.stub_agent import StubAgent
-
-    return StubAgent(min_body_length=0)
+    return make_cursor_cli_agent(config)

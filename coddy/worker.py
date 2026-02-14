@@ -54,14 +54,10 @@ def setup_logging(level: str = "INFO") -> None:
 
 
 def _make_agent(config: AppConfig) -> object:
-    """Build AI agent from config (cursor_cli or stub)."""
-    if config.bot.ai_agent == "cursor_cli" and getattr(config, "ai_agents", {}).get("cursor_cli"):
-        from coddy.agents.cursor_cli_agent import make_cursor_cli_agent
+    """Build AI agent from config (cursor_cli only)."""
+    from coddy.agents.cursor_cli_agent import make_cursor_cli_agent
 
-        return make_cursor_cli_agent(config)
-    from coddy.agents.stub_agent import StubAgent
-
-    return StubAgent(min_body_length=0)
+    return make_cursor_cli_agent(config)
 
 
 def run_worker(config: AppConfig, once: bool = False, poll_interval: int = 10) -> None:
@@ -77,7 +73,7 @@ def run_worker(config: AppConfig, once: bool = False, poll_interval: int = 10) -
         return
 
     from coddy.adapters.github import GitHubAdapter
-    from coddy.queue import mark_done, mark_failed, take_next
+    from coddy.observer.queue import mark_done, mark_failed, take_next
     from coddy.services.ralph_loop import run_ralph_loop_for_issue
 
     repo_dir = Path.cwd()
