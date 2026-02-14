@@ -13,7 +13,7 @@ from coddy.services.store import (
     list_queued,
     load_issue,
     save_issue,
-    set_status,
+    set_issue_status,
 )
 
 __all__ = [
@@ -26,5 +26,5 @@ __all__ = [
     "list_pending_plan",
     "list_queued",
     "save_issue",
-    "set_status",
+    "set_issue_status",
 ]

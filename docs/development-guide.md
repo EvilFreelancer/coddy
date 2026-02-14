@@ -89,22 +89,28 @@ coddy/
 ├── docs/                    # Documentation
 │   ├── system-specification.md
 │   ├── architecture.md
-│   └── development-guide.md
+│   ├── development-guide.md
+│   ├── issue-storage.md
+│   ├── issue-flow.md
+│   └── ...
 ├── coddy/                   # Main application code
+│   ├── services/            # Shared by observer and worker
+│   │   ├── store/           # Issue and PR storage (.coddy/issues/, .coddy/prs/)
+│   │   └── git/             # Git operations (branches, commits, push_pull)
 │   ├── observer/            # Daemon: adapters, issues, planner, webhook
-│   │   ├── adapters/        # Git platform adapters
-│   │   ├── issues/          # Issue storage and state
+│   │   ├── adapters/       # Git platform adapters
+│   │   ├── issues/          # Re-exports from services.store
 │   │   ├── models/          # Pydantic models (Issue, PR, Comment, ReviewComment)
 │   │   ├── pr/              # Review handler
 │   │   ├── webhook/         # Webhook server and handlers
 │   │   ├── planner.py       # Plan and confirmation flow
 │   │   └── run.py           # Observer entry point
 │   ├── worker/              # Worker: ralph loop, agents
-│   │   ├── agents/         # AI agents (base, cursor_cli)
-│   │   ├── task_yaml.py    # Task and PR report YAML
-│   │   ├── ralph_loop.py   # Development loop
-│   │   └── run.py          # Worker entry point
-│   ├── utils/               # Shared utilities (branch, git_runner)
+│   │   ├── agents/          # AI agents (base, cursor_cli)
+│   │   ├── task_yaml.py     # Task and PR report YAML
+│   │   ├── ralph_loop.py    # Development loop
+│   │   └── run.py           # Worker entry point
+│   ├── utils/               # Re-exports from coddy.services.git (backward compat)
 │   ├── config.py            # Configuration management
 │   └── main.py              # Application entry point (observer | worker)
 ├── tests/                   # Test suite
@@ -193,4 +199,6 @@ docker run -it --rm \
 
 - [System Specification](system-specification.md)
 - [Architecture Documentation](architecture.md)
+- [Issue Storage](issue-storage.md)
+- [Issue Flow](issue-flow.md)
 - [Cursor Rules](../.cursor/rules/)

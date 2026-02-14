@@ -118,7 +118,7 @@ def add_message(
     LOG.debug("Added message to issue #%s from %s", issue_id, name)
 
 
-def set_status(repo_dir: Path, issue_id: int, status: str) -> None:
+def set_issue_status(repo_dir: Path, issue_id: int, status: str) -> None:
     """Update issue status (e.g. waiting_confirmation, queued)."""
     issue = load_issue(repo_dir, issue_id)
     if not issue:

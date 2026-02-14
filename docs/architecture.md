@@ -36,7 +36,7 @@ Shared layer used by both observer and worker.
 
 | Path | Description |
 |------|-------------|
-| `services/store/` | Issue and PR storage (`.coddy/issues/*.yaml`, `.coddy/prs/*.yaml`). Schemas: IssueFile, IssueComment, PRFile. Functions: create_issue, load_issue, save_issue, set_status, list_queued, list_pending_plan, add_message; load_pr, save_pr, set_pr_status. |
+| `services/store/` | Issue and PR storage (`.coddy/issues/*.yaml`, `.coddy/prs/*.yaml`). Schemas: IssueFile, IssueComment, PRFile. Functions: create_issue, load_issue, save_issue, set_issue_status, list_queued, list_pending_plan, add_message; load_pr, save_pr, set_pr_status. |
 | `services/git/` | Git operations: `branches.py` (branch name sanitization, checkout, fetch); `commits.py` (stage and commit); `push_pull.py` (pull, push, commit_all_and_push). Used by observer (webhook, review) and worker (ralph loop). |
 
 **Dependencies**: Standard lib, third-party (pydantic, yaml). No observer or worker imports.
@@ -55,7 +55,7 @@ Everything that observes events, stores state, and enqueues work. Does not run t
 | `observer/webhook/` | Webhook server and event handlers. |
 | `observer/run.py` | Observer entry: webhook server only (plan on assignment). |
 
-**Dependencies**: config, standard lib, third-party, `coddy.services.store`.
+**Dependencies**: config, standard lib, third-party, `coddy.services.store`, `coddy.services.git`.
 
 ### Worker (`coddy/worker/`)
 
@@ -170,9 +170,9 @@ Used for:
 ### Issue Processing Flow
 
 1. **Trigger Event** -> Webhook "bot assigned to issue"; issue stored in `.coddy/issues/{n}.yaml`, planner runs, plan posted, status -> waiting_confirmation
-3. **User confirms** -> Webhook issue_comment (affirmative); task enqueued to `.coddy/queue/pending/`; status -> queued
-4. **Worker** -> Dequeues task; ralph loop: sufficiency, branch, write `.coddy/task-{n}.yaml`, run agent until `.coddy/pr-{n}.yaml` or agent_clarification
-5. **PR Creation** -> Worker creates PR from report body, sets label, checkout default branch
+2. **User confirms** -> Webhook issue_comment (affirmative); issue status set to queued in `.coddy/issues/{n}.yaml`
+3. **Worker** -> Picks queued issue; ralph loop: sufficiency, branch, write `.coddy/task-{n}.yaml`, run agent until `.coddy/pr-{n}.yaml` or agent_clarification
+4. **PR Creation** -> Worker creates PR from report body, sets label, checkout default branch
 
 ### Review Processing Flow
 

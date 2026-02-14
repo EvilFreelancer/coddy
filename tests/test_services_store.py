@@ -16,13 +16,13 @@ from coddy.services.store import (
     load_pr,
     save_issue,
     save_pr,
-    set_status,
+    set_issue_status,
     set_pr_status,
 )
 
 
 class TestIssueStore:
-    """Tests for issue_store (load, save, create, add_message, set_status, list_*)."""
+    """Tests for issue_store (load, save, create, add_message, set_issue_status, list_*)."""
 
     def test_create_issue_writes_yaml(self, tmp_path: Path) -> None:
         """create_issue writes .coddy/issues/{n}.yaml with status pending_plan."""
@@ -108,27 +108,27 @@ class TestIssueStore:
         add_message(tmp_path, 999, "@bot", "Hello")
         assert load_issue(tmp_path, 999) is None
 
-    def test_set_status_updates_file(self, tmp_path: Path) -> None:
-        """set_status changes status in file."""
+    def test_set_issue_status_updates_file(self, tmp_path: Path) -> None:
+        """set_issue_status changes status in file."""
         create_issue(tmp_path, 10, "o/r", "T", "D", "@u")
-        set_status(tmp_path, 10, "waiting_confirmation")
+        set_issue_status(tmp_path, 10, "waiting_confirmation")
         issue = load_issue(tmp_path, 10)
         assert issue is not None
         assert issue.status == "waiting_confirmation"
-        set_status(tmp_path, 10, "queued")
+        set_issue_status(tmp_path, 10, "queued")
         issue2 = load_issue(tmp_path, 10)
         assert issue2 is not None
         assert issue2.status == "queued"
 
-    def test_set_status_when_issue_not_found_does_nothing(self, tmp_path: Path) -> None:
-        """set_status does not crash when issue file is missing."""
-        set_status(tmp_path, 999, "queued")
+    def test_set_issue_status_when_issue_not_found_does_nothing(self, tmp_path: Path) -> None:
+        """set_issue_status does not crash when issue file is missing."""
+        set_issue_status(tmp_path, 999, "queued")
 
     def test_list_issues_by_status(self, tmp_path: Path) -> None:
         """list_issues_by_status returns only issues with that status."""
         create_issue(tmp_path, 1, "o/r", "A", "", "@u")
         create_issue(tmp_path, 2, "o/r", "B", "", "@u")
-        set_status(tmp_path, 2, "queued")
+        set_issue_status(tmp_path, 2, "queued")
         pending = list_issues_by_status(tmp_path, "pending_plan")
         queued = list_issues_by_status(tmp_path, "queued")
         assert len(pending) == 1
@@ -183,7 +183,7 @@ class TestIssueStore:
         """list_pending_plan and list_queued filter by status."""
         create_issue(tmp_path, 3, "o/r", "X", "", "@u")
         create_issue(tmp_path, 4, "o/r", "Y", "", "@u")
-        set_status(tmp_path, 4, "queued")
+        set_issue_status(tmp_path, 4, "queued")
         assert len(list_pending_plan(tmp_path)) == 1
         assert list_pending_plan(tmp_path)[0][0] == 3
         assert len(list_queued(tmp_path)) == 1

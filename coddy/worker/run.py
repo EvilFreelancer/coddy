@@ -13,7 +13,7 @@ from pathlib import Path
 import yaml
 
 from coddy.config import AppConfig, load_config
-from coddy.services.store import list_queued, set_status
+from coddy.services.store import list_queued, set_issue_status
 from coddy.worker.task_yaml import report_file_path
 
 
@@ -90,7 +90,7 @@ def run_worker(config: AppConfig, once: bool = False, poll_interval: int = 10) -
             yaml.dump({"body": body}, default_flow_style=False, allow_unicode=True, sort_keys=False),
             encoding="utf-8",
         )
-        set_status(repo_dir, issue_number, "done")
+        set_issue_status(repo_dir, issue_number, "done")
         log.info("Dry run: wrote empty PR YAML for issue #%s -> %s", issue_number, report_path.name)
 
         if once:

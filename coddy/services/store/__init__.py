@@ -8,12 +8,10 @@ from coddy.services.store.issue_store import (
     list_queued,
     load_issue,
     save_issue,
-    set_status,
+    set_issue_status,
 )
 from coddy.services.store.pr_store import load_pr, save_pr, set_pr_status
 from coddy.services.store.schemas import IssueComment, IssueFile, PRFile
-
-set_issue_status = set_status
 
 __all__ = [
     "IssueComment",
@@ -29,6 +27,5 @@ __all__ = [
     "save_issue",
     "save_pr",
     "set_issue_status",
-    "set_status",
     "set_pr_status",
 ]

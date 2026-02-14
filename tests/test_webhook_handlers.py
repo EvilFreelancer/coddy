@@ -292,7 +292,7 @@ def test_webhook_issues_assigned_creates_issue_file(tmp_path: Path) -> None:
 def test_webhook_issues_assigned_runs_planner_when_token_set(tmp_path: Path) -> None:
     """On issues.assigned with token, planner runs and status becomes
     waiting_confirmation."""
-    from coddy.services.store import set_status
+    from coddy.services.store import set_issue_status
 
     config = _issues_assigned_config(tmp_path)
     config.github_token_resolved = "gh-token"
@@ -318,7 +318,7 @@ def test_webhook_issues_assigned_runs_planner_when_token_set(tmp_path: Path) -> 
     mock_adapter.get_issue.return_value = mock_issue
 
     def fake_run_planner(adapter, agent, issue, repo, repo_dir, **kwargs):
-        set_status(repo_dir, issue.number, "waiting_confirmation")
+        set_issue_status(repo_dir, issue.number, "waiting_confirmation")
 
     with patch("coddy.observer.webhook.handlers.GitHubAdapter", return_value=mock_adapter):
         with patch("coddy.observer.webhook.handlers.run_planner", side_effect=fake_run_planner):
@@ -334,10 +334,10 @@ def test_webhook_issues_assigned_runs_planner_when_token_set(tmp_path: Path) -> 
 def test_webhook_issue_comment_affirmative_sets_queued(tmp_path: Path) -> None:
     """On issue_comment with waiting_confirmation and affirmative reply,
     status=queued (worker picks from .coddy/issues/)."""
-    from coddy.observer.issues import create_issue, list_queued, set_status
+    from coddy.observer.issues import create_issue, list_queued, set_issue_status
 
     create_issue(tmp_path, 7, "owner/repo", "Fix bug", "Description", "user1")
-    set_status(tmp_path, 7, "waiting_confirmation")
+    set_issue_status(tmp_path, 7, "waiting_confirmation")
     assert (tmp_path / ".coddy" / "issues" / "7.yaml").exists()
 
     config = _issues_assigned_config(tmp_path)
