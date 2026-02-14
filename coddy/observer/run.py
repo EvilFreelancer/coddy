@@ -1,10 +1,11 @@
 """
 Coddy observer: webhook server and task intake.
 
-Listens for GitHub webhooks; on issue assigned creates/updates .coddy/issues/;
-on user confirmation sets issue status to queued (worker picks from .coddy/issues/).
-On PR/issue closed updates status in .coddy/prs/ and .coddy/issues/. Does not run
-the AI agent or development loop - that is done by the worker.
+Listens for GitHub webhooks; on issue assigned creates/updates .coddy/issues/,
+runs planner (posts plan, waiting_confirmation); on user confirmation sets
+issue status to queued (worker picks from .coddy/issues/). On PR/issue closed
+updates status in .coddy/prs/ and .coddy/issues/. Does not run the AI agent
+or development loop - that is done by the worker.
 """
 
 import argparse
@@ -13,7 +14,6 @@ import sys
 from pathlib import Path
 
 from coddy.config import AppConfig, load_config
-from coddy.observer.scheduler import start_scheduler_thread
 from coddy.observer.webhook.server import run_webhook_server
 
 
@@ -45,26 +45,18 @@ def setup_logging(level: str = "INFO") -> None:
 
 
 def run_observer(config: AppConfig) -> None:
-    """Run the webhook server and scheduler (plan after idle_minutes)."""
+    """Run the webhook server (plan on assignment, no polling)."""
     setup_logging(config.logging.level)
     log = logging.getLogger("coddy.observer.run")
-
-    repo_dir = Path.cwd()
-    if config.ai_agents and "cursor_cli" in config.ai_agents:
-        wd = getattr(config.ai_agents["cursor_cli"], "working_directory", None)
-        if wd:
-            repo_dir = Path(wd).resolve()
 
     if not config.webhook.enabled:
         log.warning("Webhook disabled in config; observer will do nothing useful.")
     log.info(
-        "Coddy observer started | repo=%s | webhook=%s | idle_minutes=%s",
+        "Coddy observer started | repo=%s | webhook=%s",
         config.bot.repository,
         config.webhook.enabled,
-        getattr(config.bot, "idle_minutes", 10),
     )
 
-    start_scheduler_thread(config, repo_dir)
     run_webhook_server(config)
 
 

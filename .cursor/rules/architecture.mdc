@@ -19,12 +19,10 @@ Daemon-side: events, state, queue, planning. Does not run the AI agent.
 - **adapters/** - Git platform adapters (base, github)
 - **models/** - Pydantic models (Issue, Comment, PR, ReviewComment)
 - **issues/** - Issue storage (issue_file, issue_store, issue_state)
-- **queue.py** - Task queue (pending/done/failed)
 - **planner.py** - Plan and user confirmation flow
 - **pr/** - Review handler (process PR review comments)
 - **webhook/** - Webhook server and handlers
-- **scheduler.py** - Poll pending_plan, run planner after idle_minutes
-- **run.py** - Observer entry (scheduler + webhook server)
+- **run.py** - Observer entry (webhook server; plan on assignment)
 
 **Dependencies**: config, standard lib, third-party only (no worker/utils)
 
@@ -35,9 +33,9 @@ Runs the development loop and uses the AI agent.
 - **agents/** - AI agent interface (base, cursor_cli_agent)
 - **task_yaml.py** - Task and PR report YAML paths and helpers
 - **ralph_loop.py** - Ralph loop (sufficiency, branch, agent loop)
-- **run.py** - Worker entry (poll queue, run ralph loop)
+- **run.py** - Worker entry (dry-run stub: read issues, write empty PR YAML)
 
-**Dependencies**: observer (adapters, models, queue, issues), utils
+**Dependencies**: observer (store, models), utils
 
 ### Utils (`coddy/utils/`)
 
@@ -71,7 +69,7 @@ Shared utilities; no business logic.
 - Must parse agent output into standardized format
 - Should handle timeouts and errors gracefully
 
-### Observer components (planner, webhook, scheduler, pr)
+### Observer components (planner, webhook, pr)
 
 - Should use adapters for API calls, not direct HTTP
 - Should contain event/state logic only; agent runs in worker

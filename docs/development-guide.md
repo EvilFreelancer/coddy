@@ -91,14 +91,13 @@ coddy/
 │   ├── architecture.md
 │   └── development-guide.md
 ├── coddy/                   # Main application code
-│   ├── observer/            # Daemon: adapters, issues, queue, planner, webhook, scheduler
+│   ├── observer/            # Daemon: adapters, issues, planner, webhook
 │   │   ├── adapters/        # Git platform adapters
 │   │   ├── issues/          # Issue storage and state
 │   │   ├── models/          # Pydantic models (Issue, PR, Comment, ReviewComment)
 │   │   ├── pr/              # Review handler
 │   │   ├── webhook/         # Webhook server and handlers
 │   │   ├── planner.py       # Plan and confirmation flow
-│   │   ├── scheduler.py     # Poll pending_plan, run planner
 │   │   └── run.py           # Observer entry point
 │   ├── worker/              # Worker: ralph loop, agents
 │   │   ├── agents/         # AI agents (base, cursor_cli)

@@ -155,5 +155,5 @@ def list_queued(repo_dir: Path) -> list[tuple[int, IssueFile]]:
 
 
 def list_pending_plan(repo_dir: Path) -> list[tuple[int, IssueFile]]:
-    """List issues with status=pending_plan (for scheduler)."""
+    """List issues with status=pending_plan."""
     return list_issues_by_status(repo_dir, "pending_plan")

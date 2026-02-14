@@ -32,8 +32,7 @@ Coddy is split into two runnable applications that work together:
 
 1. **Observer (coddy observer)** - Task intake and webhooks
    - Listens for webhook events from Git platforms (e.g. GitHub: issue assigned, issue comment, PR review comment).
-   - Optionally runs a scheduler that polls the platform API for new assignments and comments when webhooks are unavailable.
-   - When the bot is assigned to an issue, the observer creates/updates the issue in `.coddy/issues/{n}.yaml` with status **pending_plan**. A **scheduler** checks periodically; after **idle_minutes** with no activity it runs the **planner** (posts a plan and asks for confirmation). When the user confirms via a comment, the observer sets issue status to **queued** (worker picks from .coddy/issues/). See [issue-flow.md](issue-flow.md).
+   - When the bot is assigned to an issue, the observer creates/updates the issue in `.coddy/issues/{n}.yaml` and immediately runs the **planner** (posts a plan and sets status **waiting_confirmation**). When the user confirms via a comment, the observer sets issue status to **queued** (worker picks from .coddy/issues/). See [issue-flow.md](issue-flow.md).
    - Tasks are issues with status=queued in `.coddy/issues/`. Worker picks from them and sets status to done or failed. PRs are tracked in `.coddy/prs/{pr_number}.yaml` with status open/merged/closed. On PR merge or close (webhook), PR status is updated; on issue close, issue status is set to closed.
    - The observer is long-running: HTTP server for webhooks, optional poll loop, and (if desired) a small loop that watches the queue and logs or notifies. It does not execute the development loop.
 
@@ -56,12 +55,11 @@ This separation allows:
 ### High-Level Components (refined)
 
 1. **Git Platform Adapter Layer** (`coddy.observer.adapters`) - Abstract interface for GitHub/GitLab/BitBucket.
-2. **Observer** (`coddy.observer.run`): Webhook server + optional scheduler; enqueues tasks (issue number or PR number) to the task queue; does not run the agent.
+2. **Observer** (`coddy.observer.run`): Webhook server only; on assignment runs planner and enqueues tasks (issue status in .coddy/issues/); does not run the development loop.
 3. **Tasks** - Issues in `.coddy/issues/` with status=queued; worker picks by issue number and sets status done/failed. PRs in `.coddy/prs/` with status merged/closed updated from webhooks.
 4. **Worker** (`coddy.worker.run`) - Reads queue; for each task runs sufficiency check, branch creation, ralph loop (repeated agent runs until PR report YAML or agent_clarification), then PR creation and labels.
 5. **AI Agent Interface** (`coddy.worker.agents`) - Pluggable interface; Cursor CLI agent runs one iteration per call (read task YAML, implement, optionally write PR report YAML or add agent_clarification to task YAML).
 6. **Review Handler** (`coddy.observer.pr.review_handler`) - Processes PR review comments (triggered by webhook; uses agent for fixes and reply).
-7. **Scheduler** (`coddy.observer.scheduler`) - Optional; polls for pending_plan issues older than idle_minutes, runs planner; produces same logical flow as webhooks for confirmation and enqueue.
 
 ### Technology Stack
 
@@ -74,13 +72,13 @@ This separation allows:
 
 ### Issue Processing Flow
 
-**From assignment to queue**: When the bot is assigned to an issue, it is stored in `.coddy/issues/{issue_number}.yaml` with status **pending_plan**. After **idle_minutes** (default 10) with no activity, the planner posts a plan and sets status **waiting_confirmation**. When the user replies affirmatively (e.g. "yes", "да"), the issue status is set to **queued** and the worker can pick it up from .coddy/issues/. See [issue-flow.md](issue-flow.md) for the full step-by-step and [dialog-template.md](dialog-template.md) for the plan/confirmation dialog.
+**From assignment to queue**: When the bot is assigned to an issue (webhook), it is stored in `.coddy/issues/{issue_number}.yaml` and the planner runs immediately (post plan, status **waiting_confirmation**). When the user replies affirmatively (e.g. "yes", "да"), the issue status is set to **queued** and the worker can pick it up from .coddy/issues/. See [issue-flow.md](issue-flow.md) for the full step-by-step and [dialog-template.md](dialog-template.md) for the plan/confirmation dialog.
 
 1. **Trigger (Bot Assigned or MR/PR Referenced)**
-   - **Option A**: User assigns the bot as assignee on an issue; a **webhook** (if configured) or the **scheduler** (polling the API) detects that the bot was assigned. The issue is stored in **state** (pending_plan); after idle_minutes the planner runs and asks for confirmation; once the user confirms, the issue is **queued** for processing.
+   - **Option A**: User assigns the bot as assignee on an issue; a **webhook** delivers the event. The observer stores the issue and runs the planner (posts plan, waiting_confirmation); once the user confirms, the issue is **queued** for processing.
    - **Option B**: User provides an MR/PR number (e.g. in a comment or command); the bot loads that MR/PR and works on it (e.g. review feedback, or continuing work).
    - Only issues/MRs explicitly assigned or referenced are processed; the bot does not auto-pick every new issue.
-   - **New messages in an issue**: If a user adds a comment to an issue the bot is working on, that input must be taken into account (see "Scheduler" and "Issue comments" below). The bot re-reads the issue body and all comments before continuing or when deciding next steps.
+   - **New messages in an issue**: If a user adds a comment to an issue the bot is working on, that input must be taken into account (see "Issue comments" below). The bot re-reads the issue body and all comments before continuing or when deciding next steps.
 
 2. **Issue Analysis and Data Sufficiency**
    - Bot reads issue description (title, body) and all issue comments.
@@ -153,9 +151,6 @@ class GitPlatformAdapter(ABC):
     def get_issue_assignees(self, repo: str, issue_number: int) -> List[str]  # to detect bot assignment
     def set_issue_labels(self, repo: str, issue_number: int, labels: List[str]) -> None
     def create_comment(self, repo: str, issue_number: int, body: str) -> Comment
-    # For scheduler: list issues where bot is assignee; filter by state=open
-    def list_issues_assigned_to(self, repo: str, assignee_username: str) -> List[Issue]
-    # For scheduler: fetch issue comments (since optional for incremental poll)
     def get_issue_comments(self, repo: str, issue_number: int, since: Optional[datetime] = None) -> List[Comment]
     def get_pr_comments(self, repo: str, pr_number: int, since: Optional[datetime] = None) -> List[Comment]
     def get_pr_reviews(self, repo: str, pr_number: int) -> List[Review]
@@ -169,10 +164,10 @@ class GitPlatformAdapter(ABC):
 
 ### Issue Monitor
 
-**Purpose**: Detect when the bot should start work (assignment or MR/PR reference), detect new user messages, and track state. It is fed by either the **Webhook Server** or the **Scheduler** (or both).
+**Purpose**: Detect when the bot should start work (assignment or MR/PR reference), detect new user messages, and track state. It is fed by the **Webhook Server**.
 
 **Responsibilities**:
-- Receive events from webhooks (when configured) or from the scheduler (polling)
+- Receive events from webhooks
 - When the bot is **assigned** to an issue, queue that issue for processing
 - When a **new comment is added to an issue** the bot is working on (or is assignee of), treat it as new input: re-read issue body and all comments, then re-evaluate data sufficiency and either continue work, ask for clarification again, or adjust (e.g. change of scope, or user-provided MR/PR number)
 - Optionally: handle user messages that reference an MR/PR number (e.g. "work on MR !42")
@@ -180,7 +175,7 @@ class GitPlatformAdapter(ABC):
 - Track issue and PR state
 - Do **not** auto-queue every new issue; full automation is a later phase
 
-**Events Handled** (examples for GitHub; scheduler produces equivalent logical events):
+**Events Handled** (examples for GitHub):
 - Bot assigned to an issue → queue this issue
 - Issue description or title edited (if bot is assignee) → re-evaluate
 - Issue closed → stop or mark done
@@ -244,25 +239,10 @@ class AIAgent(ABC):
 **Responsibilities**:
 - Listen for webhook events
 - Verify webhook signatures
-- Route events to Issue Monitor (or equivalent) so they are processed like scheduler-produced events
+- Route events to Issue Monitor (or equivalent) and dispatch them to the appropriate handlers
 - Handle authentication
 
-When webhooks are **not** available (e.g. no way to register a URL, or no public URL), the **Scheduler** is used instead (or in addition, for redundancy).
-
-### Scheduler (Poller)
-
-**Purpose**: When webhooks cannot be configured, or as a fallback, periodically poll the Git platform API to discover new work and new user input. Ensures the bot still reacts to assignments, new issue comments, and new code review comments.
-
-**Responsibilities**:
-- Run on a configurable interval (e.g. every 1–5 minutes)
-- **Poll for issues assigned to the bot**: list issues where the bot is in assignees; any newly assigned issue is queued for processing (same as webhook "issues.assigned")
-- **Poll for new issue comments**: for each issue the bot is currently working on (or is assignee of), fetch comments since last check; if there are new comments from users, feed them to Issue Monitor so the bot takes them into account (re-read issue + comments, then continue or clarify)
-- **Poll for new PR/MR activity**: for each PR/MR the bot has opened or is responsible for, fetch new review comments and general comments since last check; pass new activity to Review Handler
-- Store last-seen timestamps or IDs per issue/PR to avoid duplicate processing
-- Produce the same logical events as webhooks (e.g. "issue assigned to bot", "new comment on issue #N", "new review comment on PR #M") so Issue Monitor and Review Handler need not care whether the source was webhook or scheduler
-- Respect API rate limits (back off or reduce frequency if needed)
-
-**Configuration**: Polling interval, optional enable/disable of webhook vs scheduler (e.g. use only scheduler, only webhooks, or both with deduplication).
+Webhooks must be configured for the bot to react to assignments and comments (no polling fallback).
 
 ## Data Models
 
@@ -401,7 +381,7 @@ For the initial prototype, focus on:
 
 2. **GitHub Integration Only**
    - Read issues from GitHub, create branches and PRs
-   - **Event source**: Webhook when configurable; otherwise **Scheduler** (polling) to detect when the bot is assigned to an issue, new issue comments, and new PR comments
+   - **Event source**: Webhooks only; the bot reacts to assignment, new issue comments, and new PR comments via webhooks
    - When a user adds a message to an issue, the bot must take it into account (re-read issue + comments, then continue or clarify)
    - Create branches and PRs
 

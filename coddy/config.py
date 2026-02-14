@@ -39,13 +39,15 @@ class BotConfig(BaseSettings):
     git_platform: str = Field(default="github", description="github, gitlab, bitbucket")
     repository: str = Field(default="owner/repo", description="Target repo e.g. EvilFreelancer/coddy")
     default_branch: str = Field(default="main", description="Default branch for pull and PR base (e.g. main)")
+    workspace: str = Field(
+        default=".",
+        description="Path to workspace (sources and .coddy/ with issues and PRs); env BOT_WORKSPACE",
+    )
     github_username: str | None = Field(
         default=None, description="Bot GitHub login (to skip own comments when polling)"
     )
     webhook_secret: str = Field(default="", description="Secret for webhook verification")
     ai_agent: str = Field(default="cursor_cli", description="AI agent key from ai_agents")
-    # Minutes of issue inactivity before posting plan and asking for confirmation (env: BOT_IDLE_MINUTES)
-    idle_minutes: int = Field(default=10, ge=1, le=1440, description="Idle minutes before taking issue in work")
 
 
 class GitHubConfig(BaseSettings):
@@ -111,15 +113,6 @@ class WebhookConfig(BaseSettings):
     enabled: bool = Field(default=True, description="Enable webhook server")
 
 
-class SchedulerConfig(BaseSettings):
-    """Scheduler (polling) settings."""
-
-    model_config = SettingsConfigDict(env_prefix="SCHEDULER_", extra="ignore")
-
-    enabled: bool = Field(default=True, description="Enable polling when webhooks unavailable")
-    interval_seconds: int = Field(default=120, ge=30, description="Poll interval in seconds")
-
-
 class LoggingConfig(BaseSettings):
     """Logging settings."""
 
@@ -143,7 +136,6 @@ class AppConfig(BaseSettings):
     bitbucket: BitbucketConfig = Field(default_factory=BitbucketConfig)
     ai_agents: dict[str, Any] = Field(default_factory=dict)
     webhook: WebhookConfig = Field(default_factory=WebhookConfig)
-    scheduler: SchedulerConfig = Field(default_factory=SchedulerConfig)
     logging: LoggingConfig = Field(default_factory=LoggingConfig)
 
     @property
@@ -222,7 +214,6 @@ def load_config(config_path: Path | None = None) -> AppConfig:
     gitlab = GitLabConfig(**(raw.get("gitlab") or {}))
     bitbucket = BitbucketConfig(**(raw.get("bitbucket") or {}))
     webhook = WebhookConfig(**(raw.get("webhook") or {}))
-    scheduler = SchedulerConfig(**(raw.get("scheduler") or {}))
     logging = LoggingConfig(**(raw.get("logging") or {}))
 
     ai_agents_raw = raw.get("ai_agents") or {}
@@ -240,6 +231,5 @@ def load_config(config_path: Path | None = None) -> AppConfig:
         bitbucket=bitbucket,
         ai_agents=ai_agents,
         webhook=webhook,
-        scheduler=scheduler,
         logging=logging,
     )

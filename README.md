@@ -75,8 +75,8 @@ export REPOSITORY=owner/repo
 
 ```bash
 python -m coddy              # observer (default) or worker subcommand
-python -m coddy observer     # webhook server + scheduler
-python -m coddy worker       # process queue (ralph loop)
+python -m coddy observer     # webhook server (plan on assignment)
+python -m coddy worker       # dry-run stub (read issues, write empty PR YAML)
 python -m coddy --config /path/to/config.yaml
 python -m coddy --check      # validate config and exit
 ```
@@ -148,15 +148,13 @@ When a pull request is merged (GitHub `pull_request` event with `action: closed`
 ```
 coddy/
 ├── coddy/                  # Main application code
-│   ├── observer/           # Observer: adapters, issues, queue, planner, webhook, scheduler
+│   ├── observer/           # Observer: adapters, issues, planner, webhook
 │   │   ├── adapters/       # Git platform adapters (GitHub, etc.)
 │   │   ├── issues/         # Issue storage (.coddy/issues/), state
 │   │   ├── models/         # Pydantic models (Issue, PR, Comment, ReviewComment)
 │   │   ├── pr/             # Review handler
 │   │   ├── webhook/        # Webhook server and handlers
-│   │   ├── queue.py        # Task queue (.coddy/queue/)
 │   │   ├── planner.py      # Plan and user confirmation
-│   │   ├── scheduler.py    # Poll pending_plan, run planner
 │   │   └── run.py          # Observer entry point
 │   ├── worker/             # Worker: ralph loop, agents
 │   │   ├── agents/        # AI agents (base, cursor_cli)

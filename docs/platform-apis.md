@@ -188,49 +188,6 @@ Note: Bitbucket issue IDs can be numeric; pull request ID is also numeric. Assig
 
 ---
 
-## Polling (Scheduler)
-
-When webhooks cannot be configured, the **Scheduler** periodically calls the platform API to discover:
-
-1. **Issues assigned to the bot** - to start work on newly assigned issues
-2. **New comments on issues** the bot is working on - to take user messages into account (re-read issue + comments, then continue or clarify)
-3. **New comments and reviews on PRs/MRs** the bot opened - to process review feedback
-
-Adapters must support:
-
-- **List issues assigned to user**: For the authenticated bot user, list open issues where the bot is in assignees (per repo or across repos, depending on config). Used to detect new assignments since last run.
-- **List issue comments (incremental)**: For a given issue, list comments optionally filtered by `since` (timestamp or ISO date) so the scheduler only fetches new comments since last poll.
-- **List PR/MR comments (incremental)**: Same idea for pull/merge request comments and review threads; use `since` or sort by `updated_at` and track last-seen id/timestamp to avoid reprocessing.
-
-### GitHub (scheduler)
-
-| What | Endpoint / approach |
-|------|----------------------|
-| Issues assigned to bot | `GET /repos/{owner}/{repo}/issues?state=open&assignee={bot_login}` or `GET /issues?filter=assigned` (authenticated as bot) |
-| Issue comments since | `GET /repos/{owner}/{repo}/issues/{issue_number}/comments?since={ISO8601}` |
-| PR comments | `GET /repos/{owner}/{repo}/pulls/{pull_number}/comments` (no `since`; filter by `created_at` or `updated_at` in response, or use `GET .../issues/{pull_number}/comments?since=...` since PR is an issue) |
-| PR review list | `GET /repos/{owner}/{repo}/pulls/{pull_number}/reviews` |
-
-### GitLab (scheduler)
-
-| What | Endpoint / approach |
-|------|----------------------|
-| Issues assigned to bot | `GET /projects/{id}/issues?state=opened&assignee_username={bot_username}` |
-| Issue notes (comments) | `GET /projects/{id}/issues/{issue_iid}/notes` (sort by `updated_at`, filter client-side by timestamp since last poll) |
-| MR notes / discussions | `GET /projects/{id}/merge_requests/{mr_iid}/notes` or `.../discussions` (filter by updated_at) |
-
-### Bitbucket (scheduler)
-
-| What | Endpoint / approach |
-|------|----------------------|
-| Issues | List repo issues; filter by assignee if API supports it; otherwise list and filter client-side |
-| Issue comments | Issue tracker API: list comments for issue; use pagination and filter by date |
-| PR comments | `GET /repositories/{workspace}/{repo_slug}/pullrequests/{pr_id}/comments` (filter by date if needed) |
-
-Store last poll time (or last-seen comment id) per resource (repo, issue, PR) to avoid duplicate work and respect rate limits by not over-fetching.
-
----
-
 ## Mapping: Same Operation Across Platforms
 
 Use this to implement a single interface in the adapter (e.g. `get_issue`, `set_issue_labels`, `create_pr`).
@@ -272,9 +229,8 @@ Repo identifier: GitHub `owner/repo`; GitLab `project id` (numeric or path); Bit
 4. **Issue id**: GitHub/Bitbucket often use numeric issue number; GitLab uses project + IID.
 5. **Labels**: GitHub: list of label names; GitLab: comma-separated or array; Bitbucket: check Issue API for label format.
 6. **Webhooks**: Implement signature verification (GitHub: HMAC SHA-256; GitLab/Bitbucket: see their docs) and route events to the same internal events (e.g. "issue assigned to bot", "MR comment").
-7. **Scheduler (polling)**: Implement `list_issues_assigned_to`, `get_issue_comments(repo, issue_number, since=...)`, and optional `since` for `get_pr_comments` so the scheduler can poll for new assignments and new user messages without webhooks. See "Polling (Scheduler)" section above.
-8. **Rate limits**: Respect `X-RateLimit-*` (GitHub), GitLab/Bitbucket limits; add retries with backoff and optional queuing.
-9. **Tests**: Use mocks or recorded responses for API calls; optional integration tests with test repo and token in env.
+7. **Rate limits**: Respect `X-RateLimit-*` (GitHub), GitLab/Bitbucket limits; add retries with backoff and optional queuing.
+8. **Tests**: Use mocks or recorded responses for API calls; optional integration tests with test repo and token in env.
 
 ### References in this repo
 

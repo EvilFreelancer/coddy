@@ -24,7 +24,6 @@ class IssueFile(BaseModel):
         description="Thread: user comments and bot replies",
     )
 
-    # Optional meta for scheduler and worker
     repo: Optional[str] = Field(default=None, description="Repository full_name, e.g. owner/repo")
     issue_number: Optional[int] = Field(default=None, description="Issue number (also in filename)")
     assigned_at: Optional[str] = Field(

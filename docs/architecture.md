@@ -6,13 +6,13 @@
 
 Coddy Bot follows a **two-module** design: an **observer** that receives webhooks and enqueues tasks, and a **worker** that runs the development loop (Ralph-style) using an AI agent (e.g. Cursor CLI). Code is written only by the agent in iterative runs; the worker orchestrates the loop, git, and GitHub API.
 
-**Trigger model**: The bot does not auto-process every new issue. Work is started when (1) a human assigns the bot to an issue, or (2) a user gives the bot an MR/PR number. The observer receives these events (via webhook or scheduler) and enqueues a task; the worker picks tasks and runs the ralph loop.
+**Trigger model**: The bot does not auto-process every new issue. Work is started when (1) a human assigns the bot to an issue, or (2) a user gives the bot an MR/PR number. The observer receives these events via **webhooks** and enqueues a task; the worker picks tasks and runs the ralph loop.
 
 ### Observer
 
 - **Entry point**: `coddy observer` (or `python -m coddy.observer`)
 - **Implementation**: `coddy.observer.run`
-- **Responsibilities**: Run HTTP server for webhooks; verify signatures; on relevant events (e.g. issue assigned to bot), enqueue a task to the file-based queue (`.coddy/queue/pending/`). Optional: scheduler that polls the platform for new assignments and enqueues the same way. Does **not** run the AI agent or perform code generation.
+- **Responsibilities**: Run HTTP server for webhooks; verify signatures; on issue assigned to bot, create issue file and run planner (post plan, set waiting_confirmation); on user confirmation set issue status to queued. Does **not** run the development loop - that is done by the worker.
 
 ### Worker
 
@@ -38,14 +38,12 @@ Everything that observes events, stores state, and enqueues work. Does not run t
 |------|-------------|
 | `observer/adapters/` | Git platform adapters (base, GitHub). |
 | `observer/models/` | Pydantic models: Issue, Comment, PR, ReviewComment. |
-| `observer/issues/` | Issue storage (`.coddy/issues/*.yaml`). `issue_file.py`, `issue_store.py`. |
+| `observer/issues/` | Issue storage (`.coddy/issues/*.yaml`). Worker uses list_queued/set_status from store. |
 | `observer/prs/` | PR storage (`.coddy/prs/*.yaml`). Status: open, merged, closed. |
-| `observer/queue.py` | take_next/mark_done/mark_failed use .coddy/issues/ status (legacy queue dir unused). |
 | `observer/planner.py` | Plan generation and user confirmation flow. |
 | `observer/pr/` | PR review handler (process review comments, agent fixes, reply). |
 | `observer/webhook/` | Webhook server and event handlers. |
-| `observer/scheduler.py` | Periodic poll: pending_plan older than idle_minutes triggers planner. |
-| `observer/run.py` | Observer entry: start scheduler thread + webhook server. |
+| `observer/run.py` | Observer entry: webhook server only (plan on assignment). |
 
 **Dependencies**: None on worker or utils (only config, standard lib, third-party).
 
@@ -58,9 +56,9 @@ Runs the development loop and uses the AI agent.
 | `worker/task_yaml.py` | Task and PR report YAML (`.coddy/task-{n}.yaml`, `.coddy/pr-{n}.yaml`), review task/reply files, log path. |
 | `worker/agents/` | AI agent interface: `base.py` (AIAgent, SufficiencyResult), `cursor_cli_agent.py` (Cursor CLI headless). |
 | `worker/ralph_loop.py` | Ralph loop: sufficiency, branch, repeated agent runs until PR report or clarification. |
-| `worker/run.py` | Worker entry: poll queue, run ralph loop per task, mark done/failed. |
+| `worker/run.py` | Worker entry: reads queued issues from store, currently dry-run stub (writes empty PR YAML). |
 
-**Dependencies**: observer (adapters, models, queue, issues for context), utils (git_runner, branch).
+**Dependencies**: observer (store list_queued/set_status, models), utils.
 
 ### Utils (`coddy/utils/`)
 
@@ -116,7 +114,6 @@ Business logic for events, state, queue, and planning. No agent execution.
 - `planner.py` - Plan generation, confirmation flow
 - `pr/review_handler.py` - Process PR review comments (uses agent for fixes)
 - `webhook/` - Event handling
-- `scheduler.py` - Poll pending_plan, run planner after idle_minutes
 
 **Dependencies**: Adapters, issues, queue, worker.agents (for planner/review)
 
@@ -135,8 +132,8 @@ Orchestrates the development loop and uses the agent.
 
 ```
   OBSERVER (observer.run)
-  Webhook Server + Scheduler -> Task Queue (.coddy/queue/pending/)
-  Worker (worker.run) polls queue -> for each task: ralph loop -> Cursor CLI (per iteration)
+  Webhook Server -> on assigned: planner -> .coddy/issues/ (waiting_confirmation -> queued)
+  Worker (worker.run) polls .coddy/issues/ (status=queued) -> for each task: ralph loop -> Cursor CLI (per iteration)
   -> PR report (.coddy/pr-{n}.yaml) or agent_clarification -> Create PR / post comment; labels; checkout default.
   Review: webhook -> observer.pr.review_handler -> agent (fixes + reply).
 ```
@@ -164,8 +161,7 @@ Used for:
 
 ### Issue Processing Flow
 
-1. **Trigger Event** -> Webhook or Scheduler produces "bot assigned to issue"; issue stored in `.coddy/issues/{n}.yaml` with status pending_plan
-2. **idle_minutes** -> Scheduler runs planner; plan posted, status -> waiting_confirmation
+1. **Trigger Event** -> Webhook "bot assigned to issue"; issue stored in `.coddy/issues/{n}.yaml`, planner runs, plan posted, status -> waiting_confirmation
 3. **User confirms** -> Webhook issue_comment (affirmative); task enqueued to `.coddy/queue/pending/`; status -> queued
 4. **Worker** -> Dequeues task; ralph loop: sufficiency, branch, write `.coddy/task-{n}.yaml`, run agent until `.coddy/pr-{n}.yaml` or agent_clarification
 5. **PR Creation** -> Worker creates PR from report body, sets label, checkout default branch

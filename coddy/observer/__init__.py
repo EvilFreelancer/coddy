@@ -1,1 +1,1 @@
-"""Observer package: adapters, issues, queue, models, planner, webhook, scheduler."""
+"""Observer package: adapters, issues, models, planner, webhook."""

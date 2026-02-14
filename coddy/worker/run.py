@@ -1,9 +1,7 @@
 """
-Coddy worker: poll task queue and run the ralph loop for each task.
+Coddy worker stub: read queued issues from .coddy/issues/, write empty PR YAML, log dry run.
 
-Dequeues from .coddy/queue/pending/, runs ralph loop (branch, repeated
-Cursor CLI runs until PR report or clarification), then marks task done
-or failed.
+Full ralph loop is not run yet; worker only demonstrates the flow.
 """
 
 import argparse
@@ -12,18 +10,18 @@ import sys
 import time
 from pathlib import Path
 
+import yaml
+
 from coddy.config import AppConfig, load_config
-from coddy.observer.adapters.github import GitHubAdapter
-from coddy.observer.queue import mark_done, mark_failed, take_next
-from coddy.worker.agents.cursor_cli_agent import make_cursor_cli_agent
-from coddy.worker.ralph_loop import run_ralph_loop_for_issue
+from coddy.observer.store import list_queued, set_status
+from coddy.worker.task_yaml import report_file_path
 
 
 def parse_args(argv: list[str] | None = None) -> argparse.Namespace:
     """Parse CLI arguments for the worker."""
     parser = argparse.ArgumentParser(
         prog="coddy worker",
-        description="Coddy worker - run ralph loop for queued issues",
+        description="Coddy worker - dry run stub (read issues, write empty PR YAML)",
     )
     parser.add_argument(
         "--config",
@@ -58,70 +56,42 @@ def setup_logging(level: str = "INFO") -> None:
 
 
 def run_worker(config: AppConfig, once: bool = False, poll_interval: int = 10) -> None:
-    """Poll queue and process tasks with the ralph loop."""
+    """Dry run: poll queued issues, write empty PR YAML, set status done, log."""
     setup_logging(config.logging.level)
     log = logging.getLogger("coddy.worker")
 
-    token = config.github_token_resolved
-    if not token:
-        log.warning("GITHUB_TOKEN not set; GitHub API calls will fail")
-    if config.bot.git_platform != "github":
-        log.error("Worker only supports GitHub")
-        return
-
-    repo_dir = Path.cwd()
+    workspace = getattr(config.bot, "workspace", ".") or "."
+    repo_dir = Path(workspace).resolve()
     if config.ai_agents and "cursor_cli" in config.ai_agents:
         wd = getattr(config.ai_agents["cursor_cli"], "working_directory", None)
         if wd:
             repo_dir = Path(wd).resolve()
 
-    adapter = GitHubAdapter(token=token, api_url=config.github.api_url)
-    agent = make_cursor_cli_agent(config)
     repo = config.bot.repository
-
-    log.info("Coddy worker started | repo=%s | once=%s", repo, once)
+    log.info("Coddy worker started (dry run) | repo=%s | workspace=%s | once=%s", repo, repo_dir, once)
 
     while True:
-        task = take_next(repo_dir)
-        if not task:
+        queued = list_queued(repo_dir)
+        if not queued:
             if once:
-                log.info("No pending tasks, exiting (--once)")
+                log.info("No queued issues, exiting (--once)")
                 return
             time.sleep(poll_interval)
             continue
 
-        issue_number = task["issue_number"]
-        repo_name = task.get("repo", repo)
-        log.info("Processing task: issue #%s", issue_number)
+        queued.sort(key=lambda t: t[0])
+        issue_number, issue_file = queued[0]
+        log.info("Dry run: processing issue #%s (%s)", issue_number, issue_file.title or "")
 
-        try:
-            issue = adapter.get_issue(repo_name, issue_number)
-        except Exception as e:
-            log.warning("Failed to get issue #%s: %s", issue_number, e)
-            mark_failed(repo_dir, issue_number)
-            if once:
-                return
-            continue
-
-        result = run_ralph_loop_for_issue(
-            adapter,
-            agent,
-            issue,
-            repo_name,
-            repo_dir,
-            bot_name=config.bot.name,
-            bot_email=config.bot.email,
-            default_branch=config.bot.default_branch,
-            max_iterations=10,
-            log=log,
+        report_path = report_file_path(repo_dir, issue_number)
+        report_path.parent.mkdir(parents=True, exist_ok=True)
+        body = "# Dry run\n\nNo implementation yet; worker is a stub."
+        report_path.write_text(
+            yaml.dump({"body": body}, default_flow_style=False, allow_unicode=True, sort_keys=False),
+            encoding="utf-8",
         )
-
-        if result == "success":
-            mark_done(repo_dir, issue_number)
-            log.info("Task issue #%s completed successfully", issue_number)
-        else:
-            mark_failed(repo_dir, issue_number)
-            log.info("Task issue #%s finished with status: %s", issue_number, result)
+        set_status(repo_dir, issue_number, "done")
+        log.info("Dry run: wrote empty PR YAML for issue #%s -> %s", issue_number, report_path.name)
 
         if once:
             return

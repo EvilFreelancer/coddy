@@ -1,44 +1,50 @@
+x-shared-logs: &shared-logs
+  logging:
+    driver: "json-file"
+    options:
+      max-size: "10k"
+
 services:
-  coddy-daemon:
-    build: .
+
+  coddy-observer:
     image: coddy-bot:latest
-    container_name: coddy-daemon
+    build:
+      context: .
+    container_name: coddy-observer
     restart: unless-stopped
     secrets:
       - github_token
       - webhook_secret
-      - cursor_agent_token
     environment:
       GITHUB_TOKEN_FILE: /run/secrets/github_token
       WEBHOOK_SECRET_FILE: /run/secrets/webhook_secret
-      CURSOR_AGENT_TOKEN_FILE: /run/secrets/cursor_agent_token
       BOT_REPOSITORY: "EvilFreelancer/coddy"
     volumes:
       - ./config.yaml:/app/config.yaml:ro
       - ${REPO_PATH:-.}:/app/workspace:rw
     ports:
       - "${CODDY_PORT:-8000}:8000"
-    command: ["python", "-m", "coddy.main", "daemon", "--config", "/app/config.yaml"]
+    command: ["python", "-m", "coddy", "observer", "--config", "/app/config.yaml"]
+    <<: *shared-logs
 
   coddy-worker:
     image: coddy-bot:latest
+    build:
+      context: .
     container_name: coddy-worker
     restart: unless-stopped
-    depends_on:
-      - coddy-daemon
     secrets:
       - github_token
-      - webhook_secret
       - cursor_agent_token
     environment:
       GITHUB_TOKEN_FILE: /run/secrets/github_token
-      WEBHOOK_SECRET_FILE: /run/secrets/webhook_secret
       CURSOR_AGENT_TOKEN_FILE: /run/secrets/cursor_agent_token
       BOT_REPOSITORY: "EvilFreelancer/coddy"
     volumes:
       - ./config.yaml:/app/config.yaml:ro
       - ${REPO_PATH:-.}:/app/workspace:rw
-    command: ["python", "-m", "coddy.main", "worker", "--config", "/app/config.yaml"]
+    command: ["python", "-m", "coddy", "worker", "--config", "/app/config.yaml"]
+    <<: *shared-logs
 
 secrets:
   github_token:

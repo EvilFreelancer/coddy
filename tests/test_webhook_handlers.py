@@ -255,8 +255,7 @@ def _issues_assigned_config(tmp_path: Path) -> "object":
 
 
 def test_webhook_issues_assigned_creates_issue_file(tmp_path: Path) -> None:
-    """On issues.assigned (bot in assignees), issue file is created under
-    .coddy/issues/."""
+    """On issues.assigned (bot in assignees), issue file is created; without token status stays pending_plan."""
     config = _issues_assigned_config(tmp_path)
     payload = {
         "action": "assigned",
@@ -287,6 +286,47 @@ def test_webhook_issues_assigned_creates_issue_file(tmp_path: Path) -> None:
     assert issue.title == "Add login form"
     assert len(issue.comments) == 1
     assert "Add login form" in issue.comments[0].content
+
+
+def test_webhook_issues_assigned_runs_planner_when_token_set(tmp_path: Path) -> None:
+    """On issues.assigned with token, planner runs and status becomes waiting_confirmation."""
+    from coddy.observer.store import set_status
+
+    config = _issues_assigned_config(tmp_path)
+    config.github_token_resolved = "gh-token"
+    config.github = type("GitHub", (), {"api_url": "https://api.github.com"})()
+
+    payload = {
+        "action": "assigned",
+        "issue": {
+            "number": 43,
+            "title": "Add feature",
+            "body": "Body",
+            "user": {"login": "u"},
+            "assignees": [{"login": "coddy-bot"}],
+        },
+        "repository": {"full_name": "owner/repo"},
+    }
+
+    mock_issue = MagicMock()
+    mock_issue.number = 43
+    mock_issue.title = "Add feature"
+    mock_issue.body = "Body"
+    mock_adapter = MagicMock()
+    mock_adapter.get_issue.return_value = mock_issue
+
+    def fake_run_planner(adapter, agent, issue, repo, repo_dir, **kwargs):
+        set_status(repo_dir, issue.number, "waiting_confirmation")
+
+    with patch("coddy.observer.webhook.handlers.GitHubAdapter", return_value=mock_adapter):
+        with patch("coddy.observer.webhook.handlers.run_planner", side_effect=fake_run_planner):
+            with patch("coddy.observer.webhook.handlers.make_cursor_cli_agent", return_value=MagicMock()):
+                handle_github_event(config, "issues", payload, repo_dir=tmp_path)
+
+    issue = load_issue(tmp_path, 43)
+    assert issue is not None
+    assert issue.status == "waiting_confirmation"
+    mock_adapter.get_issue.assert_called_once_with("owner/repo", 43)
 
 
 def test_webhook_issue_comment_affirmative_sets_queued(tmp_path: Path) -> None:

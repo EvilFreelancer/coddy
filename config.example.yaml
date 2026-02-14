@@ -7,12 +7,10 @@ bot:
   git_platform: "github"  # github, gitlab, bitbucket
   repository: "owner/repo"
   default_branch: "main"   # used for git pull on PR merge and for PR base
+  workspace: "."  # Workspace: path to repo root (sources + .coddy/ with issues and PRs); env BOT_WORKSPACE
   webhook_secret: "your-webhook-secret-here"
   ai_agent: "cursor_cli"
-  # Minutes of issue inactivity after assign before posting plan (env: BOT_IDLE_MINUTES)
-  idle_minutes: 10
-  # Bot GitHub username (to detect own comments; required for issue_comment and assigned)
-  # github_username: "coddy-bot"
+  # github_username: "coddy-bot"  # Bot GitHub username (to detect own comments; required for issue_comment and assigned)
 
 # GitHub Configuration
 github:
@@ -47,18 +45,12 @@ ai_agents:
     # output_format: "text"   # default; or "json", "stream-json"
     # stream_partial_output: false   # true only with output_format: "stream-json"
 
-# Webhook Server Configuration (optional; if not configured or unreachable, use scheduler)
+# Webhook Server Configuration (required; all events come from webhooks)
 webhook:
   host: "0.0.0.0"
   port: 8000
   debug: false
-  enabled: true  # set false to use only scheduler
-
-# Scheduler (polling) - used when webhooks are not available or as fallback
-scheduler:
-  enabled: true   # if webhooks disabled or as backup
-  interval_seconds: 120  # poll every 2 minutes
-  # Tracks last-seen timestamps per issue/PR to detect new assignments and new comments
+  enabled: true
 
 # Logging Configuration
 logging:

@@ -68,7 +68,7 @@ Tests: `tests/test_issue_to_markdown.py`.
 
 | status               | Meaning |
 |----------------------|--------|
-| pending_plan         | Bot assigned; wait idle_minutes, then run planner. |
+| pending_plan         | Bot assigned; planner will run (or failed to run). |
 | waiting_confirmation | Plan posted; wait for user to confirm (yes/da). |
 | queued               | User confirmed; worker will pick this task. |
 | in_progress / done / failed | Set by worker. |

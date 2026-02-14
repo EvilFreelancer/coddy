@@ -1,6 +1,6 @@
 # Docker Compose and Secrets
 
-Coddy runs as two services: **observer** (webhook server, enqueues tasks) and **worker** (ralph loop, processes the queue). They share a workspace volume where the task queue (`.coddy/queue/`) and the git repo live.
+Coddy runs as two services: **observer** (webhook server, sets issue status in `.coddy/issues/`) and **worker** (dry-run stub: reads queued issues, writes empty PR YAML). They share a **workspace** volume (sources and `.coddy/` with issues and PRs).
 
 ## First run
 
@@ -83,7 +83,7 @@ The app passes this token to the Cursor CLI as the `CURSOR_API_KEY` environment 
 
 - In the GitHub repo webhook settings, enable the **issue_comment** event so the bot receives user replies (e.g. "yes" / "да") after posting the plan.
 - Set `bot.github_username` in config (e.g. the GitHub user that runs the bot) so the bot ignores its own comments and only reacts to assignees and user confirmations.
-- **Idle minutes**: after the bot is assigned to an issue, it waits `idle_minutes` (default 10) with no activity, then posts a plan and waits for user confirmation. Override via config `bot.idle_minutes` or env `BOT_IDLE_MINUTES`. See [dialog-template.md](dialog-template.md) for the plan/confirmation flow.
+- **Plan on assignment**: when the bot is assigned to an issue (webhook), the observer runs the planner immediately and posts a plan, then waits for user confirmation. See [dialog-template.md](dialog-template.md) for the plan/confirmation flow.
 
 ## Config file
 

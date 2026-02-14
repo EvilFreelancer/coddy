@@ -12,7 +12,7 @@ from typing import Any, Dict
 
 from coddy.observer.adapters.github import GitHubAdapter
 from coddy.observer.models import ReviewComment
-from coddy.observer.planner import is_affirmative_comment, on_user_confirmed
+from coddy.observer.planner import is_affirmative_comment, on_user_confirmed, run_planner
 from coddy.observer.pr.review_handler import process_pr_review
 from coddy.observer.store import (
     create_issue,
@@ -64,11 +64,14 @@ def _parse_review_comment_from_payload(comment_payload: Dict[str, Any]) -> Revie
 
 
 def _working_dir_from_config(config: Any) -> Path:
-    """Resolve bot working directory (repo root) from config."""
+    """Resolve workspace path (sources and .coddy/) from config."""
+    workspace = getattr(config.bot, "workspace", ".") or "."
+    if workspace != ".":
+        return Path(workspace).resolve()
     if config.ai_agents and "cursor_cli" in config.ai_agents:
         wd = getattr(config.ai_agents["cursor_cli"], "working_directory", None)
         if wd:
-            return Path(wd)
+            return Path(wd).resolve()
     return Path.cwd()
 
 
@@ -181,7 +184,7 @@ def _handle_issues_assigned(
     repo_dir: Path,
     log: logging.Logger,
 ) -> None:
-    """On issue assigned: if bot is in assignees, create issue in .coddy/issues/ with status pending_plan."""
+    """On issue assigned: if bot is in assignees, create issue and run planner (post plan, waiting_confirmation)."""
     if payload.get("action") != "assigned":
         return
     issue_payload = payload.get("issue") or {}
@@ -213,8 +216,31 @@ def _handle_issues_assigned(
         body,
         author,
     )
-    idle = getattr(config.bot, "idle_minutes", 10)
-    log.info("Issue #%s assigned, status pending_plan (idle_minutes=%s)", issue_number, idle)
+    token = getattr(config, "github_token_resolved", None)
+    if token and getattr(config.bot, "git_platform", "") == "github":
+        try:
+            adapter = GitHubAdapter(
+                token=token,
+                api_url=getattr(config.github, "api_url", "https://api.github.com"),
+            )
+            issue = adapter.get_issue(repo, int(issue_number))
+            agent = make_cursor_cli_agent(config)
+            run_planner(
+                adapter,
+                agent,
+                issue,
+                repo,
+                repo_dir,
+                bot_username=bot_username,
+                log=log,
+            )
+        except Exception as e:
+            log.exception("Failed to run planner for issue #%s: %s", issue_number, e)
+    else:
+        log.info(
+            "Issue #%s assigned, status pending_plan (no token or not github; plan not posted)",
+            issue_number,
+        )
 
 
 def handle_github_event(
