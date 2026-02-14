@@ -4,98 +4,141 @@
 
 ### Overview
 
-Coddy Bot follows a **two-module** design: a **daemon** that receives webhooks and enqueues tasks, and a **worker** that runs the development loop (Ralph-style) using an AI agent (e.g. Cursor CLI). Code is written only by the agent in iterative runs; the worker orchestrates the loop, git, and GitHub API.
+Coddy Bot follows a **two-module** design: an **observer** that receives webhooks and enqueues tasks, and a **worker** that runs the development loop (Ralph-style) using an AI agent (e.g. Cursor CLI). Code is written only by the agent in iterative runs; the worker orchestrates the loop, git, and GitHub API.
 
-**Trigger model**: The bot does not auto-process every new issue. Work is started when (1) a human assigns the bot to an issue, or (2) a user gives the bot an MR/PR number. The daemon receives these events (via webhook or scheduler) and enqueues a task; the worker picks tasks and runs the ralph loop.
+**Trigger model**: The bot does not auto-process every new issue. Work is started when (1) a human assigns the bot to an issue, or (2) a user gives the bot an MR/PR number. The observer receives these events (via webhook or scheduler) and enqueues a task; the worker picks tasks and runs the ralph loop.
 
-### Daemon
+### Observer
 
-- **Entry point**: `coddy daemon` (or `python -m coddy.daemon`)
+- **Entry point**: `coddy observer` (or `python -m coddy.observer`)
+- **Implementation**: `coddy.observer.run`
 - **Responsibilities**: Run HTTP server for webhooks; verify signatures; on relevant events (e.g. issue assigned to bot), enqueue a task to the file-based queue (`.coddy/queue/pending/`). Optional: scheduler that polls the platform for new assignments and enqueues the same way. Does **not** run the AI agent or perform code generation.
 
 ### Worker
 
 - **Entry point**: `coddy worker` (or `python -m coddy.worker`)
-- **Responsibilities**: Poll the task queue; for each task (e.g. issue number): ensure branch exists and checkout; evaluate sufficiency (agent or heuristic); if insufficient, post clarification and exit; if sufficient, write task file and run the **ralph loop**: repeatedly run the Cursor CLI agent until `.coddy/pr-{issue_number}.md` exists or "## Agent clarification request" appears or max iterations reached; then create PR, set labels, switch to default branch. Uses platform adapter for API calls and agent for a single run per iteration.
+- **Implementation**: `coddy.worker.run`
+- **Responsibilities**: Poll the task queue; for each task (e.g. issue number): ensure branch exists and checkout; evaluate sufficiency (agent or heuristic); if insufficient, post clarification and exit; if sufficient, write task YAML and run the **ralph loop**: repeatedly run the Cursor CLI agent until `.coddy/pr-{issue_number}.yaml` exists or `agent_clarification` appears in task YAML or max iterations reached; then create PR, set labels, switch to default branch. Uses platform adapter for API calls and agent for a single run per iteration.
 
-### Task Queue
+### Task source and status
 
-- **Location**: `.coddy/queue/pending/`, `.coddy/queue/done/`, `.coddy/queue/failed/`
-- **Format**: One file per task, e.g. `{issue_number}.json` with `{"repo": "owner/repo", "issue_number": 42}` or similar. Daemon writes to pending; worker moves to done/failed after processing.
+- **Issues**: `.coddy/issues/{issue_number}.yaml` - one YAML per issue. Status: pending_plan, waiting_confirmation, queued, in_progress, done, failed, closed. Worker picks issues with status=queued; on success/failure sets status to done/failed. On issue closed (webhook), status is set to closed.
+- **PRs**: `.coddy/prs/{pr_number}.yaml` - one YAML per PR. Status: open, merged, closed. On PR closed (webhook), status is set to merged or closed.
+- **Legacy**: `.coddy/queue/` (pending/done/failed) is no longer used; queue logic uses issue status only.
 
-## Architecture Layers
+## Package Layout
+
+The codebase is organized into three main packages plus the application entry point.
+
+### Observer (`coddy/observer/`)
+
+Everything that observes events, stores state, and enqueues work. Does not run the AI agent.
+
+| Path | Description |
+|------|-------------|
+| `observer/adapters/` | Git platform adapters (base, GitHub). |
+| `observer/models/` | Pydantic models: Issue, Comment, PR, ReviewComment. |
+| `observer/issues/` | Issue storage (`.coddy/issues/*.yaml`). `issue_file.py`, `issue_store.py`. |
+| `observer/prs/` | PR storage (`.coddy/prs/*.yaml`). Status: open, merged, closed. |
+| `observer/queue.py` | take_next/mark_done/mark_failed use .coddy/issues/ status (legacy queue dir unused). |
+| `observer/planner.py` | Plan generation and user confirmation flow. |
+| `observer/pr/` | PR review handler (process review comments, agent fixes, reply). |
+| `observer/webhook/` | Webhook server and event handlers. |
+| `observer/scheduler.py` | Periodic poll: pending_plan older than idle_minutes triggers planner. |
+| `observer/run.py` | Observer entry: start scheduler thread + webhook server. |
+
+**Dependencies**: None on worker or utils (only config, standard lib, third-party).
+
+### Worker (`coddy/worker/`)
+
+Runs the development loop and uses the AI agent.
+
+| Path | Description |
+|------|-------------|
+| `worker/task_yaml.py` | Task and PR report YAML (`.coddy/task-{n}.yaml`, `.coddy/pr-{n}.yaml`), review task/reply files, log path. |
+| `worker/agents/` | AI agent interface: `base.py` (AIAgent, SufficiencyResult), `cursor_cli_agent.py` (Cursor CLI headless). |
+| `worker/ralph_loop.py` | Ralph loop: sufficiency, branch, repeated agent runs until PR report or clarification. |
+| `worker/run.py` | Worker entry: poll queue, run ralph loop per task, mark done/failed. |
+
+**Dependencies**: observer (adapters, models, queue, issues for context), utils (git_runner, branch).
+
+### Utils (`coddy/utils/`)
+
+Shared utilities; no business logic.
+
+| Path | Description |
+|------|-------------|
+| `utils/branch.py` | Branch name sanitization, validation. |
+| `utils/issue_to_markdown.py` | Convert IssueFile to markdown for the agent. |
+| `utils/git_runner.py` | Git operations: pull, checkout, fetch (used by worker and review handler). |
+
+**Dependencies**: observer only for types (e.g. IssueFile) where needed.
+
+### Application Entry (`coddy/`)
+
+- `main.py` - CLI: `coddy observer` | `coddy worker`; loads config, dispatches to observer.run or worker.run.
+- `config.py` - Configuration (YAML + env).
+- `daemon.py` - Thin wrapper (legacy): `python -m coddy.daemon` calls observer.run.main.
+- `worker.py` - Thin wrapper: `python -m coddy.worker` calls worker.run.main.
+
+## Architecture Layers (Logical)
 
 ### Layer 1: Platform Adapters
 
-**Location**: `coddy/adapters/`
+**Location**: `coddy/observer/adapters/`
 
 Abstract interfaces and implementations for Git hosting platforms. Authentication, endpoints, and mapping of operations across GitHub, GitLab, and Bitbucket are described in [Platform APIs](platform-apis.md).
 
 - `base.py` - Abstract base classes for platform adapters
-- `github/` - GitHub API implementation
-- `gitlab/` - GitLab API implementation (planned)
-- `bitbucket/` - BitBucket API implementation (planned)
+- `github.py` - GitHub API implementation
+- GitLab / Bitbucket (planned)
 
 **Dependencies**: None (lowest layer)
 
 ### Layer 2: AI Agent Interface
 
-**Location**: `coddy/agents/`
+**Location**: `coddy/worker/agents/`
 
 Pluggable interface for AI code generation agents.
 
-- `base.py` - Abstract base class for AI agents
-- `cursor_cli.py` - Cursor CLI agent implementation
-- `factory.py` - Agent factory for creating agent instances
+- `base.py` - Abstract base class (AIAgent, SufficiencyResult)
+- `cursor_cli_agent.py` - Cursor CLI agent implementation
+- `make_cursor_cli_agent(config)` - Build agent from config
 
-**Dependencies**: Layer 1 (may need Git platform for context)
+**Dependencies**: Observer models (Issue, Comment, ReviewComment), worker.task_yaml
 
-### Layer 3: Core Services
+### Layer 3: Observer Services
 
-**Location**: `coddy/services/`
+**Location**: `coddy/observer/`
 
-Business logic and orchestration services.
+Business logic for events, state, queue, and planning. No agent execution.
 
-- `issue_monitor.py` - Consumes events (from webhooks or scheduler) and tracks issues/PRs to work on; reacts to new issue comments
-- `code_generator.py` - Orchestrates code generation
-- `pr_manager.py` - Manages pull request lifecycle
-- `review_handler.py` - Processes code reviews
-- `specification_generator.py` - Generates feature specifications
-- `scheduler.py` - Optional poller: when webhooks are not available, periodically fetches issues assigned to bot, new issue comments, and new PR/MR comments; produces same logical events as webhooks
+- `planner.py` - Plan generation, confirmation flow
+- `pr/review_handler.py` - Process PR review comments (uses agent for fixes)
+- `webhook/` - Event handling
+- `scheduler.py` - Poll pending_plan, run planner after idle_minutes
 
-**Dependencies**: Layers 1, 2
+**Dependencies**: Adapters, issues, queue, worker.agents (for planner/review)
 
-### Layer 4: Webhook Server and Scheduler
+### Layer 4: Worker
 
-**Location**: `coddy/webhook/`, `coddy/scheduler/` (or under `services/`)
+**Location**: `coddy/worker/`
 
-Event sources for the Issue Monitor.
+Orchestrates the development loop and uses the agent.
 
-- **Webhook** (`webhook/`): `server.py`, `handlers.py`, `verification.py` - receives platform events when webhooks are configured
-- **Scheduler** (e.g. `scheduler/poller.py`): runs on an interval; calls platform adapter to list issues assigned to bot, get issue comments since last run, get PR comments/reviews; pushes events into Issue Monitor so the rest of the pipeline is unchanged
+- `ralph_loop.py` - Sufficiency, branch, loop until PR report or clarification
+- `run.py` - Queue polling, run ralph loop per task
 
-**Dependencies**: Layers 1, 3
-
-### Layer 5: Application Entry Point
-
-**Location**: `coddy/`
-
-Main application entry point and configuration.
-
-- `main.py` - Application entry point
-- `config.py` - Configuration management
-- `models.py` - Data models
-
-**Dependencies**: All layers
+**Dependencies**: Observer (adapters, queue, models), utils, worker.agents, worker.task_yaml
 
 ## Component Interactions
 
 ```
-  DAEMON
+  OBSERVER (observer.run)
   Webhook Server + Scheduler -> Task Queue (.coddy/queue/pending/)
-  Worker polls queue -> for each task: ralph loop -> Cursor CLI (per iteration)
-  -> PR report or clarification -> Create PR / post comment; labels; checkout default.
-  Review: webhook -> Review Handler -> agent (fixes + reply).
+  Worker (worker.run) polls queue -> for each task: ralph loop -> Cursor CLI (per iteration)
+  -> PR report (.coddy/pr-{n}.yaml) or agent_clarification -> Create PR / post comment; labels; checkout default.
+  Review: webhook -> observer.pr.review_handler -> agent (fixes + reply).
 ```
 
 ## Design Patterns
@@ -103,42 +146,35 @@ Main application entry point and configuration.
 ### Factory Pattern
 
 Used for:
-- Creating Git platform adapters (`GitPlatformFactory`)
-- Creating AI agents (`AIAgentFactory`)
+- Creating AI agents (`make_cursor_cli_agent(config)`)
 
 ### Strategy Pattern
 
 Used for:
-- Different Git platform implementations
+- Different Git platform implementations (adapters)
 - Different AI agent implementations
 
 ### Observer Pattern
 
 Used for:
 - Webhook event handling
-- Issue state changes
+- Issue state changes (pending_plan, waiting_confirmation, queued)
 
 ## Data Flow
 
 ### Issue Processing Flow
 
-1. **Trigger Event** → Webhook or **Scheduler** (polling) produces "bot assigned to issue" or "user provided MR/PR number"; only then is work queued
-2. **New comment on issue** → If the scheduler (or webhook) detects a new comment on an issue the bot is working on, Issue Monitor passes full issue + comments to the pipeline so the bot takes user input into account (re-evaluate sufficiency, re-spec, or continue)
-3. **Event Parsing** → Handler parses event type and confirms it is an assignment or MR reference
-4. **Issue/PR Retrieval** → Platform adapter fetches issue or MR/PR details (and all comments when processing new comment)
-5. **Data Sufficiency** → Bot evaluates whether issue description and comments contain enough information to implement. If not: post comment in issue asking for clarification, set label `stuck`, stop. If yes: set label `in progress`, optionally write spec in comments, proceed
-6. **Code Generation** → Code generator creates branch, switches to it, calls AI agent, commits, pushes
-7. **PR Creation** → Code agent writes PR description (what was done, how to test, reference to issue) to `.coddy/pr-{issue_number}.md` as the last step of the task; PR manager creates pull request using that description; issue label set to `review`
-8. **Monitoring** → Webhook or scheduler monitors PR for new reviews and comments
+1. **Trigger Event** -> Webhook or Scheduler produces "bot assigned to issue"; issue stored in `.coddy/issues/{n}.yaml` with status pending_plan
+2. **idle_minutes** -> Scheduler runs planner; plan posted, status -> waiting_confirmation
+3. **User confirms** -> Webhook issue_comment (affirmative); task enqueued to `.coddy/queue/pending/`; status -> queued
+4. **Worker** -> Dequeues task; ralph loop: sufficiency, branch, write `.coddy/task-{n}.yaml`, run agent until `.coddy/pr-{n}.yaml` or agent_clarification
+5. **PR Creation** -> Worker creates PR from report body, sets label, checkout default branch
 
 ### Review Processing Flow
 
-1. **Review Event** → Webhook or **Scheduler** (polling PR comments/reviews) delivers new review or comment
-2. **Comment Parsing** → Review handler parses comment
-3. **Change Identification** → Handler identifies requested changes
-4. **Code Improvement** → Code generator calls AI agent with feedback
-5. **Commit** → Changes committed
-6. **Response** → Handler responds to comment
+1. **Review Event** -> Webhook delivers new review comment
+2. **Review Handler** -> Parse comment, checkout PR branch, call agent per item (write review task YAML, run agent, read reply YAML)
+3. **Commit and Reply** -> Handler commits changes, posts reply to comment
 
 ## Configuration Management
 
@@ -147,29 +183,22 @@ Configuration is loaded from:
 2. Configuration file (`config.yaml`)
 3. Default values
 
-Configuration structure:
-```python
-class Config:
-    bot: BotConfig
-    github: GitHubConfig
-    gitlab: GitLabConfig  # Optional
-    bitbucket: BitBucketConfig  # Optional
-    ai_agents: Dict[str, AgentConfig]
-```
+See [System Specification](system-specification.md) for the full configuration structure.
 
 ## Error Handling Strategy
 
 1. **Transient Errors**: Retry with exponential backoff
 2. **Permanent Errors**: Log and notify (issue comment)
-3. **Agent Failures**: Fallback or request clarification
+3. **Agent Failures**: Fallback or request clarification (agent_clarification in task YAML)
 4. **API Rate Limits**: Queue and retry later
 
 ## Testing Strategy
 
-- **Unit Tests**: Each component tested in isolation
-- **Integration Tests**: Test component interactions
-- **E2E Tests**: Test full workflow with mock Git platform
-- **Mock Platform**: Mock Git platform API for testing
+- **Unit Tests**: Each component tested in isolation; mocks for adapters and agents
+- **Integration Tests**: Component interactions (e.g. webhook -> handler -> issue store)
+- **Mock Platform**: Mock Git platform API and agent in tests
+
+Tests live in `tests/`; import from `coddy.observer.*`, `coddy.worker.*`, `coddy.utils.*`.
 
 ## Deployment
 
@@ -187,4 +216,4 @@ class Config:
 - `BOT_NAME` - Bot name for commits
 - `BOT_EMAIL` - Bot email for commits
 - `REPOSITORY` - Target repository (owner/repo)
-- `AI_AGENT_TYPE` - AI agent to use (cursor_cli)
+- AI agent config via `config.yaml` (e.g. cursor_cli)

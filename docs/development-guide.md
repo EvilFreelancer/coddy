@@ -14,7 +14,7 @@
 1. Clone the repository:
 ```bash
 git clone <repository-url>
-cd codda
+cd coddy
 ```
 
 2. Create and activate virtual environment:
@@ -79,35 +79,37 @@ pytest tests/test_module.py::test_function -v
 ### Type Checking
 
 ```bash
-mypy src/
+mypy coddy/
 ```
 
 ## Project Structure
 
 ```
-codda/
+coddy/
 ├── docs/                    # Documentation
 │   ├── system-specification.md
 │   ├── architecture.md
 │   └── development-guide.md
-├── src/
-│   └── coddy/              # Main application code
-│       ├── adapters/       # Git platform adapters
-│       ├── agents/         # AI agent implementations
-│       ├── services/       # Core services
-│       ├── webhook/        # Webhook server
-│       ├── config.py       # Configuration management
-│       ├── models.py       # Data models
-│       └── main.py         # Application entry point
-├── tests/                  # Test suite
-│   ├── conftest.py         # Shared fixtures
-│   ├── unit/               # Unit tests
-│   ├── integration/       # Integration tests
-│   └── e2e/                # End-to-end tests
-├── .cursor/                # Cursor IDE rules
-│   └── rules/
-├── .gitignore
-├── Dockerfile
+├── coddy/                   # Main application code
+│   ├── observer/            # Daemon: adapters, issues, queue, planner, webhook, scheduler
+│   │   ├── adapters/        # Git platform adapters
+│   │   ├── issues/          # Issue storage and state
+│   │   ├── models/          # Pydantic models (Issue, PR, Comment, ReviewComment)
+│   │   ├── pr/              # Review handler
+│   │   ├── webhook/         # Webhook server and handlers
+│   │   ├── planner.py       # Plan and confirmation flow
+│   │   ├── scheduler.py     # Poll pending_plan, run planner
+│   │   └── run.py           # Observer entry point
+│   ├── worker/              # Worker: ralph loop, agents
+│   │   ├── agents/         # AI agents (base, cursor_cli)
+│   │   ├── task_yaml.py    # Task and PR report YAML
+│   │   ├── ralph_loop.py   # Development loop
+│   │   └── run.py          # Worker entry point
+│   ├── utils/               # Shared utilities (branch, git_runner, issue_to_markdown)
+│   ├── config.py            # Configuration management
+│   └── main.py              # Application entry point (observer | worker)
+├── tests/                   # Test suite
+├── .cursor/                 # Cursor IDE rules
 ├── pyproject.toml
 ├── pytest.ini
 ├── ruff.toml
@@ -141,17 +143,16 @@ Follow the TDD workflow described in `.cursor/rules/workflow.mdc`:
 
 ## Adding New Git Platform
 
-1. Create adapter class in `coddy/adapters/` implementing `GitPlatformAdapter`
-2. Add tests in `tests/test_adapters/`
-3. Update factory in `coddy/adapters/factory.py`
-4. Add configuration in `config.example.yaml`
-5. Update documentation
+1. Create adapter in `coddy/observer/adapters/` implementing the base adapter interface (see `base.py`)
+2. Add tests in `tests/test_adapters_*.py`
+3. Add configuration in `config.example.yaml`
+4. Update documentation
 
 ## Adding New AI Agent
 
-1. Create agent class in `coddy/agents/` implementing `AIAgent`
-2. Add tests in `tests/test_agents/`
-3. Update factory in `coddy/agents/factory.py`
+1. Create agent in `coddy/worker/agents/` implementing `AIAgent` from `coddy.worker.agents.base`
+2. Add tests in `tests/test_agents_*.py`
+3. Add factory helper (e.g. `make_*_agent(config)`) and wire in config
 4. Add configuration in `config.example.yaml`
 5. Update documentation
 

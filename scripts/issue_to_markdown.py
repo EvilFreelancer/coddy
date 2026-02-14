@@ -4,6 +4,9 @@ import argparse
 import sys
 from pathlib import Path
 
+from coddy.observer.issues import load_issue
+from coddy.utils.issue_to_markdown import issue_to_markdown
+
 
 def main() -> int:
     parser = argparse.ArgumentParser(description="Convert issue YAML to markdown for coddy agent")
@@ -16,9 +19,6 @@ def main() -> int:
         help="Repository root (default: current directory)",
     )
     args = parser.parse_args()
-
-    from coddy.observer.issues import load_issue
-    from coddy.utils.issue_to_markdown import issue_to_markdown
 
     issue = load_issue(args.repo_dir, args.issue_number)
     if not issue:

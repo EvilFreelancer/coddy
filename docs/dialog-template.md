@@ -21,7 +21,7 @@ The system watches for new comments. If the user replies with an affirmative phr
 
 ## State and queue
 
-- **State** is stored in `.coddy/state/{issue_number}.md` (pending_plan -> waiting_confirmation; cleared after enqueue).
+- **Status** is stored in `.coddy/issues/{issue_number}.yaml` (pending_plan -> waiting_confirmation -> queued).
 - **Queue** is in `.coddy/queue/pending/{issue_number}.md` (markdown, human-readable; worker processes and moves to done/failed).
 
 For the full sequence (webhook assign -> state -> idle -> plan -> confirm -> queue), see [issue-flow.md](issue-flow.md).

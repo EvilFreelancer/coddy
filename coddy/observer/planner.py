@@ -11,7 +11,6 @@ from pathlib import Path
 from coddy.observer.adapters.base import GitPlatformAdapter, GitPlatformError
 from coddy.observer.issues.issue_store import add_message, set_status
 from coddy.observer.models import Issue
-from coddy.observer.queue import enqueue
 from coddy.worker.agents.base import AIAgent
 
 LOG = logging.getLogger("coddy.observer.planner")
@@ -82,11 +81,10 @@ def on_user_confirmed(
     bot_username: str = "",
     log: logging.Logger | None = None,
 ) -> None:
-    """Add user comment to issue store, set status queued, enqueue for worker, post work started."""
+    """Add user comment to issue store, set status queued (worker picks from .coddy/issues/), post work started."""
     logger = log or LOG
     add_message(repo_dir, issue_number, f"@{comment_author}", comment_body)
     set_status(repo_dir, issue_number, "queued")
-    enqueue(repo_dir, repo, issue_number, title=title)
     bot_name = f"@{bot_username}" if bot_username else "@bot"
     add_message(repo_dir, issue_number, bot_name, TEMPLATE_WORK_STARTED)
     message = TEMPLATE_WORK_STARTED

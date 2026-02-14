@@ -1,6 +1,6 @@
 # Docker Compose and Secrets
 
-Coddy runs as two services: **daemon** (webhook server, enqueues tasks) and **worker** (ralph loop, processes the queue). They share a workspace volume where the task queue (`.coddy/queue/`) and the git repo live.
+Coddy runs as two services: **observer** (webhook server, enqueues tasks) and **worker** (ralph loop, processes the queue). They share a workspace volume where the task queue (`.coddy/queue/`) and the git repo live.
 
 ## First run
 
@@ -19,7 +19,7 @@ Coddy runs as two services: **daemon** (webhook server, enqueues tasks) and **wo
 
 3. **Workspace (repo)**  
    The worker needs the target repo on disk to run git and the Cursor CLI. Either:
-   - Copy `docker-compose.dist.yaml` to `docker-compose.yaml` and add a bind mount for your repo, e.g. under `coddy-worker` and `coddy-daemon`:
+   - Copy `docker-compose.dist.yaml` to `docker-compose.yaml` and add a bind mount for your repo, e.g. under `coddy-worker` and `coddy-daemon` (observer service):
      ```yaml
      volumes:
        - ./config.yaml:/app/config.yaml:ro
@@ -97,8 +97,8 @@ The `config.yaml` file is mounted from the host via bind mount in `docker-compos
 # Validate config
 docker compose run --rm coddy-daemon python -m coddy.main --check
 
-# Run daemon (default)
-docker compose run --rm coddy-daemon python -m coddy.main daemon --config /app/config.yaml
+# Run observer (default; subcommand "daemon" is accepted as alias)
+docker compose run --rm coddy-daemon python -m coddy.main observer --config /app/config.yaml
 
 # Run worker (one task then exit)
 docker compose run --rm coddy-worker python -m coddy.main worker --config /app/config.yaml --once

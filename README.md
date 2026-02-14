@@ -74,10 +74,11 @@ export REPOSITORY=owner/repo
 6. Run the bot (optional `--config` path):
 
 ```bash
-python -m coddy.main
-# or
-python -m coddy.main --config /path/to/config.yaml
-python -m coddy.main --check   # validate config and exit
+python -m coddy              # observer (default) or worker subcommand
+python -m coddy observer     # webhook server + scheduler
+python -m coddy worker       # process queue (ralph loop)
+python -m coddy --config /path/to/config.yaml
+python -m coddy --check      # validate config and exit
 ```
 
 ### Docker (recommended)
@@ -146,15 +147,31 @@ When a pull request is merged (GitHub `pull_request` event with `action: closed`
 
 ```
 coddy/
-├── coddy/             # Main application code
-│   ├── adapters/      # Git platform adapters
-│   ├── agents/        # AI agent implementations
-│   ├── services/      # Core services
-│   └── webhook/       # Webhook server
-├── docs/              # Documentation
-├── tests/             # Test suite
-├── scripts/           # Setup scripts (e.g. setup-docker-secrets.sh)
-├── .cursor/           # Cursor IDE rules
+├── coddy/                  # Main application code
+│   ├── observer/           # Observer: adapters, issues, queue, planner, webhook, scheduler
+│   │   ├── adapters/       # Git platform adapters (GitHub, etc.)
+│   │   ├── issues/         # Issue storage (.coddy/issues/), state
+│   │   ├── models/         # Pydantic models (Issue, PR, Comment, ReviewComment)
+│   │   ├── pr/             # Review handler
+│   │   ├── webhook/        # Webhook server and handlers
+│   │   ├── queue.py        # Task queue (.coddy/queue/)
+│   │   ├── planner.py      # Plan and user confirmation
+│   │   ├── scheduler.py    # Poll pending_plan, run planner
+│   │   └── run.py          # Observer entry point
+│   ├── worker/             # Worker: ralph loop, agents
+│   │   ├── agents/        # AI agents (base, cursor_cli)
+│   │   ├── task_yaml.py    # Task/PR report YAML paths and helpers
+│   │   ├── ralph_loop.py   # Development loop
+│   │   └── run.py          # Worker entry point
+│   ├── utils/              # Shared utilities (branch, git_runner, issue_to_markdown)
+│   ├── config.py           # Configuration
+│   ├── main.py             # CLI (observer | worker)
+│   ├── daemon.py           # Thin wrapper (legacy): python -m coddy.daemon -> observer.run
+│   └── worker.py           # Thin wrapper for python -m coddy.worker
+├── docs/                   # Documentation
+├── tests/                  # Test suite
+├── scripts/                # Setup scripts
+├── .cursor/                # Cursor IDE rules
 └── README.md
 ```
 

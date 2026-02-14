@@ -24,7 +24,7 @@ class IssueFile(BaseModel):
     updated_at: str = Field(..., description="ISO or unix timestamp of last update")
     status: str = Field(
         default="pending_plan",
-        description="Current state: pending_plan, waiting_confirmation, queued, in_progress, done, failed",
+        description="Current state: pending_plan, waiting_confirmation, queued, in_progress, done, failed, closed",
     )
     title: str = Field(default="", description="Issue title")
     description: str = Field(default="", description="Issue body (multiline)")

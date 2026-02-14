@@ -11,8 +11,9 @@ from pathlib import Path
 from typing import Any, Dict
 
 from coddy.observer.adapters.github import GitHubAdapter
-from coddy.observer.issues.issue_store import create_issue, load_issue
+from coddy.observer.issues.issue_store import create_issue, load_issue, set_status as set_issue_status
 from coddy.observer.models import ReviewComment
+from coddy.observer.prs.pr_store import set_pr_status
 from coddy.observer.planner import is_affirmative_comment, on_user_confirmed
 from coddy.observer.pr.review_handler import process_pr_review
 from coddy.utils.git_runner import GitRunnerError, run_git_pull
@@ -65,28 +66,33 @@ def _working_dir_from_config(config: Any) -> Path:
     return Path.cwd()
 
 
-def _handle_pr_merged(
+def _handle_pull_request_closed(
     config: Any,
     payload: Dict[str, Any],
     repo_dir: Path | None = None,
     log: logging.Logger | None = None,
 ) -> None:
-    """On PR merged: pull from default branch then exit 0 so supervisor can restart."""
+    """On PR closed: set PR status (merged/closed) in .coddy/prs/, then if merged pull and exit."""
     logger = log or logging.getLogger("coddy.observer.webhook.handlers")
     if payload.get("action") != "closed":
         return
     pull = payload.get("pull_request") or {}
+    pr_number = pull.get("number")
+    repo_payload = payload.get("repository") or {}
+    repo_full_name = repo_payload.get("full_name") or ""
+    if repo_full_name and repo_full_name != getattr(config.bot, "repository", ""):
+        logger.debug("Skipping PR closed: repository %s is not configured repo", repo_full_name)
+        return
+    working_dir = Path(repo_dir) if repo_dir is not None else _working_dir_from_config(config)
+    if pr_number is not None and repo_full_name:
+        status = "merged" if pull.get("merged") else "closed"
+        set_pr_status(working_dir, int(pr_number), status, repo=repo_full_name)
+
     if not pull.get("merged"):
         return
     if getattr(config.bot, "git_platform", "") != "github":
         logger.debug("Skipping PR merged: platform is not github")
         return
-    repo_payload = payload.get("repository") or {}
-    repo_full_name = repo_payload.get("full_name") or ""
-    if repo_full_name and repo_full_name != getattr(config.bot, "repository", ""):
-        logger.debug("Skipping PR merged: repository %s is not configured repo", repo_full_name)
-        return
-    working_dir = Path(repo_dir) if repo_dir is not None else _working_dir_from_config(config)
     default_branch = getattr(config.bot, "default_branch", "main")
     try:
         run_git_pull(default_branch, repo_dir=working_dir, log=logger)
@@ -145,6 +151,22 @@ def _handle_issue_comment(
         bot_username=bot_username or "",
         log=log,
     )
+
+
+def _handle_issues(config: Any, payload: Dict[str, Any], repo_dir: Path, log: logging.Logger) -> None:
+    """Dispatch issues event: assigned -> create issue; closed -> set issue status closed."""
+    action = payload.get("action")
+    if action == "closed":
+        issue_payload = payload.get("issue") or {}
+        issue_number = issue_payload.get("number")
+        if issue_number is not None:
+            issue_file = load_issue(repo_dir, int(issue_number))
+            if issue_file:
+                set_issue_status(repo_dir, int(issue_number), "closed")
+                log.info("Issue #%s closed, status -> closed", issue_number)
+        return
+    if action == "assigned":
+        _handle_issues_assigned(config, payload, repo_dir, log)
 
 
 def _handle_issues_assigned(
@@ -207,11 +229,11 @@ def handle_github_event(
     work_dir = Path(repo_dir) if repo_dir is not None else _working_dir_from_config(config)
 
     if event == "pull_request":
-        _handle_pr_merged(config, payload, repo_dir=work_dir, log=logger)
+        _handle_pull_request_closed(config, payload, repo_dir=work_dir, log=logger)
         return
 
     if event == "issues":
-        _handle_issues_assigned(config, payload, work_dir, logger)
+        _handle_issues(config, payload, work_dir, logger)
         return
 
     if event == "issue_comment":

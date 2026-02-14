@@ -30,38 +30,38 @@ The bot still manages **issue labels** (tags) for any issue it works on: e.g. `i
 
 Coddy is split into two runnable applications that work together:
 
-1. **Daemon (coddy daemon)** - Task intake and webhooks
+1. **Observer (coddy observer)** - Task intake and webhooks
    - Listens for webhook events from Git platforms (e.g. GitHub: issue assigned, issue comment, PR review comment).
    - Optionally runs a scheduler that polls the platform API for new assignments and comments when webhooks are unavailable.
-   - When the bot is assigned to an issue, the daemon writes a **state file** (pending_plan) under `.coddy/state/` and does not enqueue yet. A **scheduler** checks periodically; after **idle_minutes** with no activity it runs the **planner** (posts a plan and asks for confirmation). When the user confirms via a comment, the daemon **enqueues** the task to `.coddy/queue/pending/`. See [issue-flow.md](issue-flow.md).
-   - Queue implementation: file-based under `.coddy/queue/pending/` (one file per task; worker moves to `.coddy/queue/done/` or `.coddy/queue/failed/` after processing). This allows the worker to run in a separate process or on another host that shares the repo and queue directory.
-   - The daemon is long-running: HTTP server for webhooks, optional poll loop, and (if desired) a small loop that watches the queue and logs or notifies. It does not execute the development loop.
+   - When the bot is assigned to an issue, the observer creates/updates the issue in `.coddy/issues/{n}.yaml` with status **pending_plan**. A **scheduler** checks periodically; after **idle_minutes** with no activity it runs the **planner** (posts a plan and asks for confirmation). When the user confirms via a comment, the observer sets issue status to **queued** (worker picks from .coddy/issues/). See [issue-flow.md](issue-flow.md).
+   - Tasks are issues with status=queued in `.coddy/issues/`. Worker picks from them and sets status to done or failed. PRs are tracked in `.coddy/prs/{pr_number}.yaml` with status open/merged/closed. On PR merge or close (webhook), PR status is updated; on issue close, issue status is set to closed.
+   - The observer is long-running: HTTP server for webhooks, optional poll loop, and (if desired) a small loop that watches the queue and logs or notifies. It does not execute the development loop.
 
 2. **Worker (coddy worker)** - Development and commit loop (Ralph-style)
-   - Polls the task queue (or is triggered by the daemon). Picks one task (e.g. "issue 42"), then runs the **ralph loop** for that issue.
+   - Polls the task queue (or is triggered by the observer). Picks one task (e.g. "issue 42"), then runs the **ralph loop** for that issue.
    - **Ralph loop** (per issue):
      - Load issue and comments from the platform adapter; evaluate data sufficiency. If insufficient: post clarification comment, set label `stuck`, and exit (task can be re-queued when user comments).
      - Create branch from default (e.g. `42-add-user-login`), checkout, and set label `in progress`.
-     - Write task file `.coddy/task-{issue_number}.md` with issue title, body, comments, and instructions: plan, clarify if needed, write tests, write code, run tests/linter, commit with `#{number} ...`, and when everything is done write `.coddy/pr-{issue_number}.md` (PR description including "Closes #N").
-     - **Loop**: Run the AI agent (e.g. Cursor CLI) with the task file. After each run, check: (1) if `.coddy/pr-{issue_number}.md` exists, break and create PR; (2) if the task file contains "## Agent clarification request", post it to the issue, set `stuck`, and exit; (3) otherwise repeat up to a configured max iterations (e.g. 10). Each iteration is a fresh agent run; context is preserved via git history and the task/report files.
+     - Write task file `.coddy/task-{issue_number}.yaml` with issue title, body, comments, and instructions: plan, clarify if needed, write tests, write code, run tests/linter, commit with `#{number} ...`, and when everything is done write `.coddy/pr-{issue_number}.yaml` (YAML with key `body` for PR description including "Closes #N").
+     - **Loop**: Run the AI agent (e.g. Cursor CLI) with the task YAML. After each run, check: (1) if `.coddy/pr-{issue_number}.yaml` exists (with `body`), break and create PR; (2) if the task YAML contains key `agent_clarification`, post it to the issue, set `stuck`, and exit; (3) otherwise repeat up to a configured max iterations (e.g. 10). Each iteration is a fresh agent run; context is preserved via git history and the task/report files.
      - When the PR report file is written: commit and push any remaining changes, create the pull request using the report as body, set label `review`, switch back to the default branch.
    - Code is written **only** by the AI agent (Cursor CLI in the initial version); the worker only orchestrates the loop, git, and platform API (create branch, create PR, labels, comments).
    - After handling one task, the worker picks the next from the queue or exits (e.g. when run as a one-shot or by a process manager that restarts it).
 
 This separation allows:
-- Scaling: run one daemon and one or more workers.
-- Resilience: if the worker crashes during the loop, the daemon keeps receiving events and can re-enqueue; the queue is on disk.
-- Clarity: daemon = "what to do"; worker = "do the development loop".
+- Scaling: run one observer and one or more workers.
+- Resilience: if the worker crashes during the loop, the observer keeps receiving events and can re-enqueue; the queue is on disk.
+- Clarity: observer = "what to do"; worker = "do the development loop".
 
 ### High-Level Components (refined)
 
-1. **Git Platform Adapter Layer** - Abstract interface for GitHub/GitLab/BitBucket (unchanged).
-2. **Daemon**: Webhook server + optional scheduler; enqueues tasks (issue number or PR number) to the task queue; does not run the agent.
-3. **Task Queue** - File-based under `.coddy/queue/` (pending / done / failed); daemon enqueues, worker dequeues.
-4. **Worker** - Reads queue; for each task runs sufficiency check, branch creation, ralph loop (repeated agent runs until PR report or clarification), then PR creation and labels.
-5. **AI Agent Interface** - Pluggable interface; Cursor CLI agent runs one iteration per call (read task file, implement, optionally write PR report or clarification).
-6. **Review Handler** - Processes PR review comments (worker or daemon can run it; typically triggered by webhook, then worker or same process runs the handler which uses the agent).
-7. **Scheduler (Poller)** - Optional; when webhooks are not available, polls for assignments and new comments; produces the same logical events and enqueues tasks like the webhook.
+1. **Git Platform Adapter Layer** (`coddy.observer.adapters`) - Abstract interface for GitHub/GitLab/BitBucket.
+2. **Observer** (`coddy.observer.run`): Webhook server + optional scheduler; enqueues tasks (issue number or PR number) to the task queue; does not run the agent.
+3. **Tasks** - Issues in `.coddy/issues/` with status=queued; worker picks by issue number and sets status done/failed. PRs in `.coddy/prs/` with status merged/closed updated from webhooks.
+4. **Worker** (`coddy.worker.run`) - Reads queue; for each task runs sufficiency check, branch creation, ralph loop (repeated agent runs until PR report YAML or agent_clarification), then PR creation and labels.
+5. **AI Agent Interface** (`coddy.worker.agents`) - Pluggable interface; Cursor CLI agent runs one iteration per call (read task YAML, implement, optionally write PR report YAML or add agent_clarification to task YAML).
+6. **Review Handler** (`coddy.observer.pr.review_handler`) - Processes PR review comments (triggered by webhook; uses agent for fixes and reply).
+7. **Scheduler** (`coddy.observer.scheduler`) - Optional; polls for pending_plan issues older than idle_minutes, runs planner; produces same logical flow as webhooks for confirmation and enqueue.
 
 ### Technology Stack
 
@@ -74,7 +74,7 @@ This separation allows:
 
 ### Issue Processing Flow
 
-**From assignment to queue**: When the bot is assigned to an issue, it is first put in a waiting state (`.coddy/state/{issue_number}.md`), not directly in the queue. After **idle_minutes** (default 10) with no activity, the planner posts a plan and asks for user confirmation. When the user replies affirmatively (e.g. "yes", "да"), the task is enqueued (`.coddy/queue/pending/{issue_number}.md`) and the worker can pick it up. See [issue-flow.md](issue-flow.md) for the full step-by-step and [dialog-template.md](dialog-template.md) for the plan/confirmation dialog.
+**From assignment to queue**: When the bot is assigned to an issue, it is stored in `.coddy/issues/{issue_number}.yaml` with status **pending_plan**. After **idle_minutes** (default 10) with no activity, the planner posts a plan and sets status **waiting_confirmation**. When the user replies affirmatively (e.g. "yes", "да"), the issue status is set to **queued** and the worker can pick it up from .coddy/issues/. See [issue-flow.md](issue-flow.md) for the full step-by-step and [dialog-template.md](dialog-template.md) for the plan/confirmation dialog.
 
 1. **Trigger (Bot Assigned or MR/PR Referenced)**
    - **Option A**: User assigns the bot as assignee on an issue; a **webhook** (if configured) or the **scheduler** (polling the API) detects that the bot was assigned. The issue is stored in **state** (pending_plan); after idle_minutes the planner runs and asks for confirmation; once the user confirms, the issue is **queued** for processing.
@@ -97,9 +97,9 @@ This separation allows:
    - Worker creates branch with format: `{number}-short-issue-description-2-3-words`
      - **Branch must be created from the default branch** (e.g. main/master). Before creating: checkout default branch, pull latest, then create and switch to the new branch.
      - Example: `42-add-user-login`
-   - Worker writes `.coddy/task-{issue_number}.md` and runs the **agent in a loop** (ralph-style):
-     - Each iteration: run Cursor CLI (or other agent) with the task file. The agent is instructed to: plan, implement, write tests, run tests/linter, commit with `#{number} Description`, and when done write `.coddy/pr-{issue_number}.md`.
-     - Worker checks after each run: PR report file present -> create PR and exit loop; "## Agent clarification request" in task file -> post to issue, set `stuck`, exit; else repeat up to max iterations.
+   - Worker writes `.coddy/task-{issue_number}.yaml` and runs the **agent in a loop** (ralph-style):
+     - Each iteration: run Cursor CLI (or other agent) with the task YAML. The agent is instructed to: plan, implement, write tests, run tests/linter, commit with `#{number} Description`, and when done write `.coddy/pr-{issue_number}.yaml` (YAML with key `body`).
+     - Worker checks after each run: PR report file present with `body` -> create PR and exit loop; key `agent_clarification` in task YAML -> post to issue, set `stuck`, exit; else repeat up to max iterations.
    - **Commit message format**: `#{number} Description of what was done`
    - Commits are signed with bot identity (configurable).
    - When the loop exits with a PR report: worker commits/pushes if needed, creates the pull request using the report as body, sets label `review`, switches back to the default branch.

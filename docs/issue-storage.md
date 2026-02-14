@@ -8,7 +8,7 @@ All issue data is stored in **YAML files** under `.coddy/issues/`, one file per 
 author: @username
 created_at: "2024-01-01T12:00:00+00:00"
 updated_at: "2024-01-01T12:00:00+00:00"
-status: pending_plan   # or waiting_confirmation, queued, in_progress, done, failed
+status: pending_plan   # or waiting_confirmation, queued, in_progress, done, failed, closed
 title: Issue title
 description: >
   Multi-line issue body.
@@ -35,12 +35,12 @@ messages:
 
 ## Pydantic models
 
-- `coddy.issue_file.IssueMessage`: name, content, timestamp.
-- `coddy.issue_file.IssueFile`: author, created_at, updated_at, status, title, description, messages, repo, issue_number, assigned_at.
+- `coddy.observer.issues.IssueMessage`: name, content, timestamp.
+- `coddy.observer.issues.IssueFile`: author, created_at, updated_at, status, title, description, messages, repo, issue_number, assigned_at.
 
 ## Converter: YAML → Markdown (for agent)
 
-The coddy agent reads issue context as markdown. Use `coddy.services.issue_to_markdown.issue_to_markdown(issue, issue_number)` to convert an `IssueFile` to a single markdown string:
+The coddy agent reads issue context as markdown. Use `coddy.utils.issue_to_markdown.issue_to_markdown(issue, issue_number)` to convert an `IssueFile` to a single markdown string:
 
 - `# Issue N`, `## Title`, `## Description`, then `## Messages` with each message as `### @name`, content, and timestamp.
 
@@ -48,8 +48,8 @@ Script usage (e.g. from repo root):
 
 ```python
 from pathlib import Path
-from coddy.issue_store import load_issue
-from coddy.services.issue_to_markdown import issue_to_markdown
+from coddy.observer.issues import load_issue
+from coddy.utils.issue_to_markdown import issue_to_markdown
 
 repo_dir = Path(".")
 issue = load_issue(repo_dir, 42)
@@ -67,4 +67,7 @@ Tests: `tests/test_issue_to_markdown.py`.
 | pending_plan        | Bot assigned; wait idle_minutes, then run planner. |
 | waiting_confirmation| Plan posted; wait for user to confirm (yes/да). |
 | queued              | User confirmed; worker will pick this task (or already in .coddy/queue/). |
-| in_progress / done / failed | Reserved for worker. |
+| in_progress / done / failed | Set by worker. |
+| closed | Set when issue is closed (e.g. via webhook). |
+
+PRs are stored in `.coddy/prs/{pr_number}.yaml` with status **open**, **merged**, or **closed** (updated on PR merge/close webhook).

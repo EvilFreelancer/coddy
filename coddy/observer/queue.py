@@ -1,7 +1,9 @@
-"""File-based task queue in .coddy/queue/ as markdown files.
+"""Task queue: tasks are taken from .coddy/issues/ (status=queued).
 
-Each task is a .md file that is human-readable and can be parsed back to a dict.
-Format: .coddy/queue/pending/42.md with key-value lines.
+Legacy: .coddy/queue/ (pending/done/failed) is no longer used. Worker and planner
+use only .coddy/issues/ and .coddy/prs/ YAML. take_next/mark_done/mark_failed
+operate on issue status; enqueue/list_pending/_move_task_md remain for backward
+compatibility but are not used by the main flow.
 """
 
 import logging
@@ -111,22 +113,33 @@ def list_pending(repo_dir: Path) -> list[dict[str, Any]]:
 
 
 def take_next(repo_dir: Path) -> dict[str, Any] | None:
-    """Take the next pending task (smallest issue number). Does not remove it."""
-    pending = list_pending(repo_dir)
-    if not pending:
+    """Return next task from .coddy/issues/ (status=queued), smallest issue number. Does not remove it."""
+    from coddy.observer.issues.issue_store import list_queued
+
+    queued = list_queued(repo_dir)
+    if not queued:
         return None
-    pending.sort(key=lambda t: t["issue_number"])
-    return pending[0]
+    queued.sort(key=lambda t: t[0])
+    issue_number, issue_file = queued[0]
+    return {
+        "issue_number": issue_number,
+        "repo": issue_file.repo or "",
+        "title": issue_file.title or "",
+    }
 
 
 def mark_done(repo_dir: Path, issue_number: int) -> None:
-    """Move task from pending to done (same .md format)."""
-    _move_task_md(repo_dir, issue_number, _done_dir(repo_dir))
+    """Set issue status to done in .coddy/issues/."""
+    from coddy.observer.issues.issue_store import set_status
+
+    set_status(repo_dir, issue_number, "done")
 
 
 def mark_failed(repo_dir: Path, issue_number: int) -> None:
-    """Move task from pending to failed."""
-    _move_task_md(repo_dir, issue_number, _failed_dir(repo_dir))
+    """Set issue status to failed in .coddy/issues/."""
+    from coddy.observer.issues.issue_store import set_status
+
+    set_status(repo_dir, issue_number, "failed")
 
 
 def _move_task_md(repo_dir: Path, issue_number: int, target_dir: Path) -> None:

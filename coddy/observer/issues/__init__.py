@@ -1,13 +1,6 @@
-"""Issue storage and state (.coddy/issues/, .coddy/state/)."""
+"""Issue storage in .coddy/issues/ (YAML per issue)."""
 
 from coddy.observer.issues.issue_file import IssueFile, IssueMessage
-from coddy.observer.issues.issue_state import (
-    clear_state,
-    get_state,
-    list_pending_plan_states,
-    set_pending_plan,
-    set_waiting_confirmation,
-)
 from coddy.observer.issues.issue_store import (
     add_message,
     create_issue,
@@ -30,9 +23,4 @@ __all__ = [
     "list_queued",
     "save_issue",
     "set_status",
-    "clear_state",
-    "get_state",
-    "list_pending_plan_states",
-    "set_pending_plan",
-    "set_waiting_confirmation",
 ]

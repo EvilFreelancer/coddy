@@ -1,9 +1,10 @@
 """
-Coddy daemon: webhook server and task queue producer.
+Coddy observer: webhook server and task intake.
 
-Listens for GitHub webhooks; on issue assigned (or other configured events)
-enqueues a task to .coddy/queue/pending/. Does not run the AI agent or
-development loop - that is done by the worker.
+Listens for GitHub webhooks; on issue assigned creates/updates .coddy/issues/;
+on user confirmation sets issue status to queued (worker picks from .coddy/issues/).
+On PR/issue closed updates status in .coddy/prs/ and .coddy/issues/. Does not run
+the AI agent or development loop - that is done by the worker.
 """
 
 import argparse
@@ -17,10 +18,10 @@ from coddy.observer.webhook.server import run_webhook_server
 
 
 def parse_args(argv: list[str] | None = None) -> argparse.Namespace:
-    """Parse CLI arguments for the daemon."""
+    """Parse CLI arguments for the observer."""
     parser = argparse.ArgumentParser(
-        prog="coddy daemon",
-        description="Coddy daemon - webhook server and task queue",
+        prog="coddy observer",
+        description="Coddy observer - webhook server and task queue",
     )
     parser.add_argument(
         "--config",
@@ -43,10 +44,10 @@ def setup_logging(level: str = "INFO") -> None:
     logging.basicConfig(level=getattr(logging, level.upper(), logging.INFO), format=fmt)
 
 
-def run_daemon(config: AppConfig) -> None:
+def run_observer(config: AppConfig) -> None:
     """Run the webhook server and scheduler (plan after idle_minutes)."""
     setup_logging(config.logging.level)
-    log = logging.getLogger("coddy.observer.daemon")
+    log = logging.getLogger("coddy.observer.run")
 
     repo_dir = Path.cwd()
     if config.ai_agents and "cursor_cli" in config.ai_agents:
@@ -55,9 +56,9 @@ def run_daemon(config: AppConfig) -> None:
             repo_dir = Path(wd).resolve()
 
     if not config.webhook.enabled:
-        log.warning("Webhook disabled in config; daemon will do nothing useful.")
+        log.warning("Webhook disabled in config; observer will do nothing useful.")
     log.info(
-        "Coddy daemon started | repo=%s | webhook=%s | idle_minutes=%s",
+        "Coddy observer started | repo=%s | webhook=%s | idle_minutes=%s",
         config.bot.repository,
         config.webhook.enabled,
         getattr(config.bot, "idle_minutes", 10),
@@ -68,14 +69,16 @@ def run_daemon(config: AppConfig) -> None:
 
 
 def main(argv: list[str] | None = None) -> int:
-    """Entry point for coddy daemon."""
+    """Entry point for coddy observer."""
     args = parse_args(argv)
     config_path = args.config
     if not config_path.is_file() and config_path == Path("config.yaml"):
         if Path("config.example.yaml").is_file():
             config_path = Path("config.example.yaml")
             logging.basicConfig(level=logging.INFO)
-            logging.getLogger("coddy.observer.daemon").warning("config.yaml not found, using config.example.yaml")
+            logging.getLogger("coddy.observer.run").warning(
+                "config.yaml not found, using config.example.yaml"
+            )
 
     config = load_config(config_path)
 
@@ -84,11 +87,11 @@ def main(argv: list[str] | None = None) -> int:
         return 0
 
     try:
-        run_daemon(config)
+        run_observer(config)
     except KeyboardInterrupt:
         return 0
     except Exception as e:
-        logging.getLogger("coddy.observer.daemon").exception("Fatal error: %s", e)
+        logging.getLogger("coddy.observer.run").exception("Fatal error: %s", e)
         return 1
     return 0
 

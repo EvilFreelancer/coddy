@@ -284,9 +284,9 @@ def test_webhook_issues_assigned_creates_issue_file(tmp_path: Path) -> None:
     assert "Add login form" in issue.messages[0].content
 
 
-def test_webhook_issue_comment_affirmative_sets_queued_and_enqueues(tmp_path: Path) -> None:
-    """On issue_comment with waiting_confirmation and affirmative reply, status=queued and task enqueued."""
-    from coddy.observer.issues import create_issue, set_status
+def test_webhook_issue_comment_affirmative_sets_queued(tmp_path: Path) -> None:
+    """On issue_comment with waiting_confirmation and affirmative reply, status=queued (worker picks from .coddy/issues/)."""
+    from coddy.observer.issues import create_issue, list_queued, set_status
 
     create_issue(tmp_path, 7, "owner/repo", "Fix bug", "Description", "user1")
     set_status(tmp_path, 7, "waiting_confirmation")
@@ -310,11 +310,10 @@ def test_webhook_issue_comment_affirmative_sets_queued_and_enqueues(tmp_path: Pa
     assert issue is not None
     assert issue.status == "queued"
 
-    queue_file = tmp_path / ".coddy" / "queue" / "pending" / "7.md"
-    assert queue_file.exists(), "Task should be enqueued for worker"
-    content = queue_file.read_text(encoding="utf-8")
-    assert "issue_number: 7" in content or "issue_number: 7\n" in content
-    assert "repo: owner/repo" in content
-    assert "title: Fix bug" in content
+    queued = list_queued(tmp_path)
+    assert len(queued) == 1
+    assert queued[0][0] == 7
+    assert queued[0][1].title == "Fix bug"
+    assert queued[0][1].repo == "owner/repo"
 
     mock_adapter.create_comment.assert_called_once()
