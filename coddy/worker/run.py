@@ -12,7 +12,8 @@ from pathlib import Path
 
 import yaml
 
-from coddy.config import AppConfig, load_config
+from coddy.config import AppConfig, load_config, LoggingConfig
+from coddy.logging import CoddyLogging
 from coddy.services.store import list_queued, set_issue_status
 from coddy.worker.task_yaml import report_file_path
 
@@ -49,15 +50,9 @@ def parse_args(argv: list[str] | None = None) -> argparse.Namespace:
     return parser.parse_args(argv)
 
 
-def setup_logging(level: str = "INFO") -> None:
-    """Configure root logger."""
-    fmt = "%(asctime)s - %(name)s - %(levelname)s - %(message)s"
-    logging.basicConfig(level=getattr(logging, level.upper(), logging.INFO), format=fmt)
-
-
 def run_worker(config: AppConfig, once: bool = False, poll_interval: int = 10) -> None:
     """Dry run: poll queued issues, write empty PR YAML, set status done, log."""
-    setup_logging(config.logging.level)
+    CoddyLogging(config.logging).setup()
     log = logging.getLogger("coddy.worker")
 
     workspace = getattr(config.bot, "workspace", ".") or "."
@@ -104,7 +99,7 @@ def main(argv: list[str] | None = None) -> int:
     if not config_path.is_file() and config_path == Path("config.yaml"):
         if Path("config.example.yaml").is_file():
             config_path = Path("config.example.yaml")
-            logging.basicConfig(level=logging.INFO)
+            CoddyLogging(LoggingConfig()).setup()
             logging.getLogger("coddy.worker").warning("config.yaml not found, using config.example.yaml")
 
     config = load_config(config_path)

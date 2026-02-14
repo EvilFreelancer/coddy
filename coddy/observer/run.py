@@ -13,7 +13,8 @@ import logging
 import sys
 from pathlib import Path
 
-from coddy.config import AppConfig, load_config
+from coddy.config import AppConfig, load_config, LoggingConfig
+from coddy.logging import CoddyLogging
 from coddy.observer.webhook.server import run_webhook_server
 
 
@@ -38,15 +39,9 @@ def parse_args(argv: list[str] | None = None) -> argparse.Namespace:
     return parser.parse_args(argv)
 
 
-def setup_logging(level: str = "INFO") -> None:
-    """Configure root logger."""
-    fmt = "%(asctime)s - %(name)s - %(levelname)s - %(message)s"
-    logging.basicConfig(level=getattr(logging, level.upper(), logging.INFO), format=fmt)
-
-
 def run_observer(config: AppConfig) -> None:
     """Run the webhook server (plan on assignment, no polling)."""
-    setup_logging(config.logging.level)
+    CoddyLogging(config.logging).setup()
     log = logging.getLogger("coddy.observer.run")
 
     if not config.webhook.enabled:
@@ -67,7 +62,7 @@ def main(argv: list[str] | None = None) -> int:
     if not config_path.is_file() and config_path == Path("config.yaml"):
         if Path("config.example.yaml").is_file():
             config_path = Path("config.example.yaml")
-            logging.basicConfig(level=logging.INFO)
+            CoddyLogging(LoggingConfig()).setup()
             logging.getLogger("coddy.observer.run").warning("config.yaml not found, using config.example.yaml")
 
     config = load_config(config_path)

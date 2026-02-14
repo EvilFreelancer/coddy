@@ -54,6 +54,7 @@ Shared utilities; re-exports from coddy.services.git. No business logic.
 
 - **main.py** - CLI (observer | worker), config load, dispatch
 - **config.py** - Configuration
+- **logging.py** - Logging from config and env (CoddyLogging)
 - **daemon.py**, **worker.py** - Thin wrappers for `python -m coddy.daemon` (-> observer.run) / `python -m coddy.worker`
 
 ## Module Rules

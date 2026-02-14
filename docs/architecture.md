@@ -82,6 +82,7 @@ Shared utilities; no business logic.
 
 - `main.py` - CLI: `coddy observer` | `coddy worker`; loads config, dispatches to observer.run or worker.run.
 - `config.py` - Configuration (YAML + env).
+- `logging.py` - Logging setup from config and env (CoddyLogging, levels: DEBUG, INFO, WARNING, ERROR; LOGGING_LEVEL, LOGGING_FORMAT).
 - `daemon.py` - Thin wrapper (legacy): `python -m coddy.daemon` calls observer.run.main.
 - `worker.py` - Thin wrapper: `python -m coddy.worker` calls worker.run.main.
 

@@ -115,7 +115,7 @@ def create_branch(self, repo: str, branch_name: str) -> None:
 ## Logging
 
 - Use Python `logging` module
-- Log levels: DEBUG, INFO, WARNING, ERROR, CRITICAL
+- Log levels: DEBUG, INFO, WARNING, ERROR
 - Include context in log messages (issue number, PR number, etc.)
 - Log all external API calls
 - Log errors with full traceback

@@ -163,11 +163,12 @@ Follow the TDD workflow described in `.cursor/rules/workflow.mdc`:
 
 ### Enable Debug Logging
 
-Set logging level to DEBUG in `config.yaml`:
+Logging is configured by `coddy.logging` (CoddyLogging) from `config.yaml` and env (LOGGING_LEVEL, LOGGING_FORMAT). Set level to DEBUG in `config.yaml`:
 ```yaml
 logging:
   level: "DEBUG"
 ```
+Or set env: `LOGGING_LEVEL=DEBUG`.
 
 ### Run in Debug Mode
 
