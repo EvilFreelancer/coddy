@@ -6,7 +6,7 @@ x-shared-logs: &shared-logs
 
 services:
 
-  coddy-observer:
+  observer:
     image: coddy-bot:latest
     build:
       context: .
@@ -27,7 +27,7 @@ services:
     command: ["python", "-m", "coddy", "observer", "--config", "/app/config.yaml"]
     <<: *shared-logs
 
-  coddy-worker:
+  worker:
     image: coddy-bot:latest
     build:
       context: .
