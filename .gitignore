@@ -33,6 +33,8 @@ env/
 *.swo
 *~
 cursor-vibe-prompts
+ralph
+ralphy
 
 # Testing
 .pytest_cache/

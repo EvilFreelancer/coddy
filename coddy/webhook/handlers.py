@@ -93,6 +93,38 @@ def _handle_pr_merged(
     sys.exit(0)
 
 
+def _handle_issues_assigned(
+    config: Any,
+    payload: Dict[str, Any],
+    repo_dir: Path,
+    log: logging.Logger,
+) -> None:
+    """On issue assigned: if bot is in assignees, enqueue task for worker."""
+    if payload.get("action") != "assigned":
+        return
+    issue_payload = payload.get("issue") or {}
+    assignees = issue_payload.get("assignees") or []
+    bot_username = getattr(config.bot, "github_username", None)
+    if not bot_username:
+        log.debug("Skipping issues.assigned: no bot github_username configured")
+        return
+    logins = [a.get("login") for a in assignees if isinstance(a, dict) and a.get("login")]
+    if bot_username not in logins:
+        return
+    repo_payload = payload.get("repository") or {}
+    repo = repo_payload.get("full_name") or getattr(config.bot, "repository", "")
+    if not repo or repo != getattr(config.bot, "repository", ""):
+        log.debug("Skipping issues.assigned: repository %s not configured", repo)
+        return
+    issue_number = issue_payload.get("number")
+    if issue_number is None:
+        return
+    from coddy.queue import enqueue
+
+    enqueue(repo_dir, repo, int(issue_number), payload=payload)
+    log.info("Enqueued issue #%s for repo %s", issue_number, repo)
+
+
 def handle_github_event(
     config: Any,
     event: str,
@@ -104,12 +136,18 @@ def handle_github_event(
 
     Supported events:
     - pull_request (action=closed, merged=true): git pull from default branch, then exit 0 to allow restart.
+    - issues (action=assigned): if bot is in assignees, enqueue task for worker.
     - pull_request_review_comment (action=created): run review handler for the new comment.
     """
     logger = log or logging.getLogger("coddy.webhook.handlers")
+    work_dir = Path(repo_dir) if repo_dir is not None else _working_dir_from_config(config)
 
     if event == "pull_request":
-        _handle_pr_merged(config, payload, repo_dir=repo_dir, log=logger)
+        _handle_pr_merged(config, payload, repo_dir=work_dir, log=logger)
+        return
+
+    if event == "issues":
+        _handle_issues_assigned(config, payload, work_dir, logger)
         return
 
     if event != "pull_request_review_comment":
@@ -150,8 +188,7 @@ def handle_github_event(
         api_url=getattr(config.github, "api_url", "https://api.github.com"),
     )
     agent = _make_agent_from_config(config)
-    repo_path = Path(repo_dir) if repo_dir is not None else Path.cwd()
-    working_dir = repo_path
+    working_dir = work_dir
     if config.ai_agents and "cursor_cli" in config.ai_agents:
         wd = getattr(config.ai_agents["cursor_cli"], "working_directory", None)
         if wd:

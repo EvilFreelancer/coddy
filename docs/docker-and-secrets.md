@@ -1,5 +1,7 @@
 # Docker Compose and Secrets
 
+Coddy runs as two services: **daemon** (webhook server, enqueues tasks) and **worker** (ralph loop, processes the queue). They share a workspace volume where the task queue (`.coddy/queue/`) and the git repo live.
+
 ## First run
 
 1. **Create secrets and config** (creates `.secrets/` and `config.yaml` from templates):
@@ -13,19 +15,35 @@
 
    - Edit `.secrets/github_token` - put your GitHub Personal Access Token
    - Edit `.secrets/webhook_secret` - put the secret you configured in GitHub webhook
-   - Edit `config.yaml` if needed (repository, webhook path, etc.). For Docker, set `webhook.enabled: true` so the HTTP server listens on port 8000 and the health check succeeds.
+   - Edit `config.yaml`: set `webhook.enabled: true`, and under `ai_agents.cursor_cli` set `working_directory: /app/workspace` so both containers use the shared workspace.
 
-3. **Start the bot**:
+3. **Workspace (repo)**  
+   The worker needs the target repo on disk to run git and the Cursor CLI. Either:
+   - Copy `docker-compose.dist.yaml` to `docker-compose.yaml` and add a bind mount for your repo, e.g. under `coddy-worker` and `coddy-daemon`:
+     ```yaml
+     volumes:
+       - ./config.yaml:/app/config.yaml:ro
+       - ./path-to-your-repo:/app/workspace
+     ```
+     (remove the `coddy-workspace` named volume for those services if you use a bind mount), or
+   - Use the default `coddy-workspace` volume and clone the repo into it (e.g. via an init container or one-off run).
 
+4. **Start the bot**:
+
+   ```bash
+   docker compose -f docker-compose.dist.yaml up -d
+   ```
+   Or copy `docker-compose.dist.yaml` to `docker-compose.yaml`, adjust volumes if needed, then:
    ```bash
    docker compose up -d
    ```
 
-4. **Check**:
+5. **Check**:
 
    ```bash
    curl http://localhost:8000/health
-   docker compose logs -f coddy
+   docker compose logs -f coddy-daemon
+   docker compose logs -f coddy-worker
    ```
 
 ## How secrets work
@@ -70,6 +88,12 @@ The `config.yaml` file is mounted from the host via bind mount in `docker-compos
 ## CLI in container
 
 ```bash
-docker compose run --rm coddy python -m coddy.main --check
-docker compose run --rm coddy python -m coddy.main --config /app/config.yaml
+# Validate config
+docker compose run --rm coddy-daemon python -m coddy.main --check
+
+# Run daemon (default)
+docker compose run --rm coddy-daemon python -m coddy.main daemon --config /app/config.yaml
+
+# Run worker (one task then exit)
+docker compose run --rm coddy-worker python -m coddy.main worker --config /app/config.yaml --once
 ```

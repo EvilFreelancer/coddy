@@ -101,3 +101,44 @@ def test_handle_pr_merged_no_exit_on_pull_failure(config_pr_merged: "object") ->
         with patch("coddy.webhook.handlers.sys.exit") as mock_exit:
             handle_github_event(config_pr_merged, "pull_request", payload)
     mock_exit.assert_not_called()
+
+
+def test_handle_issues_assigned_enqueues_when_bot_in_assignees(tmp_path: Path) -> None:
+    """On issues.assigned with bot in assignees, enqueue is called."""
+    config = type("Config", (), {})()
+    config.bot = type("Bot", (), {})()
+    config.bot.git_platform = "github"
+    config.bot.repository = "owner/repo"
+    config.bot.github_username = "coddy-bot"
+    config.ai_agents = {"cursor_cli": type("CLI", (), {"working_directory": str(tmp_path)})()}
+
+    payload = {
+        "action": "assigned",
+        "issue": {"number": 42, "assignees": [{"login": "coddy-bot"}, {"login": "other"}]},
+        "repository": {"full_name": "owner/repo"},
+    }
+    with patch("coddy.queue.enqueue") as mock_enqueue:
+        handle_github_event(config, "issues", payload, repo_dir=tmp_path)
+    mock_enqueue.assert_called_once()
+    call_args = mock_enqueue.call_args[0]
+    assert call_args[0] == tmp_path
+    assert call_args[1] == "owner/repo"
+    assert call_args[2] == 42
+
+
+def test_handle_issues_assigned_ignores_when_bot_not_assignee(tmp_path: Path) -> None:
+    """On issues.assigned without bot in assignees, enqueue is not called."""
+    config = type("Config", (), {})()
+    config.bot = type("Bot", (), {})()
+    config.bot.repository = "owner/repo"
+    config.bot.github_username = "coddy-bot"
+    config.ai_agents = {"cursor_cli": type("CLI", (), {"working_directory": str(tmp_path)})()}
+
+    payload = {
+        "action": "assigned",
+        "issue": {"number": 42, "assignees": [{"login": "other-user"}]},
+        "repository": {"full_name": "owner/repo"},
+    }
+    with patch("coddy.queue.enqueue") as mock_enqueue:
+        handle_github_event(config, "issues", payload, repo_dir=tmp_path)
+    mock_enqueue.assert_not_called()

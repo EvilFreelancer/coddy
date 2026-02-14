@@ -4,9 +4,24 @@
 
 ### Overview
 
-Coddy Bot follows a modular architecture with clear separation of concerns. The system is designed to be extensible, allowing easy addition of new Git platforms and AI agents.
+Coddy Bot follows a **two-module** design: a **daemon** that receives webhooks and enqueues tasks, and a **worker** that runs the development loop (Ralph-style) using an AI agent (e.g. Cursor CLI). Code is written only by the agent in iterative runs; the worker orchestrates the loop, git, and GitHub API.
 
-**Trigger model**: The bot does not auto-process every new issue. Work is started when (1) a human assigns the bot to an issue, or (2) a user gives the bot an MR/PR number. The Issue Monitor reacts to these events only; full automation is a later phase.
+**Trigger model**: The bot does not auto-process every new issue. Work is started when (1) a human assigns the bot to an issue, or (2) a user gives the bot an MR/PR number. The daemon receives these events (via webhook or scheduler) and enqueues a task; the worker picks tasks and runs the ralph loop.
+
+### Daemon
+
+- **Entry point**: `coddy daemon` (or `python -m coddy.daemon`)
+- **Responsibilities**: Run HTTP server for webhooks; verify signatures; on relevant events (e.g. issue assigned to bot), enqueue a task to the file-based queue (`.coddy/queue/pending/`). Optional: scheduler that polls the platform for new assignments and enqueues the same way. Does **not** run the AI agent or perform code generation.
+
+### Worker
+
+- **Entry point**: `coddy worker` (or `python -m coddy.worker`)
+- **Responsibilities**: Poll the task queue; for each task (e.g. issue number): ensure branch exists and checkout; evaluate sufficiency (agent or heuristic); if insufficient, post clarification and exit; if sufficient, write task file and run the **ralph loop**: repeatedly run the Cursor CLI agent until `.coddy/pr-{issue_number}.md` exists or "## Agent clarification request" appears or max iterations reached; then create PR, set labels, switch to default branch. Uses platform adapter for API calls and agent for a single run per iteration.
+
+### Task Queue
+
+- **Location**: `.coddy/queue/pending/`, `.coddy/queue/done/`, `.coddy/queue/failed/`
+- **Format**: One file per task, e.g. `{issue_number}.json` with `{"repo": "owner/repo", "issue_number": 42}` or similar. Daemon writes to pending; worker moves to done/failed after processing.
 
 ## Architecture Layers
 
@@ -76,35 +91,11 @@ Main application entry point and configuration.
 ## Component Interactions
 
 ```
-                    ┌─────────────────┐
-                    │ Webhook Server  │ (when configured)
-                    └────────┬────────┘
-                             │
-                             ▼
-┌─────────────────┐   ┌─────────────────┐
-│   Scheduler     │──▶│  Issue Monitor  │
-│   (poller)      │   │                 │
-└────────┬────────┘   └─────────┬───────┘
-         │                      │
-         │  (no webhooks /      │  new assignment, new issue
-         │   fallback)          │  comment, new PR comment
-         │                      ▼
-         │              Specification Generator → Issue Comments
-         │                      │
-         │                      ▼
-         │              Code Generator
-         │                      │
-         │                      ▼
-         │              AI Agent (Cursor CLI)
-         │                      │
-         │                      ▼
-         └─────────────▶ PR Manager → Pull Request
-                                │
-                                ▼
-                        Review Handler ← PR Comments/Reviews
-                                │
-                                ▼
-                        Code Generator (for fixes)
+  DAEMON
+  Webhook Server + Scheduler -> Task Queue (.coddy/queue/pending/)
+  Worker polls queue -> for each task: ralph loop -> Cursor CLI (per iteration)
+  -> PR report or clarification -> Create PR / post comment; labels; checkout default.
+  Review: webhook -> Review Handler -> agent (fixes + reply).
 ```
 
 ## Design Patterns

@@ -1,12 +1,8 @@
-# Coddy Bot - run with: ./scripts/setup-docker-secrets.sh then docker compose up -d
-# Required secrets: .secrets/github_token, .secrets/webhook_secret
-# Optional: .secrets/cursor_agent_token (for Cursor CLI agent); setup script creates a placeholder
-
 services:
-  coddy:
+  coddy-daemon:
     build: .
     image: coddy-bot:latest
-    container_name: coddy-bot
+    container_name: coddy-daemon
     restart: unless-stopped
     secrets:
       - github_token
@@ -18,12 +14,31 @@ services:
       CURSOR_AGENT_TOKEN_FILE: /run/secrets/cursor_agent_token
       BOT_REPOSITORY: "EvilFreelancer/coddy"
     volumes:
-      # Mount config from host (copy config.example.yaml to config.yaml first)
       - ./config.yaml:/app/config.yaml:ro
-      - ./coddy:/app/coddy:rw
+      - ${REPO_PATH:-.}:/app/workspace:rw
     ports:
       - "${CODDY_PORT:-8000}:8000"
-    command: ["python", "-m", "coddy.main", "--config", "/app/config.yaml"]
+    command: ["python", "-m", "coddy.main", "daemon", "--config", "/app/config.yaml"]
+
+  coddy-worker:
+    image: coddy-bot:latest
+    container_name: coddy-worker
+    restart: unless-stopped
+    depends_on:
+      - coddy-daemon
+    secrets:
+      - github_token
+      - webhook_secret
+      - cursor_agent_token
+    environment:
+      GITHUB_TOKEN_FILE: /run/secrets/github_token
+      WEBHOOK_SECRET_FILE: /run/secrets/webhook_secret
+      CURSOR_AGENT_TOKEN_FILE: /run/secrets/cursor_agent_token
+      BOT_REPOSITORY: "EvilFreelancer/coddy"
+    volumes:
+      - ./config.yaml:/app/config.yaml:ro
+      - ${REPO_PATH:-.}:/app/workspace:rw
+    command: ["python", "-m", "coddy.main", "worker", "--config", "/app/config.yaml"]
 
 secrets:
   github_token:
