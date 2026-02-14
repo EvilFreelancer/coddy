@@ -14,15 +14,13 @@ from coddy.observer.adapters.github import GitHubAdapter
 from coddy.observer.models import ReviewComment
 from coddy.observer.planner import is_affirmative_comment, on_user_confirmed, run_planner
 from coddy.observer.pr.review_handler import process_pr_review
-from coddy.observer.store import (
+from coddy.services.git import GitRunnerError, run_git_pull
+from coddy.services.store import (
     create_issue,
     load_issue,
+    set_issue_status,
     set_pr_status,
 )
-from coddy.observer.store import (
-    set_status as set_issue_status,
-)
-from coddy.utils.git_runner import GitRunnerError, run_git_pull
 from coddy.worker.agents.cursor_cli_agent import make_cursor_cli_agent
 
 

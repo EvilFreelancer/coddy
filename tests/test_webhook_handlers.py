@@ -91,7 +91,7 @@ def test_handle_pr_merged_uses_repo_dir_when_passed(config_pr_merged: "object") 
 
 def test_handle_pr_merged_no_exit_on_pull_failure(config_pr_merged: "object") -> None:
     """When run_git_pull raises, we do not call sys.exit."""
-    from coddy.utils.git_runner import GitRunnerError
+    from coddy.services.git import GitRunnerError
 
     payload = {
         "action": "closed",
@@ -255,7 +255,8 @@ def _issues_assigned_config(tmp_path: Path) -> "object":
 
 
 def test_webhook_issues_assigned_creates_issue_file(tmp_path: Path) -> None:
-    """On issues.assigned (bot in assignees), issue file is created; without token status stays pending_plan."""
+    """On issues.assigned (bot in assignees), issue file is created; without
+    token status stays pending_plan."""
     config = _issues_assigned_config(tmp_path)
     payload = {
         "action": "assigned",
@@ -281,7 +282,7 @@ def test_webhook_issues_assigned_creates_issue_file(tmp_path: Path) -> None:
     issue = load_issue(tmp_path, 42)
     assert issue is not None
     assert issue.status == "pending_plan"
-    assert issue.issue_number == 42
+    assert issue.issue_id == 42
     assert issue.repo == "owner/repo"
     assert issue.title == "Add login form"
     assert len(issue.comments) == 1
@@ -289,8 +290,9 @@ def test_webhook_issues_assigned_creates_issue_file(tmp_path: Path) -> None:
 
 
 def test_webhook_issues_assigned_runs_planner_when_token_set(tmp_path: Path) -> None:
-    """On issues.assigned with token, planner runs and status becomes waiting_confirmation."""
-    from coddy.observer.store import set_status
+    """On issues.assigned with token, planner runs and status becomes
+    waiting_confirmation."""
+    from coddy.services.store import set_status
 
     config = _issues_assigned_config(tmp_path)
     config.github_token_resolved = "gh-token"

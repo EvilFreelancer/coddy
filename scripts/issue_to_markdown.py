@@ -5,7 +5,6 @@ import sys
 from pathlib import Path
 
 from coddy.observer.issues import load_issue
-from coddy.utils.issue_to_markdown import issue_to_markdown
 
 
 def main() -> int:
@@ -24,7 +23,7 @@ def main() -> int:
     if not issue:
         print(f"Issue #{args.issue_number} not found in {args.repo_dir / '.coddy' / 'issues'}", file=sys.stderr)
         return 1
-    print(issue_to_markdown(issue, args.issue_number))
+    print(issue.to_markdown())
     return 0
 
 

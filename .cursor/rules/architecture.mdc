@@ -8,23 +8,30 @@ alwaysApply: true
 
 ## General Architecture
 
-The project uses **modular architecture with clear separation of concerns**. Code is organized into **observer** (events, state, queue), **worker** (ralph loop, agents), and **utils** (shared helpers). See `docs/architecture.md` for the full layout.
+The project uses **modular architecture with clear separation of concerns**. Code is organized into **services** (shared store), **observer** (events, planning), **worker** (ralph loop, agents), and **utils** (shared helpers). See `docs/architecture.md` for the full layout.
 
 ## Package Layout
 
+### Services (`coddy/services/`)
+
+Shared by observer and worker. No dependency on observer or worker.
+
+- **store/** - Issue and PR storage (`.coddy/issues/`, `.coddy/prs/`). Schemas: IssueFile, IssueComment, PRFile. create_issue, load_issue, set_status, list_queued, set_pr_status, etc.
+- **git/** - Git operations: branches (sanitize, checkout, fetch), commits (stage + commit), push_pull (pull, push, commit_all_and_push).
+
 ### Observer (`coddy/observer/`)
 
-Daemon-side: events, state, queue, planning. Does not run the AI agent.
+Daemon-side: events, state, planning. Does not run the AI agent.
 
 - **adapters/** - Git platform adapters (base, github)
 - **models/** - Pydantic models (Issue, Comment, PR, ReviewComment)
-- **issues/** - Issue storage (issue_file, issue_store, issue_state)
+- **issues/** - Re-exports from coddy.services.store (backward compatibility)
 - **planner.py** - Plan and user confirmation flow
 - **pr/** - Review handler (process PR review comments)
 - **webhook/** - Webhook server and handlers
 - **run.py** - Observer entry (webhook server; plan on assignment)
 
-**Dependencies**: config, standard lib, third-party only (no worker/utils)
+**Dependencies**: config, standard lib, third-party, coddy.services.store
 
 ### Worker (`coddy/worker/`)
 
@@ -35,17 +42,15 @@ Runs the development loop and uses the AI agent.
 - **ralph_loop.py** - Ralph loop (sufficiency, branch, agent loop)
 - **run.py** - Worker entry (dry-run stub: read issues, write empty PR YAML)
 
-**Dependencies**: observer (store, models), utils
+**Dependencies**: observer (models), coddy.services.store, coddy.services.git, utils
 
 ### Utils (`coddy/utils/`)
 
-Shared utilities; no business logic.
+Shared utilities; re-exports from coddy.services.git. No business logic.
 
-- **branch.py** - Branch name sanitization, validation
-- **issue_to_markdown.py** - IssueFile to markdown for agent
-- **git_runner.py** - Git operations (pull, checkout, fetch)
+- **__init__.py** - Re-exports from coddy.services.git (branch, checkout, pull, commit_and_push)
 
-**Dependencies**: observer only for types where needed
+**Dependencies**: coddy.services.git
 
 ### Application entry (`coddy/`)
 

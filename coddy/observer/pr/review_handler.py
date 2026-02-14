@@ -14,7 +14,7 @@ from typing import List
 
 from coddy.observer.adapters.base import GitPlatformAdapter, GitPlatformError
 from coddy.observer.models import ReviewComment
-from coddy.utils.git_runner import (
+from coddy.services.git import (
     commit_all_and_push,
     fetch_and_checkout_branch,
 )

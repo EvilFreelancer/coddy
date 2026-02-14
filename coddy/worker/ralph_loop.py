@@ -12,7 +12,7 @@ from typing import Literal
 
 from coddy.observer.adapters.base import GitPlatformAdapter, GitPlatformError
 from coddy.observer.models import Issue
-from coddy.utils.git_runner import (
+from coddy.services.git import (
     branch_name_from_issue,
     checkout_branch,
     commit_all_and_push,

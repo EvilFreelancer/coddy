@@ -28,7 +28,18 @@ Coddy Bot follows a **two-module** design: an **observer** that receives webhook
 
 ## Package Layout
 
-The codebase is organized into three main packages plus the application entry point.
+The codebase is organized into services (shared), observer, worker, and utils.
+
+### Services (`coddy/services/`)
+
+Shared layer used by both observer and worker.
+
+| Path | Description |
+|------|-------------|
+| `services/store/` | Issue and PR storage (`.coddy/issues/*.yaml`, `.coddy/prs/*.yaml`). Schemas: IssueFile, IssueComment, PRFile. Functions: create_issue, load_issue, save_issue, set_status, list_queued, list_pending_plan, add_message; load_pr, save_pr, set_pr_status. |
+| `services/git/` | Git operations: `branches.py` (branch name sanitization, checkout, fetch); `commits.py` (stage and commit); `push_pull.py` (pull, push, commit_all_and_push). Used by observer (webhook, review) and worker (ralph loop). |
+
+**Dependencies**: Standard lib, third-party (pydantic, yaml). No observer or worker imports.
 
 ### Observer (`coddy/observer/`)
 
@@ -38,14 +49,13 @@ Everything that observes events, stores state, and enqueues work. Does not run t
 |------|-------------|
 | `observer/adapters/` | Git platform adapters (base, GitHub). |
 | `observer/models/` | Pydantic models: Issue, Comment, PR, ReviewComment. |
-| `observer/issues/` | Issue storage (`.coddy/issues/*.yaml`). Worker uses list_queued/set_status from store. |
-| `observer/prs/` | PR storage (`.coddy/prs/*.yaml`). Status: open, merged, closed. |
+| `observer/issues/` | Re-exports from `coddy.services.store` for backward compatibility. |
 | `observer/planner.py` | Plan generation and user confirmation flow. |
 | `observer/pr/` | PR review handler (process review comments, agent fixes, reply). |
 | `observer/webhook/` | Webhook server and event handlers. |
 | `observer/run.py` | Observer entry: webhook server only (plan on assignment). |
 
-**Dependencies**: None on worker or utils (only config, standard lib, third-party).
+**Dependencies**: config, standard lib, third-party, `coddy.services.store`.
 
 ### Worker (`coddy/worker/`)
 
@@ -58,7 +68,7 @@ Runs the development loop and uses the AI agent.
 | `worker/ralph_loop.py` | Ralph loop: sufficiency, branch, repeated agent runs until PR report or clarification. |
 | `worker/run.py` | Worker entry: reads queued issues from store, currently dry-run stub (writes empty PR YAML). |
 
-**Dependencies**: observer (store list_queued/set_status, models), utils.
+**Dependencies**: observer (models), `coddy.services.store`, `coddy.services.git`, utils.
 
 ### Utils (`coddy/utils/`)
 
@@ -66,11 +76,9 @@ Shared utilities; no business logic.
 
 | Path | Description |
 |------|-------------|
-| `utils/branch.py` | Branch name sanitization, validation. |
-| `utils/issue_to_markdown.py` | Convert IssueFile to markdown for the agent. |
-| `utils/git_runner.py` | Git operations: pull, checkout, fetch (used by worker and review handler). |
+| `utils/__init__.py` | Re-exports git helpers from `coddy.services.git` (branch name, checkout, pull, commit_and_push). |
 
-**Dependencies**: observer only for types (e.g. IssueFile) where needed.
+**Dependencies**: `coddy.services.git`.
 
 ### Application Entry (`coddy/`)
 

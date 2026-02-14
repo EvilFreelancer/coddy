@@ -1,6 +1,6 @@
 """Root storage logic for issues and PRs (.coddy/issues/, .coddy/prs/)."""
 
-from coddy.observer.store.issue_store import (
+from coddy.services.store.issue_store import (
     add_message,
     create_issue,
     list_issues_by_status,
@@ -10,8 +10,10 @@ from coddy.observer.store.issue_store import (
     save_issue,
     set_status,
 )
-from coddy.observer.store.pr_store import load_pr, save_pr, set_pr_status
-from coddy.observer.store.schemas import IssueComment, IssueFile, PRFile
+from coddy.services.store.pr_store import load_pr, save_pr, set_pr_status
+from coddy.services.store.schemas import IssueComment, IssueFile, PRFile
+
+set_issue_status = set_status
 
 __all__ = [
     "IssueComment",
@@ -26,6 +28,7 @@ __all__ = [
     "load_pr",
     "save_issue",
     "save_pr",
+    "set_issue_status",
     "set_status",
     "set_pr_status",
 ]

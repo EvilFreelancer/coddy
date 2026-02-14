@@ -10,7 +10,7 @@ from pathlib import Path
 
 from coddy.observer.adapters.base import GitPlatformAdapter, GitPlatformError
 from coddy.observer.models import Issue
-from coddy.observer.store import add_message, set_status
+from coddy.services.store import add_message, set_status
 from coddy.worker.agents.base import AIAgent
 
 LOG = logging.getLogger("coddy.observer.planner")

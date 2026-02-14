@@ -1,4 +1,5 @@
-"""Event schemas for GitHub pull_request, pull_request_review, pull_request_review_comment, issue_comment (on PR).
+"""Event schemas for GitHub pull_request, pull_request_review,
+pull_request_review_comment, issue_comment (on PR).
 
 Bot processes:
 - comments (issue_comment when issue is a PR; pull_request_review_comment for line comments)
@@ -9,13 +10,14 @@ Bot processes:
 
 from typing import Literal
 
-from pydantic import BaseModel, Field
+from pydantic import BaseModel
 
 from coddy.observer.models import ReviewComment
 
 
 class PRClosed(BaseModel):
-    """PR closed without merge (pull_request webhook, action=closed, merged=false)."""
+    """PR closed without merge (pull_request webhook, action=closed,
+    merged=false)."""
 
     repo: str
     pr_number: int
@@ -39,7 +41,10 @@ class PRCommentCreated(BaseModel):
 
 
 class PRReviewSubmitted(BaseModel):
-    """Review submitted (pull_request_review webhook, action=submitted). Covers approval and changes_requested."""
+    """Review submitted (pull_request_review webhook, action=submitted).
+
+    Covers approval and changes_requested.
+    """
 
     repo: str
     pr_number: int
@@ -50,7 +55,8 @@ class PRReviewSubmitted(BaseModel):
 
 
 class PRReviewCommentCreated(BaseModel):
-    """Line or file review comment created (pull_request_review_comment webhook, action=created)."""
+    """Line or file review comment created (pull_request_review_comment
+    webhook, action=created)."""
 
     repo: str
     pr_number: int

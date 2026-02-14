@@ -148,9 +148,11 @@ When a pull request is merged (GitHub `pull_request` event with `action: closed`
 ```
 coddy/
 ├── coddy/                  # Main application code
+│   ├── services/           # Shared services (observer + worker)
+│   │   └── store/          # Issue and PR storage (.coddy/issues/, .coddy/prs/)
 │   ├── observer/           # Observer: adapters, issues, planner, webhook
 │   │   ├── adapters/       # Git platform adapters (GitHub, etc.)
-│   │   ├── issues/         # Issue storage (.coddy/issues/), state
+│   │   ├── issues/         # Re-exports from services.store
 │   │   ├── models/         # Pydantic models (Issue, PR, Comment, ReviewComment)
 │   │   ├── pr/             # Review handler
 │   │   ├── webhook/        # Webhook server and handlers
@@ -161,7 +163,7 @@ coddy/
 │   │   ├── task_yaml.py    # Task/PR report YAML paths and helpers
 │   │   ├── ralph_loop.py   # Development loop
 │   │   └── run.py          # Worker entry point
-│   ├── utils/              # Shared utilities (branch, git_runner, issue_to_markdown)
+│   ├── utils/              # Shared utilities (branch, git_runner)
 │   ├── config.py           # Configuration
 │   ├── main.py             # CLI (observer | worker)
 │   ├── daemon.py           # Thin wrapper (legacy): python -m coddy.daemon -> observer.run

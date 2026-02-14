@@ -104,7 +104,7 @@ coddy/
 │   │   ├── task_yaml.py    # Task and PR report YAML
 │   │   ├── ralph_loop.py   # Development loop
 │   │   └── run.py          # Worker entry point
-│   ├── utils/               # Shared utilities (branch, git_runner, issue_to_markdown)
+│   ├── utils/               # Shared utilities (branch, git_runner)
 │   ├── config.py            # Configuration management
 │   └── main.py              # Application entry point (observer | worker)
 ├── tests/                   # Test suite

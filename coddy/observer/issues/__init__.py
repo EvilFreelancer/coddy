@@ -1,9 +1,9 @@
 """Issue storage in .coddy/issues/ (YAML per issue).
 
-Re-exports from store.
+Re-exports from services.store for backward compatibility.
 """
 
-from coddy.observer.store import (
+from coddy.services.store import (
     IssueComment,
     IssueFile,
     add_message,

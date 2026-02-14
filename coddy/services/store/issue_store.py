@@ -1,6 +1,6 @@
 """Issue storage in .coddy/issues/ as YAML files.
 
-One file per issue: {issue_number}.yaml with meta, title, description, comments.
+One file per issue: {issue_id}.yaml with meta, title, description, comments.
 Status is updated in place (no moving files). Worker picks issues with status=queued.
 """
 
@@ -10,44 +10,44 @@ from pathlib import Path
 
 import yaml
 
-from coddy.observer.store.schemas import IssueFile, IssueComment
+from coddy.services.store.schemas import IssueFile, IssueComment
 
 ISSUES_DIR = ".coddy/issues"
 
-LOG = logging.getLogger("coddy.observer.store.issue_store")
+LOG = logging.getLogger("coddy.services.store.issue_store")
 
 
 def _issues_dir(repo_dir: Path) -> Path:
     return Path(repo_dir) / ISSUES_DIR
 
 
-def _issue_path(repo_dir: Path, issue_number: int) -> Path:
-    return _issues_dir(repo_dir) / f"{issue_number}.yaml"
+def _issue_path(repo_dir: Path, issue_id: int) -> Path:
+    return _issues_dir(repo_dir) / f"{issue_id}.yaml"
 
 
-def load_issue(repo_dir: Path, issue_number: int) -> IssueFile | None:
-    """Load issue from .coddy/issues/{issue_number}.yaml. Returns None if missing or invalid."""
-    path = _issue_path(repo_dir, issue_number)
+def load_issue(repo_dir: Path, issue_id: int) -> IssueFile | None:
+    """Load issue from .coddy/issues/{issue_id}.yaml. Returns None if missing or invalid."""
+    path = _issue_path(repo_dir, issue_id)
     if not path.is_file():
         return None
     try:
         data = yaml.safe_load(path.read_text(encoding="utf-8"))
         if not data:
             return None
-        data.setdefault("issue_number", issue_number)
+        data.setdefault("issue_id", issue_id)
         return IssueFile.model_validate(data)
     except (OSError, yaml.YAMLError, Exception) as e:
         LOG.warning("Failed to load issue %s: %s", path, e)
         return None
 
 
-def save_issue(repo_dir: Path, issue_number: int, issue: IssueFile) -> Path:
-    """Write issue to .coddy/issues/{issue_number}.yaml. Creates dir if needed."""
-    path = _issue_path(repo_dir, issue_number)
+def save_issue(repo_dir: Path, issue_id: int, issue: IssueFile) -> Path:
+    """Write issue to .coddy/issues/{issue_id}.yaml. Creates dir if needed."""
+    path = _issue_path(repo_dir, issue_id)
     path.parent.mkdir(parents=True, exist_ok=True)
     payload = issue.model_dump(mode="json", exclude_none=True)
-    if issue.issue_number is None:
-        payload["issue_number"] = issue_number
+    if issue.issue_id is None:
+        payload["issue_id"] = issue_id
     raw = yaml.dump(
         payload,
         default_flow_style=False,
@@ -56,13 +56,13 @@ def save_issue(repo_dir: Path, issue_number: int, issue: IssueFile) -> Path:
         width=1000,
     )
     path.write_text(raw, encoding="utf-8")
-    LOG.debug("Saved issue #%s to %s", issue_number, path)
+    LOG.debug("Saved issue #%s to %s", issue_id, path)
     return path
 
 
 def create_issue(
     repo_dir: Path,
-    issue_number: int,
+    issue_id: int,
     repo: str,
     title: str,
     description: str,
@@ -86,26 +86,26 @@ def create_issue(
         description=description,
         comments=[comment],
         repo=repo,
-        issue_number=issue_number,
+        issue_id=issue_id,
         assigned_at=now,
     )
-    save_issue(repo_dir, issue_number, issue)
-    LOG.info("Created issue #%s, status pending_plan", issue_number)
+    save_issue(repo_dir, issue_id, issue)
+    LOG.info("Created issue #%s, status pending_plan", issue_id)
     return issue
 
 
 def add_message(
     repo_dir: Path,
-    issue_number: int,
+    issue_id: int,
     name: str,
     content: str,
     created_at: int | None = None,
     updated_at: int | None = None,
 ) -> None:
     """Append a message to the issue thread and bump updated_at."""
-    issue = load_issue(repo_dir, issue_number)
+    issue = load_issue(repo_dir, issue_id)
     if not issue:
-        LOG.warning("Cannot add message: issue #%s not found", issue_number)
+        LOG.warning("Cannot add message: issue #%s not found", issue_id)
         return
     now_ts = int(datetime.now(UTC).timestamp())
     ts_created = created_at if created_at is not None else now_ts
@@ -114,24 +114,24 @@ def add_message(
         IssueComment(name=name, content=content, created_at=ts_created, updated_at=ts_updated)
     )
     issue.updated_at = datetime.now(UTC).isoformat()
-    save_issue(repo_dir, issue_number, issue)
-    LOG.debug("Added message to issue #%s from %s", issue_number, name)
+    save_issue(repo_dir, issue_id, issue)
+    LOG.debug("Added message to issue #%s from %s", issue_id, name)
 
 
-def set_status(repo_dir: Path, issue_number: int, status: str) -> None:
+def set_status(repo_dir: Path, issue_id: int, status: str) -> None:
     """Update issue status (e.g. waiting_confirmation, queued)."""
-    issue = load_issue(repo_dir, issue_number)
+    issue = load_issue(repo_dir, issue_id)
     if not issue:
-        LOG.warning("Cannot set status: issue #%s not found", issue_number)
+        LOG.warning("Cannot set status: issue #%s not found", issue_id)
         return
     issue.status = status
     issue.updated_at = datetime.now(UTC).isoformat()
-    save_issue(repo_dir, issue_number, issue)
-    LOG.info("Issue #%s status -> %s", issue_number, status)
+    save_issue(repo_dir, issue_id, issue)
+    LOG.info("Issue #%s status -> %s", issue_id, status)
 
 
 def list_issues_by_status(repo_dir: Path, status: str) -> list[tuple[int, IssueFile]]:
-    """List all issues with the given status. Returns list of (issue_number, IssueFile)."""
+    """List all issues with the given status. Returns list of (issue_id, IssueFile)."""
     base = _issues_dir(repo_dir)
     if not base.is_dir():
         return []

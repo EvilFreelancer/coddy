@@ -15,7 +15,7 @@ description: >
 
   Second paragraph.
 repo: owner/repo
-issue_number: 42
+issue_id: 42
 assigned_at: "2024-01-01T12:00:00+00:00"
 
 comments:
@@ -37,29 +37,32 @@ comments:
 
 ## Pydantic models (store schemas)
 
-- `coddy.observer.store.schemas.issue_comment.IssueComment`: name, content, created_at, updated_at (all required).
-- `coddy.observer.store.schemas.issue_file.IssueFile`: author, created_at, updated_at, status, title, description, comments, repo, issue_number, assigned_at.
+- `coddy.services.store.schemas.issue_comment.IssueComment`: name, content, created_at, updated_at (all required).
+- `coddy.services.store.schemas.issue_file.IssueFile`: author, created_at, updated_at, status, title, description, comments, repo, issue_id, assigned_at.
 
-Re-exported from `coddy.observer.store` and `coddy.observer.issues`: `IssueComment`, `IssueFile`, `load_issue`, `save_issue`, `create_issue`, `add_message`, `set_status`, `list_queued`, `list_pending_plan`, `list_issues_by_status`.
+Re-exported from `coddy.services.store`; `coddy.observer.issues` re-exports the same for backward compatibility: `IssueComment`, `IssueFile`, `load_issue`, `save_issue`, `create_issue`, `add_message`, `set_status`, `list_queued`, `list_pending_plan`, `list_issues_by_status`.
 
-## Converter: YAML to Markdown (for agent)
+## Markdown rendering
 
-The coddy agent reads issue context as markdown. Use `coddy.utils.issue_to_markdown.issue_to_markdown(issue, issue_number)` to convert an `IssueFile` to a single markdown string:
+Both `IssueFile` and `PRFile` have a **`to_markdown() -> str`** method that returns a formatted markdown string.
 
-- `# Issue N`, `## Title`, `## Description`, then `## Comments` with each comment as `### @name`, content, and created_at/updated_at.
+- **IssueFile.to_markdown()**: Renders title, description, and comments thread. Uses `issue_id` for the header when set.
+- **PRFile.to_markdown()**: Renders PR id, repo, status, linked issue (if any), created/updated timestamps.
+
+**Issue format:** `# Issue N`, `## Title`, `## Description`, then `## Comments` with each comment as `### @name`, content, and created_at/updated_at.
+
+**PR format:** `# PR #N`, **Repo**, **Status**, **Linked issue** (if any), **Created**, **Updated**.
 
 Script usage (e.g. from repo root):
 
 ```python
 from pathlib import Path
-from coddy.observer.store import load_issue
-from coddy.utils.issue_to_markdown import issue_to_markdown
+from coddy.services.store import load_issue
 
 repo_dir = Path(".")
 issue = load_issue(repo_dir, 42)
 if issue:
-    md = issue_to_markdown(issue, 42)
-    print(md)
+    print(issue.to_markdown())
 ```
 
 Tests: `tests/test_issue_to_markdown.py`.
