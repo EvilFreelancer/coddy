@@ -235,6 +235,16 @@ def _handle_issues(config: Any, payload: Dict[str, Any], repo_dir: Path, log: lo
                 save_issue(repo_dir, int(issue_number), issue_file)
                 log.debug("Issue #%s updated (title/description)", issue_number)
         return
+    if action == "unassigned":
+        if issue_number is not None and repo and repo == getattr(config.bot, "repository", ""):
+            issue_file = load_issue(repo_dir, int(issue_number))
+            if issue_file:
+                issue_file.assigned_at = None
+                issue_file.assigned_to = None
+                issue_file.updated_at = int(datetime.now(UTC).timestamp())
+                save_issue(repo_dir, int(issue_number), issue_file)
+                log.debug("Issue #%s unassigned, cleared assigned_at/assigned_to", issue_number)
+        return
     if action in ("opened", "assigned"):
         _ensure_issue_in_store(config, payload, repo_dir, log)
         if action == "assigned":

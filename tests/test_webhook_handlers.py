@@ -406,6 +406,42 @@ def test_webhook_issues_assigned_creates_issue_file(tmp_path: Path) -> None:
     assert len(issue.comments) == 0
 
 
+def test_webhook_issues_unassigned_clears_assignment_in_file(tmp_path: Path) -> None:
+    """On issues.unassigned, assigned_at and assigned_to are cleared in store."""
+    from coddy.services.store import create_issue
+
+    config = _issues_assigned_config(tmp_path)
+    config.bot.username = None
+    create_issue(
+        tmp_path,
+        19,
+        "owner/repo",
+        "Some issue",
+        "Body",
+        "user1",
+        assigned_at=1704067200,
+        assigned_to="coddybot",
+    )
+    content_before = (tmp_path / ".coddy" / "issues" / "19.yaml").read_text(encoding="utf-8")
+    assert "assigned_at" in content_before
+    assert "assigned_to" in content_before
+
+    payload = {
+        "action": "unassigned",
+        "issue": {"number": 19, "title": "Some issue", "body": "Body", "user": {"login": "user1"}},
+        "repository": {"full_name": "owner/repo"},
+    }
+    handle_github_event(config, "issues", payload, repo_dir=tmp_path)
+
+    content_after = (tmp_path / ".coddy" / "issues" / "19.yaml").read_text(encoding="utf-8")
+    assert "assigned_at" not in content_after
+    assert "assigned_to" not in content_after
+    issue = load_issue(tmp_path, 19)
+    assert issue is not None
+    assert issue.assigned_at is None
+    assert issue.assigned_to is None
+
+
 def test_webhook_issues_assigned_runs_planner_when_token_set(tmp_path: Path) -> None:
     """On issues.assigned with token, planner runs and status becomes
     waiting_confirmation."""
