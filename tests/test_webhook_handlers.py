@@ -289,8 +289,8 @@ def test_webhook_issues_assigned_creates_issue_file(tmp_path: Path) -> None:
     assert issue.issue_id == 42
     assert issue.repo == "owner/repo"
     assert issue.title == "Add login form"
-    assert len(issue.comments) == 1
-    assert "Add login form" in issue.comments[0].content
+    assert issue.description == "Add a form with email and password."
+    assert len(issue.comments) == 0
 
 
 def test_webhook_issues_assigned_runs_planner_when_token_set(tmp_path: Path) -> None:

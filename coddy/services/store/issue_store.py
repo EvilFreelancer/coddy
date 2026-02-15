@@ -78,14 +78,11 @@ def create_issue(
 ) -> IssueFile:
     """Create a new issue file with status pending_plan.
 
-    First message = title + description.
+    comments is empty by default (title/description are separate fields).
     """
     now = datetime.now(UTC).isoformat()
     created = created_at or now
     updated = updated_at or now
-    first_content = f"{title}\n\n{description}".strip() if title or description else "(no content)"
-    now_ts = int(datetime.now(UTC).timestamp())
-    comment = IssueComment(name=author, content=first_content, created_at=now_ts, updated_at=now_ts)
     issue = IssueFile(
         author=author,
         created_at=created,
@@ -93,7 +90,7 @@ def create_issue(
         status="pending_plan",
         title=title,
         description=description,
-        comments=[comment],
+        comments=[],
         repo=repo,
         issue_id=issue_id,
         assigned_at=now,

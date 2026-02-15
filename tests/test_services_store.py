@@ -59,9 +59,9 @@ class TestIssueStore:
         assert issue is not None
         assert issue.status == "pending_plan"
         assert issue.title == "T"
+        assert issue.description == "D"
         assert issue.repo == "o/r"
-        assert len(issue.comments) == 1
-        assert "T" in issue.comments[0].content and "D" in issue.comments[0].content
+        assert len(issue.comments) == 0
 
     def test_load_issue_missing_returns_none(self, tmp_path: Path) -> None:
         """load_issue returns None when file does not exist."""
@@ -100,11 +100,11 @@ class TestIssueStore:
         add_comment(tmp_path, 9, "@bot", "Here is the plan.", created_at=2000, updated_at=2000)
         issue = load_issue(tmp_path, 9)
         assert issue is not None
-        assert len(issue.comments) == 2
-        assert issue.comments[1].name == "@bot"
-        assert issue.comments[1].content == "Here is the plan."
-        assert issue.comments[1].created_at == 2000
-        assert issue.comments[1].updated_at == 2000
+        assert len(issue.comments) == 1
+        assert issue.comments[0].name == "@bot"
+        assert issue.comments[0].content == "Here is the plan."
+        assert issue.comments[0].created_at == 2000
+        assert issue.comments[0].updated_at == 2000
 
     def test_add_comment_when_issue_not_found_does_nothing(self, tmp_path: Path) -> None:
         """add_comment does not crash when issue file is missing."""

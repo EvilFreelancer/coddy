@@ -10,25 +10,27 @@ from coddy.services.store.schemas.issue_comment import IssueComment
 class IssueFile(BaseModel):
     """Full issue record as stored in .coddy/issues/{issue_number}.yaml."""
 
+    repo: str | None = Field(default=None, description="Repository full_name, e.g. owner/repo")
+    issue_id: int | None = Field(default=None, description="Issue ID")
+
     author: str = Field(..., description="Issue author login")
+    assigned_at: str | None = Field(
+        default=None,
+        description="When bot was assigned (ISO)",
+    )
+
     created_at: str = Field(..., description="ISO or unix timestamp when issue was created")
     updated_at: str = Field(..., description="ISO or unix timestamp of last update")
+
     status: str = Field(
         default="pending_plan",
         description="Current state: pending_plan, waiting_confirmation, queued, in_progress, done, failed, closed",
     )
     title: str = Field(default="", description="Issue title")
-    description: str = Field(default="", description="Issue body (multiline)")
+    description: str = Field(default="", description="Issue description")
     comments: List[IssueComment] = Field(
         default_factory=list,
         description="Thread: user comments and bot replies",
-    )
-
-    repo: str | None = Field(default=None, description="Repository full_name, e.g. owner/repo")
-    issue_id: int | None = Field(default=None, description="Issue ID")
-    assigned_at: str | None = Field(
-        default=None,
-        description="When bot was assigned (ISO)",
     )
 
     model_config = {"extra": "forbid", "populate_by_name": True}
