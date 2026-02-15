@@ -47,7 +47,8 @@ class WebhookHandler(BaseHTTPRequestHandler):
 
             handle_github_event(self.config, event, payload)
         except json.JSONDecodeError:
-            LOG.warning("Invalid webhook JSON")
+            payload_raw = body.decode("utf-8", errors="replace") if body else ""
+            LOG.warning("Invalid webhook JSON. Full payload: %s", payload_raw)
         self.send_response(200)
         self.send_header("Content-Type", "application/json")
         self.end_headers()
