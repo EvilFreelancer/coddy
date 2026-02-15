@@ -122,10 +122,11 @@ def _handle_issue_comment(
     )
 
 
-def _ensure_issue_in_store(
-    config: Any, payload: Dict[str, Any], repo_dir: Path, log: logging.Logger
-) -> bool:
-    """Create issue in store from payload if not present. Returns True if repo matches and issue stored."""
+def _ensure_issue_in_store(config: Any, payload: Dict[str, Any], repo_dir: Path, log: logging.Logger) -> bool:
+    """Create issue in store from payload if not present.
+
+    Returns True if repo matches and issue stored.
+    """
     repo_payload = payload.get("repository") or {}
     repo = repo_payload.get("full_name") or getattr(config.bot, "repository", "")
     if not repo or repo != getattr(config.bot, "repository", ""):

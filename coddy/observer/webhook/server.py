@@ -20,7 +20,7 @@ class WebhookHandler(BaseHTTPRequestHandler):
 
     config: AppConfig
 
-    def do_GET(self) -> None:
+    def do_GET(self) -> None:  # noqa: N802 (BaseHTTPRequestHandler API)
         if self.path == "/health" or self.path == "/":
             self.send_response(200)
             self.send_header("Content-Type", "application/json")
@@ -30,7 +30,7 @@ class WebhookHandler(BaseHTTPRequestHandler):
         self.send_response(404)
         self.end_headers()
 
-    def do_POST(self) -> None:
+    def do_POST(self) -> None:  # noqa: N802 (BaseHTTPRequestHandler API)
         if self.path == self.config.github.webhook_path:
             self._handle_github_webhook()
             return

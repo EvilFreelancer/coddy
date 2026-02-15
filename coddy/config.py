@@ -45,7 +45,7 @@ class BotConfig(BaseSettings):
     )
     username: str | None = Field(
         default=None,
-        description="Platform account name for mention logic (skip own comments, react to user replies); env BOT_USERNAME",
+        description="Platform account for mentions (skip own comments, react to user); env BOT_USERNAME",
     )
     webhook_secret: str = Field(default="", description="Secret for webhook verification")
     ai_agent: str = Field(default="cursor_cli", description="AI agent key from ai_agents")
