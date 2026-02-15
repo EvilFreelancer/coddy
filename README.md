@@ -208,14 +208,56 @@ See [Development Rules](.cursor/rules/) for coding standards and workflow.
 
 ## Roadmap
 
-- [x] System specification
-- [x] GitHub adapter implementation
-- [x] Cursor CLI agent integration
-- [x] Webhook server
-- [x] Issue processing workflow
-- [x] PR creation and management
-- [x] Review handling
-- [ ] GitLab support
-- [ ] BitBucket support
-- [ ] Multiple AI agent support
+Done vs planned. Only **GitHub** is supported; GitLab and Bitbucket are not implemented.
+
+### Observer (webhook server, planning, no agent)
+
+Runs as a daemon: receives webhooks, stores events, runs planner when the bot is assigned.
+
+- [x] Webhook server (HTTP, signature verification, JSON and form-urlencoded body)
+- [x] **Adapters** (Git platform API)
+  - [x] GitHub (partially: issues, issue comments, PR merged)
+  - [ ] GitLab
+  - [ ] Bitbucket
+- [x] **Issues** – stored for all events; planner runs only when assignee is the bot
+  - [x] `opened` – create issue in store
+  - [x] `assigned` – create or update issue, set `assigned_at` / `assigned_to`; run planner if assignee is bot
+  - [x] `unassigned` – clear `assigned_at` / `assigned_to` in store
+  - [x] `edited` – update title/description, `updated_at`
+  - [x] `closed` – set status to closed
+- [x] **Issue comments** – stored; used for confirmation flow
+  - [x] Created – append comment
+  - [x] Edited – update comment by `comment_id`
+  - [x] Deleted – soft delete (set `deleted_at`)
+- [x] **Pull request**
+  - [x] Merged – `git pull` in workspace and exit (for restart)
+  - [ ] Reacting to PR reviews – not implemented
+  - [ ] Reacting to PR comments – not implemented
+- [x] Planner (post plan, wait for user confirmation, set status to queued)
+
+### Worker (development loop, AI agent)
+
+Picks queued issues, runs agent, creates branches/commits/PRs.
+
+- [x] Task/PR YAML paths and workspace under `bot.workspace`
+- [x] Ralph loop (sufficiency, branch, agent loop) – structure in place
+- [x] **Agents**
+  - [x] Cursor CLI agent (partial integration)
+  - [ ] Other agents / multiple agents
+- [ ] Full PR creation and push from worker – not ready
+- [ ] Review handling – not implemented
+- [ ] PR comment handling – not implemented
+
+### Services (shared by observer and worker)
+
+- [x] **Store** – meta for issues and PRs
+  - [x] Issue store (`.coddy/issues/` – one YAML per issue, status, comments, `assigned_at` / `assigned_to`)
+  - [x] PR store (`.coddy/prs/`)
+- [x] **Git** – branches, commits, push/pull (used by observer on PR merged and by worker)
+- [x] **Workspace** – single working directory per bot (`BOT_WORKSPACE`), repo cloned there
+
+### Other
+
+- [x] System specification and config (env + YAML)
 - [ ] User attribution in commits
+- [ ] GitLab / Bitbucket adapters and webhook events
