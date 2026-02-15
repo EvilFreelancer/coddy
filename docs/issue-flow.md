@@ -43,7 +43,7 @@ This document describes how an issue gets from "bot assigned" to the task queue.
 
 ## Configuration
 
-- **bot.github_username**: Must be set so the bot ignores its own comments and only reacts to user replies.
+- **bot.username**: Must be set so the bot ignores its own comments and only reacts to user replies.
 - **GITHUB_TOKEN**: Required for the observer to run the planner on assignment (fetch issue, post plan).
 - **Webhook**: Enable **issues** and **issue_comment** events in the GitHub webhook so assignments and user confirmations are received.
 

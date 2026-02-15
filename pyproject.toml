@@ -1,5 +1,5 @@
 [project]
-name = "coddy-bot"
+name = "coddybot"
 version = "0.1.0"
 description = "Community driven development bot"
 readme = "README.md"

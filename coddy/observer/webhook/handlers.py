@@ -83,7 +83,7 @@ def _handle_issue_comment(
     body = comment_payload.get("body") or ""
     user = comment_payload.get("user") or {}
     author = user.get("login", "")
-    bot_username = getattr(config.bot, "github_username", None)
+    bot_username = getattr(config.bot, "username", None)
     if bot_username and author == bot_username:
         return
     issue_payload = payload.get("issue") or {}
@@ -147,9 +147,9 @@ def _handle_issues_assigned(
         return
     issue_payload = payload.get("issue") or {}
     assignees = issue_payload.get("assignees") or []
-    bot_username = getattr(config.bot, "github_username", None)
+    bot_username = getattr(config.bot, "username", None)
     if not bot_username:
-        log.debug("Skipping issues.assigned: no bot github_username configured")
+        log.debug("Skipping issues.assigned: no bot username configured")
         return
     logins = [a.get("login") for a in assignees if isinstance(a, dict) and a.get("login")]
     if bot_username not in logins:

@@ -117,8 +117,8 @@ See [Docker and Secrets](docs/docker-and-secrets.md) for details (Cursor Agent t
 ### Docker (single run)
 
 ```bash
-docker build -t coddy-bot .
-docker run -e GITHUB_TOKEN=... -e WEBHOOK_SECRET=... -v $(pwd)/config.yaml:/app/config.yaml:ro coddy-bot
+docker build -t coddybot .
+docker run -e GITHUB_TOKEN=... -e WEBHOOK_SECRET=... -v $(pwd)/config.yaml:/app/config.yaml:ro coddybot
 ```
 
 Or mount secret files and pass `*_FILE` env vars; see `docker-compose.yml` for the exact variable names.

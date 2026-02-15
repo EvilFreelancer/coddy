@@ -111,7 +111,7 @@ def test_handle_issues_assigned_creates_issue_file_when_bot_in_assignees(tmp_pat
     config.bot = type("Bot", (), {})()
     config.bot.git_platform = "github"
     config.bot.repository = "owner/repo"
-    config.bot.github_username = "coddy-bot"
+    config.bot.username = "coddybot"
     config.ai_agents = {"cursor_cli": type("CLI", (), {"working_directory": str(tmp_path)})()}
 
     payload = {
@@ -121,7 +121,7 @@ def test_handle_issues_assigned_creates_issue_file_when_bot_in_assignees(tmp_pat
             "title": "Add feature",
             "body": "Please add X",
             "user": {"login": "user1"},
-            "assignees": [{"login": "coddy-bot"}, {"login": "other"}],
+            "assignees": [{"login": "coddybot"}, {"login": "other"}],
         },
         "repository": {"full_name": "owner/repo"},
     }
@@ -143,7 +143,7 @@ def test_handle_issues_assigned_ignores_when_bot_not_assignee(tmp_path: Path) ->
     config = type("Config", (), {})()
     config.bot = type("Bot", (), {})()
     config.bot.repository = "owner/repo"
-    config.bot.github_username = "coddy-bot"
+    config.bot.username = "coddybot"
     config.ai_agents = {"cursor_cli": type("CLI", (), {"working_directory": str(tmp_path)})()}
 
     payload = {
@@ -162,7 +162,7 @@ def test_handle_issue_comment_calls_on_user_confirmed_when_affirmative(tmp_path:
     config = type("Config", (), {})()
     config.bot = type("Bot", (), {})()
     config.bot.repository = "owner/repo"
-    config.bot.github_username = "coddy-bot"
+    config.bot.username = "coddybot"
     config.github = type("GitHub", (), {"api_url": "https://api.github.com"})()
     config.github_token_resolved = "token"
     config.ai_agents = {"cursor_cli": type("CLI", (), {"working_directory": str(tmp_path)})()}
@@ -188,7 +188,7 @@ def test_handle_issue_comment_calls_on_user_confirmed_when_affirmative(tmp_path:
     call_kw = mock_confirm.call_args[1]
     assert call_kw["comment_author"] == "user1"
     assert "устраивает" in call_kw["comment_body"]
-    assert call_kw["bot_username"] == "coddy-bot"
+    assert call_kw["bot_username"] == "coddybot"
 
 
 def test_handle_issue_comment_ignores_when_not_waiting_confirmation(tmp_path: Path) -> None:
@@ -197,7 +197,7 @@ def test_handle_issue_comment_ignores_when_not_waiting_confirmation(tmp_path: Pa
     config = type("Config", (), {})()
     config.bot = type("Bot", (), {})()
     config.bot.repository = "owner/repo"
-    config.bot.github_username = "coddy-bot"
+    config.bot.username = "coddybot"
     config.github_token_resolved = "token"
     config.ai_agents = {"cursor_cli": type("CLI", (), {"working_directory": str(tmp_path)})()}
 
@@ -218,13 +218,13 @@ def test_handle_issue_comment_ignores_bot_comment(tmp_path: Path) -> None:
     config = type("Config", (), {})()
     config.bot = type("Bot", (), {})()
     config.bot.repository = "owner/repo"
-    config.bot.github_username = "coddy-bot"
+    config.bot.username = "coddybot"
     config.github_token_resolved = "token"
     config.ai_agents = {"cursor_cli": type("CLI", (), {"working_directory": str(tmp_path)})()}
 
     payload = {
         "action": "created",
-        "comment": {"body": "да", "user": {"login": "coddy-bot"}},
+        "comment": {"body": "да", "user": {"login": "coddybot"}},
         "issue": {"number": 9},
         "repository": {"full_name": "owner/repo"},
     }
@@ -249,7 +249,7 @@ def _issues_assigned_config(tmp_path: Path) -> "object":
     config.bot = type("Bot", (), {})()
     config.bot.git_platform = "github"
     config.bot.repository = "owner/repo"
-    config.bot.github_username = "coddy-bot"
+    config.bot.username = "coddybot"
     config.ai_agents = {"cursor_cli": type("CLI", (), {"working_directory": str(tmp_path)})()}
     return config
 
@@ -265,7 +265,7 @@ def test_webhook_issues_assigned_creates_issue_file(tmp_path: Path) -> None:
             "title": "Add login form",
             "body": "Add a form with email and password.",
             "user": {"login": "author1"},
-            "assignees": [{"login": "coddy-bot"}],
+            "assignees": [{"login": "coddybot"}],
         },
         "repository": {"full_name": "owner/repo"},
     }
@@ -305,7 +305,7 @@ def test_webhook_issues_assigned_runs_planner_when_token_set(tmp_path: Path) -> 
             "title": "Add feature",
             "body": "Body",
             "user": {"login": "u"},
-            "assignees": [{"login": "coddy-bot"}],
+            "assignees": [{"login": "coddybot"}],
         },
         "repository": {"full_name": "owner/repo"},
     }

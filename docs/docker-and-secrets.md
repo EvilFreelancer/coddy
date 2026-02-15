@@ -82,7 +82,7 @@ The app passes this token to the Cursor CLI as the `CURSOR_API_KEY` environment 
 ## Webhook and bot behaviour
 
 - In the GitHub repo webhook settings, enable the **issue_comment** event so the bot receives user replies (e.g. "yes" / "да") after posting the plan.
-- Set `bot.github_username` in config (e.g. the GitHub user that runs the bot) so the bot ignores its own comments and only reacts to assignees and user confirmations.
+- Set `bot.username` in config (platform account name) so the bot ignores its own comments and only reacts to assignees and user confirmations.
 - **Plan on assignment**: when the bot is assigned to an issue (webhook), the observer runs the planner immediately and posts a plan, then waits for user confirmation. See [dialog-template.md](dialog-template.md) for the plan/confirmation flow.
 
 ## Config file

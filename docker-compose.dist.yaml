@@ -2,12 +2,12 @@ x-shared-logs: &shared-logs
   logging:
     driver: "json-file"
     options:
-      max-size: "10k"
+      max-size: "100k"
 
 services:
 
   observer:
-    image: coddy-bot:latest
+    image: coddybot:latest
     build:
       context: .
     container_name: coddy-observer
@@ -28,7 +28,7 @@ services:
     <<: *shared-logs
 
   worker:
-    image: coddy-bot:latest
+    image: coddybot:latest
     build:
       context: .
     container_name: coddy-worker

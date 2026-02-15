@@ -2,15 +2,15 @@
 # Copy this file to config.yaml and fill in your values
 
 bot:
-  name: "Coddy Bot"
-  email: "bot@coddy.dev"
+  name: "Coddy Bot"   # Git commit author (user.name)
+  email: "bot@coddy.dev"  # Git commit author (user.email)
+  username: "coddybot"  # Platform account for mention logic
   git_platform: "github"  # github, gitlab, bitbucket
   repository: "owner/repo"
   default_branch: "main"   # used for git pull on PR merge and for PR base
   workspace: "./workspace"  # Workspace: path to repo root (sources + .coddy/ with issues and PRs); env BOT_WORKSPACE
   webhook_secret: "your-webhook-secret-here"
   ai_agent: "cursor_cli"
-  # github_username: "coddy-bot"  # Bot GitHub username (to detect own comments; required for issue_comment and assigned)
 
 # GitHub Configuration
 github:

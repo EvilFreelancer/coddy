@@ -43,6 +43,10 @@ def run_ralph_loop_for_issue(
     Run the ralph loop for one issue: branch, sufficiency, then repeated
     agent runs until PR report file exists or clarification or max iterations.
 
+    bot_name and bot_email are used as git commit author (user.name, user.email).
+    Pass config.bot.name and config.bot.email from the worker so commits use
+    the configured identity.
+
     Returns:
         "success" if PR was created; "clarification" if agent asked for
         clarification (posted to issue); "failed" otherwise.

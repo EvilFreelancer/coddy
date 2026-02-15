@@ -27,5 +27,5 @@ For the full sequence (webhook assign -> plan -> confirm -> queue), see [issue-f
 
 ## Configuration
 
-- `bot.github_username` – required so the bot ignores its own comments and only reacts to user replies.
+- `bot.username` – required so the bot ignores its own comments and only reacts to user replies.
 - GitHub token – required for the observer to post the plan on assignment.

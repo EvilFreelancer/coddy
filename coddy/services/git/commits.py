@@ -18,10 +18,13 @@ def add_all_and_commit(
     If there is nothing to commit (working tree clean), returns False without
     raising. Returns True if a commit was made. Raises GitRunnerError on failure.
 
+    Callers should pass bot_name and bot_email from config (config.bot.name,
+    config.bot.email) so the commit author matches the configured bot identity.
+
     Args:
         commit_message: Commit message.
-        bot_name: Git user.name for the commit.
-        bot_email: Git user.email for the commit.
+        bot_name: Git user.name for the commit (e.g. config.bot.name).
+        bot_email: Git user.email for the commit (e.g. config.bot.email).
         repo_dir: Repository directory; uses cwd if None.
         log: Optional logger.
 

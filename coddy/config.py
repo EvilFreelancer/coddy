@@ -43,8 +43,9 @@ class BotConfig(BaseSettings):
         default=".",
         description="Path to workspace (sources and .coddy/ with issues and PRs); env BOT_WORKSPACE",
     )
-    github_username: str | None = Field(
-        default=None, description="Bot GitHub login (to skip own comments when polling)"
+    username: str | None = Field(
+        default=None,
+        description="Platform account name for mention logic (skip own comments, react to user replies); env BOT_USERNAME",
     )
     webhook_secret: str = Field(default="", description="Secret for webhook verification")
     ai_agent: str = Field(default="cursor_cli", description="AI agent key from ai_agents")

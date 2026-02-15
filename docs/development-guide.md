@@ -178,11 +178,11 @@ python -m coddy.main --debug
 ### Docker Debugging
 
 ```bash
-docker build -t coddy-bot .
+docker build -t coddybot .
 docker run -it --rm \
   -e GITHUB_TOKEN=... \
   -e WEBHOOK_SECRET=... \
-  coddy-bot
+  coddybot
 ```
 
 ## Contributing
