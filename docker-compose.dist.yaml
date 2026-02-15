@@ -19,6 +19,7 @@ services:
       GITHUB_TOKEN_FILE: /run/secrets/github_token
       WEBHOOK_SECRET_FILE: /run/secrets/webhook_secret
       BOT_REPOSITORY: "EvilFreelancer/coddy"
+      BOT_WORKSPACE: "/app/workspace"
     volumes:
       - ./config.yaml:/app/config.yaml:ro
       - ${REPO_PATH:-.}:/app/workspace:rw
@@ -40,6 +41,7 @@ services:
       GITHUB_TOKEN_FILE: /run/secrets/github_token
       CURSOR_AGENT_TOKEN_FILE: /run/secrets/cursor_agent_token
       BOT_REPOSITORY: "EvilFreelancer/coddy"
+      BOT_WORKSPACE: "/app/workspace"
     volumes:
       - ./config.yaml:/app/config.yaml:ro
       - ${REPO_PATH:-.}:/app/workspace:rw

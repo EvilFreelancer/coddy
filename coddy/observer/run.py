@@ -15,6 +15,7 @@ from pathlib import Path
 
 from coddy.config import AppConfig, LoggingConfig, load_config
 from coddy.logging import CoddyLogging
+from coddy.observer.webhook.handlers import _working_dir_from_config
 from coddy.observer.webhook.server import run_webhook_server
 
 
@@ -46,10 +47,18 @@ def run_observer(config: AppConfig) -> None:
 
     if not config.webhook.enabled:
         log.warning("Webhook disabled in config; observer will do nothing useful.")
+
+    work_dir = _working_dir_from_config(config)
+    if (getattr(config.bot, "workspace", ".") or ".") == ".":
+        log.warning(
+            "bot.workspace not set; .coddy (issues, prs) will be under cwd. "
+            "Set BOT_WORKSPACE or bot.workspace to the repo root for a predictable path.",
+        )
     log.info(
-        "Coddy observer started | repo=%s | webhook=%s",
+        "Coddy observer started | repo=%s | webhook=%s | workspace=%s",
         config.bot.repository,
         config.webhook.enabled,
+        work_dir,
     )
 
     run_webhook_server(config)
