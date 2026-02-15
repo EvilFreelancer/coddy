@@ -9,6 +9,7 @@ from coddy.services.store import (
     PRFile,
     add_comment,
     create_issue,
+    delete_comment,
     list_issues_by_status,
     list_pending_plan,
     list_queued,
@@ -18,6 +19,7 @@ from coddy.services.store import (
     save_pr,
     set_issue_status,
     set_pr_status,
+    update_comment,
 )
 
 
@@ -110,6 +112,51 @@ class TestIssueStore:
         """add_comment does not crash when issue file is missing."""
         add_comment(tmp_path, 999, "@bot", "Hello")
         assert load_issue(tmp_path, 999) is None
+
+    def test_update_comment_when_issue_not_found_returns_false(self, tmp_path: Path) -> None:
+        """update_comment returns False when issue does not exist."""
+        assert update_comment(tmp_path, 999, 1, "New content") is False
+
+    def test_update_comment_when_comment_id_not_found_returns_false(self, tmp_path: Path) -> None:
+        """update_comment returns False when comment_id is not in comments."""
+        create_issue(tmp_path, 21, "o/r", "T", "D", "@u")
+        add_comment(tmp_path, 21, "@u", "Only comment", comment_id=100)
+        assert update_comment(tmp_path, 21, 999, "No such comment") is False
+        issue = load_issue(tmp_path, 21)
+        assert issue is not None
+        assert issue.comments[0].content == "Only comment"
+
+    def test_update_comment_updates_content_and_updated_at(self, tmp_path: Path) -> None:
+        """update_comment finds by comment_id and updates content."""
+        create_issue(tmp_path, 22, "o/r", "T", "D", "@u")
+        add_comment(tmp_path, 22, "@u", "Original", comment_id=200, created_at=1000, updated_at=1000)
+        assert update_comment(tmp_path, 22, 200, "Updated text", updated_at=2000) is True
+        issue = load_issue(tmp_path, 22)
+        assert issue is not None
+        assert issue.comments[0].content == "Updated text"
+        assert issue.comments[0].updated_at == 2000
+
+    def test_delete_comment_when_issue_not_found_returns_false(self, tmp_path: Path) -> None:
+        """delete_comment returns False when issue does not exist."""
+        assert delete_comment(tmp_path, 999, 1) is False
+
+    def test_delete_comment_when_comment_id_not_found_returns_false(self, tmp_path: Path) -> None:
+        """delete_comment returns False when comment_id is not in comments."""
+        create_issue(tmp_path, 23, "o/r", "T", "D", "@u")
+        add_comment(tmp_path, 23, "@u", "Only comment", comment_id=300)
+        assert delete_comment(tmp_path, 23, 999) is False
+        issue = load_issue(tmp_path, 23)
+        assert issue is not None
+        assert issue.comments[0].deleted_at is None
+
+    def test_delete_comment_sets_deleted_at(self, tmp_path: Path) -> None:
+        """delete_comment finds by comment_id and sets deleted_at."""
+        create_issue(tmp_path, 24, "o/r", "T", "D", "@u")
+        add_comment(tmp_path, 24, "@u", "To delete", comment_id=400)
+        assert delete_comment(tmp_path, 24, 400, deleted_at=3000) is True
+        issue = load_issue(tmp_path, 24)
+        assert issue is not None
+        assert issue.comments[0].deleted_at == 3000
 
     def test_set_issue_status_updates_file(self, tmp_path: Path) -> None:
         """set_issue_status changes status in file."""
@@ -343,6 +390,18 @@ class TestIssueFileSchema:
         assert issue.repo is None
         assert issue.issue_id is None
         assert issue.assigned_at is None
+
+    def test_issue_file_accepts_iso_date_without_timezone(self) -> None:
+        """IssueFile coerces ISO date without Z (naive) to Unix timestamp."""
+        issue = IssueFile(
+            author="@author",
+            created_at="2024-01-01T00:00:00",
+            updated_at="2024-01-02T12:00:00",
+        )
+        assert isinstance(issue.created_at, int)
+        assert isinstance(issue.updated_at, int)
+        assert issue.created_at == 1704067200
+        assert issue.updated_at == 1704196800
 
     def test_issue_file_full(self) -> None:
         """IssueFile with comments and meta."""

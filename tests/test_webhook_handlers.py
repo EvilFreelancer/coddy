@@ -259,6 +259,7 @@ def test_handle_issue_comment_appends_to_store_even_when_closed(tmp_path: Path) 
     payload = {
         "action": "created",
         "comment": {
+            "id": 1001,
             "body": "Extra comment on closed issue",
             "user": {"login": "user2"},
             "created_at": "2026-02-15T00:41:00Z",
@@ -272,8 +273,87 @@ def test_handle_issue_comment_appends_to_store_even_when_closed(tmp_path: Path) 
     assert issue is not None
     assert issue.status == "closed"
     assert len(issue.comments) == 1
+    assert issue.comments[0].comment_id == 1001
     assert issue.comments[0].name == "user2"
     assert issue.comments[0].content == "Extra comment on closed issue"
+
+
+def test_handle_issue_comment_edited_updates_in_store(tmp_path: Path) -> None:
+    """On issue_comment action=edited, comment content is updated in store."""
+    from coddy.services.store import create_issue
+
+    create_issue(tmp_path, 12, "owner/repo", "Issue", "Body", "user1")
+    config = type("Config", (), {})()
+    config.bot = type("Bot", (), {})()
+    config.bot.repository = "owner/repo"
+    config.bot.username = "coddybot"
+    config.ai_agents = {"cursor_cli": type("CLI", (), {"working_directory": str(tmp_path)})()}
+    handle_github_event(
+        config,
+        "issue_comment",
+        {
+            "action": "created",
+            "comment": {"comment_id": 2001, "body": "Original", "user": {"login": "user2"}, "created_at": "2026-02-15T00:00:00Z", "updated_at": "2026-02-15T00:00:00Z"},
+            "issue": {"number": 12},
+            "repository": {"full_name": "owner/repo"},
+        },
+        repo_dir=tmp_path,
+    )
+    handle_github_event(
+        config,
+        "issue_comment",
+        {
+            "action": "edited",
+            "comment": {"comment_id": 2001, "body": "Edited text", "user": {"login": "user2"}, "updated_at": "2026-02-15T00:50:00Z"},
+            "issue": {"number": 12},
+            "repository": {"full_name": "owner/repo"},
+        },
+        repo_dir=tmp_path,
+    )
+    issue = load_issue(tmp_path, 12)
+    assert issue is not None
+    assert len(issue.comments) == 1
+    assert issue.comments[0].content == "Edited text"
+    assert issue.comments[0].comment_id == 2001
+
+
+def test_handle_issue_comment_deleted_sets_deleted_at(tmp_path: Path) -> None:
+    """On issue_comment action=deleted, comment gets deleted_at set (soft delete)."""
+    from coddy.services.store import create_issue
+
+    create_issue(tmp_path, 13, "owner/repo", "Issue", "Body", "user1")
+    config = type("Config", (), {})()
+    config.bot = type("Bot", (), {})()
+    config.bot.repository = "owner/repo"
+    config.bot.username = "coddybot"
+    config.ai_agents = {"cursor_cli": type("CLI", (), {"working_directory": str(tmp_path)})()}
+    handle_github_event(
+        config,
+        "issue_comment",
+        {
+            "action": "created",
+            "comment": {"comment_id": 3001, "body": "To delete", "user": {"login": "user2"}, "created_at": "2026-02-15T00:00:00Z", "updated_at": "2026-02-15T00:00:00Z"},
+            "issue": {"number": 13},
+            "repository": {"full_name": "owner/repo"},
+        },
+        repo_dir=tmp_path,
+    )
+    handle_github_event(
+        config,
+        "issue_comment",
+        {
+            "action": "deleted",
+            "comment": {"comment_id": 3001},
+            "issue": {"number": 13},
+            "repository": {"full_name": "owner/repo"},
+        },
+        repo_dir=tmp_path,
+    )
+    issue = load_issue(tmp_path, 13)
+    assert issue is not None
+    assert len(issue.comments) == 1
+    assert issue.comments[0].comment_id == 3001
+    assert issue.comments[0].deleted_at is not None
 
 
 # --- Issue flow integration tests (real state/queue on tmp_path) ---

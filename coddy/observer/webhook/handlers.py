@@ -17,10 +17,12 @@ from coddy.services.git import GitRunnerError, run_git_pull
 from coddy.services.store import (
     add_comment,
     create_issue,
+    delete_comment,
     load_issue,
     save_issue,
     set_issue_status,
     set_pr_status,
+    update_comment,
 )
 from coddy.worker.agents.cursor_cli_agent import make_cursor_cli_agent
 
@@ -93,16 +95,16 @@ def _handle_issue_comment(
     repo_dir: Path,
     log: logging.Logger,
 ) -> None:
-    """On new comment: always append to issue in store; if waiting_confirmation and affirmative, run on_user_confirmed."""
-    if payload.get("action") != "created":
+    """On comment: created -> append to store; edited -> update; deleted -> set deleted_at. If created + waiting_confirmation + affirmative -> on_user_confirmed."""
+    action = payload.get("action")
+    if action not in ("created", "edited", "deleted"):
         return
     comment_payload = payload.get("comment") or {}
     body = comment_payload.get("body") or ""
     user = comment_payload.get("user") or {}
     author = user.get("login", "")
+    comment_id = comment_payload.get("comment_id") or comment_payload.get("id")
     bot_username = getattr(config.bot, "username", None)
-    if bot_username and author == bot_username:
-        return
     issue_payload = payload.get("issue") or {}
     issue_number = issue_payload.get("number")
     if issue_number is None:
@@ -112,41 +114,57 @@ def _handle_issue_comment(
     if not repo or repo != getattr(config.bot, "repository", ""):
         return
     issue_file = load_issue(repo_dir, int(issue_number))
-    if issue_file:
-        ts_created = _parse_comment_timestamp(comment_payload.get("created_at"))
-        ts_updated = _parse_comment_timestamp(comment_payload.get("updated_at"))
-        add_comment(
-            repo_dir,
-            int(issue_number),
-            author,
-            body,
-            created_at=ts_created,
-            updated_at=ts_updated,
-        )
-        log.debug("Added comment to issue #%s from %s", issue_number, author)
-    if not issue_file or issue_file.status != "waiting_confirmation":
+
+    if action == "created":
+        if bot_username and author == bot_username:
+            return
+        if issue_file:
+            ts_created = _parse_comment_timestamp(comment_payload.get("created_at"))
+            ts_updated = _parse_comment_timestamp(comment_payload.get("updated_at"))
+            add_comment(
+                repo_dir,
+                int(issue_number),
+                author,
+                body,
+                created_at=ts_created,
+                updated_at=ts_updated,
+                comment_id=int(comment_id) if comment_id is not None else None,
+            )
+            log.debug("Added comment to issue #%s from %s", issue_number, author)
+        if issue_file and issue_file.status == "waiting_confirmation" and is_affirmative_comment(body):
+            token = getattr(config, "github_token_resolved", None)
+            if token:
+                adapter = GitHubAdapter(
+                    token=token,
+                    api_url=getattr(config.github, "api_url", "https://api.github.com"),
+                )
+                on_user_confirmed(
+                    adapter,
+                    int(issue_number),
+                    repo,
+                    issue_file.title or "",
+                    repo_dir,
+                    comment_author=author,
+                    comment_body=body,
+                    bot_username=bot_username or "",
+                    log=log,
+                )
+            else:
+                log.warning("No GitHub token; cannot post reply")
         return
-    if not is_affirmative_comment(body):
+
+    if action == "edited":
+        if issue_file and comment_id is not None:
+            ts_updated = _parse_comment_timestamp(comment_payload.get("updated_at"))
+            if update_comment(repo_dir, int(issue_number), int(comment_id), body, updated_at=ts_updated):
+                log.debug("Updated comment %s on issue #%s", comment_id, issue_number)
         return
-    token = getattr(config, "github_token_resolved", None)
-    if not token:
-        log.warning("No GitHub token; cannot post reply")
+
+    if action == "deleted":
+        if issue_file and comment_id is not None:
+            if delete_comment(repo_dir, int(issue_number), int(comment_id)):
+                log.debug("Deleted comment %s on issue #%s", comment_id, issue_number)
         return
-    adapter = GitHubAdapter(
-        token=token,
-        api_url=getattr(config.github, "api_url", "https://api.github.com"),
-    )
-    on_user_confirmed(
-        adapter,
-        int(issue_number),
-        repo,
-        issue_file.title or "",
-        repo_dir,
-        comment_author=author,
-        comment_body=body,
-        bot_username=bot_username or "",
-        log=log,
-    )
 
 
 def _ensure_issue_in_store(config: Any, payload: Dict[str, Any], repo_dir: Path, log: logging.Logger) -> bool:

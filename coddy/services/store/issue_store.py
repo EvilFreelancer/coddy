@@ -52,6 +52,9 @@ def save_issue(repo_dir: Path, issue_id: int, issue: IssueFile) -> Path:
     path = _issue_path(repo_dir, issue_id)
     path.parent.mkdir(parents=True, exist_ok=True)
     payload = issue.model_dump(mode="json", exclude_none=True)
+    for comment in payload.get("comments") or []:
+        if comment.get("deleted_at") is None:
+            comment.pop("deleted_at", None)
     if issue.issue_id is None:
         payload["issue_id"] = issue_id
     raw = yaml.dump(
@@ -108,6 +111,7 @@ def add_comment(
     content: str,
     created_at: int | None = None,
     updated_at: int | None = None,
+    comment_id: int | None = None,
 ) -> None:
     """Append a comment to the issue thread and bump updated_at."""
     issue = load_issue(repo_dir, issue_id)
@@ -117,10 +121,59 @@ def add_comment(
     now_ts = int(datetime.now(UTC).timestamp())
     ts_created = created_at if created_at is not None else now_ts
     ts_updated = updated_at if updated_at is not None else now_ts
-    issue.comments.append(IssueComment(name=name, content=content, created_at=ts_created, updated_at=ts_updated))
+    issue.comments.append(
+        IssueComment(
+            comment_id=comment_id,
+            name=name,
+            content=content,
+            created_at=ts_created,
+            updated_at=ts_updated,
+        )
+    )
     issue.updated_at = now_ts
     save_issue(repo_dir, issue_id, issue)
     LOG.debug("Added comment to issue #%s from %s", issue_id, name)
+
+
+def update_comment(
+    repo_dir: Path,
+    issue_id: int,
+    comment_id: int,
+    content: str,
+    updated_at: int | None = None,
+) -> bool:
+    """Update comment by comment_id. Returns True if found and updated."""
+    issue = load_issue(repo_dir, issue_id)
+    if not issue:
+        return False
+    now_ts = int(datetime.now(UTC).timestamp())
+    ts_updated = updated_at if updated_at is not None else now_ts
+    for c in issue.comments:
+        if c.comment_id == comment_id:
+            c.content = content
+            c.updated_at = ts_updated
+            issue.updated_at = now_ts
+            save_issue(repo_dir, issue_id, issue)
+            LOG.debug("Updated comment %s on issue #%s", comment_id, issue_id)
+            return True
+    return False
+
+
+def delete_comment(repo_dir: Path, issue_id: int, comment_id: int, deleted_at: int | None = None) -> bool:
+    """Mark comment as deleted (soft delete, set deleted_at). Returns True if found."""
+    issue = load_issue(repo_dir, issue_id)
+    if not issue:
+        return False
+    now_ts = int(datetime.now(UTC).timestamp())
+    ts = deleted_at if deleted_at is not None else now_ts
+    for c in issue.comments:
+        if c.comment_id == comment_id:
+            c.deleted_at = ts
+            issue.updated_at = now_ts
+            save_issue(repo_dir, issue_id, issue)
+            LOG.debug("Marked comment %s on issue #%s as deleted", comment_id, issue_id)
+            return True
+    return False
 
 
 def set_issue_status(repo_dir: Path, issue_id: int, status: str) -> None:
