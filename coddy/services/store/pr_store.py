@@ -25,7 +25,10 @@ def _pr_path(repo_dir: Path, pr_id: int) -> Path:
 
 
 def load_pr(repo_dir: Path, pr_id: int) -> PRFile | None:
-    """Load PR from .coddy/prs/{pr_id}.yaml. Returns None if missing or invalid."""
+    """Load PR from .coddy/prs/{pr_id}.yaml.
+
+    Returns None if missing or invalid.
+    """
     path = _pr_path(repo_dir, pr_id)
     if not path.is_file():
         return None
@@ -40,7 +43,10 @@ def load_pr(repo_dir: Path, pr_id: int) -> PRFile | None:
 
 
 def save_pr(repo_dir: Path, pr: PRFile) -> Path:
-    """Write PR to .coddy/prs/{pr_id}.yaml. Creates dir if needed."""
+    """Write PR to .coddy/prs/{pr_id}.yaml.
+
+    Creates dir if needed.
+    """
     path = _pr_path(repo_dir, pr.pr_id)
     path.parent.mkdir(parents=True, exist_ok=True)
     payload = pr.model_dump(mode="json", exclude_none=True)

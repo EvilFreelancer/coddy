@@ -22,10 +22,12 @@ from coddy.services.store import (
 
 
 class TestIssueStore:
-    """Tests for issue_store (load, save, create, add_comment, set_issue_status, list_*)."""
+    """Tests for issue_store (load, save, create, add_comment,
+    set_issue_status, list_*)."""
 
     def test_create_issue_writes_yaml(self, tmp_path: Path) -> None:
-        """create_issue writes .coddy/issues/{n}.yaml with status pending_plan."""
+        """create_issue writes .coddy/issues/{n}.yaml with status
+        pending_plan."""
         create_issue(
             tmp_path,
             issue_id=7,
@@ -82,7 +84,8 @@ class TestIssueStore:
         assert load_issue(tmp_path, 13) is None
 
     def test_load_issue_invalid_schema_returns_none(self, tmp_path: Path) -> None:
-        """load_issue returns None when YAML does not match IssueFile schema (missing required)."""
+        """load_issue returns None when YAML does not match IssueFile schema
+        (missing required)."""
         path = tmp_path / ".coddy" / "issues"
         path.mkdir(parents=True)
         (path / "14.yaml").write_text(
@@ -137,7 +140,8 @@ class TestIssueStore:
         assert queued[0][0] == 2
 
     def test_list_issues_by_status_when_no_dir_returns_empty(self, tmp_path: Path) -> None:
-        """list_issues_by_status returns [] when .coddy/issues does not exist."""
+        """list_issues_by_status returns [] when .coddy/issues does not
+        exist."""
         assert list_issues_by_status(tmp_path, "pending_plan") == []
         assert list_issues_by_status(tmp_path, "queued") == []
 
@@ -155,7 +159,8 @@ class TestIssueStore:
         assert result[0][0] == 2
 
     def test_list_issues_by_status_skips_file_when_int_stem_raises(self, tmp_path: Path) -> None:
-        """list_issues_by_status skips file when int(f.stem) raises (e.g. unicode digit)."""
+        """list_issues_by_status skips file when int(f.stem) raises (e.g.
+        unicode digit)."""
         path = tmp_path / ".coddy" / "issues"
         path.mkdir(parents=True)
         (path / "\u0661.yaml").write_text(
@@ -168,7 +173,8 @@ class TestIssueStore:
         assert result[0][0] == 2
 
     def test_list_issues_by_status_skips_file_when_load_raises(self, tmp_path: Path) -> None:
-        """list_issues_by_status skips file and continues when load_issue raises."""
+        """list_issues_by_status skips file and continues when load_issue
+        raises."""
         create_issue(tmp_path, 1, "o/r", "A", "", "@u")
         with patch(
             "coddy.services.store.issue_store.load_issue",
@@ -298,7 +304,8 @@ class TestPRStore:
         assert pr.status == "merged"
 
     def test_set_pr_status_updates_repo_and_issue_id(self, tmp_path: Path) -> None:
-        """set_pr_status updates repo and issue_id when passed on existing PR."""
+        """set_pr_status updates repo and issue_id when passed on existing
+        PR."""
         set_pr_status(tmp_path, 12, "open", repo="o/r", issue_number=2)
         set_pr_status(tmp_path, 12, "closed", repo="other/repo", issue_number=99)
         pr = load_pr(tmp_path, 12)
@@ -309,13 +316,12 @@ class TestPRStore:
 
 
 class TestIssueFileSchema:
-    """Tests for IssueFile and IssueComment schemas and IssueFile.to_markdown()."""
+    """Tests for IssueFile and IssueComment schemas and
+    IssueFile.to_markdown()."""
 
     def test_issue_comment_model(self) -> None:
         """IssueComment accepts name, content, created_at, updated_at."""
-        msg = IssueComment(
-            name="@user", content="Hello", created_at=1234567890, updated_at=1234567890
-        )
+        msg = IssueComment(name="@user", content="Hello", created_at=1234567890, updated_at=1234567890)
         assert msg.name == "@user"
         assert msg.content == "Hello"
         assert msg.created_at == 1234567890
@@ -338,9 +344,7 @@ class TestIssueFileSchema:
 
     def test_issue_file_full(self) -> None:
         """IssueFile with comments and meta."""
-        msg = IssueComment(
-            name="@user", content="Title\n\nBody", created_at=1000, updated_at=1000
-        )
+        msg = IssueComment(name="@user", content="Title\n\nBody", created_at=1000, updated_at=1000)
         issue = IssueFile(
             author="@user",
             created_at="2024-01-01T00:00:00Z",
@@ -393,7 +397,8 @@ class TestIssueFileSchema:
         assert "Please add a button." in md
 
     def test_issue_to_markdown_with_comments(self) -> None:
-        """to_markdown includes comments section with name, content, timestamps."""
+        """to_markdown includes comments section with name, content,
+        timestamps."""
         issue = IssueFile(
             author="@user",
             created_at="2024-01-01T00:00:00Z",
@@ -402,9 +407,7 @@ class TestIssueFileSchema:
             description="D",
             comments=[
                 IssueComment(name="@user", content="T\n\nD", created_at=1000, updated_at=1000),
-                IssueComment(
-                    name="@bot", content="Here is the plan.", created_at=2000, updated_at=2000
-                ),
+                IssueComment(name="@bot", content="Here is the plan.", created_at=2000, updated_at=2000),
             ],
             issue_id=7,
         )

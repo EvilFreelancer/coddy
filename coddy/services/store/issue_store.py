@@ -10,7 +10,7 @@ from pathlib import Path
 
 import yaml
 
-from coddy.services.store.schemas import IssueFile, IssueComment
+from coddy.services.store.schemas import IssueComment, IssueFile
 
 ISSUES_DIR = ".coddy/issues"
 
@@ -26,7 +26,10 @@ def _issue_path(repo_dir: Path, issue_id: int) -> Path:
 
 
 def load_issue(repo_dir: Path, issue_id: int) -> IssueFile | None:
-    """Load issue from .coddy/issues/{issue_id}.yaml. Returns None if missing or invalid."""
+    """Load issue from .coddy/issues/{issue_id}.yaml.
+
+    Returns None if missing or invalid.
+    """
     path = _issue_path(repo_dir, issue_id)
     if not path.is_file():
         return None
@@ -42,7 +45,10 @@ def load_issue(repo_dir: Path, issue_id: int) -> IssueFile | None:
 
 
 def save_issue(repo_dir: Path, issue_id: int, issue: IssueFile) -> Path:
-    """Write issue to .coddy/issues/{issue_id}.yaml. Creates dir if needed."""
+    """Write issue to .coddy/issues/{issue_id}.yaml.
+
+    Creates dir if needed.
+    """
     path = _issue_path(repo_dir, issue_id)
     path.parent.mkdir(parents=True, exist_ok=True)
     payload = issue.model_dump(mode="json", exclude_none=True)
@@ -70,7 +76,10 @@ def create_issue(
     created_at: str | None = None,
     updated_at: str | None = None,
 ) -> IssueFile:
-    """Create a new issue file with status pending_plan. First message = title + description."""
+    """Create a new issue file with status pending_plan.
+
+    First message = title + description.
+    """
     now = datetime.now(UTC).isoformat()
     created = created_at or now
     updated = updated_at or now
@@ -110,9 +119,7 @@ def add_comment(
     now_ts = int(datetime.now(UTC).timestamp())
     ts_created = created_at if created_at is not None else now_ts
     ts_updated = updated_at if updated_at is not None else now_ts
-    issue.comments.append(
-        IssueComment(name=name, content=content, created_at=ts_created, updated_at=ts_updated)
-    )
+    issue.comments.append(IssueComment(name=name, content=content, created_at=ts_created, updated_at=ts_updated))
     issue.updated_at = datetime.now(UTC).isoformat()
     save_issue(repo_dir, issue_id, issue)
     LOG.debug("Added comment to issue #%s from %s", issue_id, name)
@@ -131,7 +138,10 @@ def set_issue_status(repo_dir: Path, issue_id: int, status: str) -> None:
 
 
 def list_issues_by_status(repo_dir: Path, status: str) -> list[tuple[int, IssueFile]]:
-    """List all issues with the given status. Returns list of (issue_id, IssueFile)."""
+    """List all issues with the given status.
+
+    Returns list of (issue_id, IssueFile).
+    """
     base = _issues_dir(repo_dir)
     if not base.is_dir():
         return []

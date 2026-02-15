@@ -13,7 +13,7 @@ import logging
 import sys
 from pathlib import Path
 
-from coddy.config import AppConfig, load_config, LoggingConfig
+from coddy.config import AppConfig, LoggingConfig, load_config
 from coddy.logging import CoddyLogging
 from coddy.observer.webhook.server import run_webhook_server
 

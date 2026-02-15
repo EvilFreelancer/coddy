@@ -1,6 +1,6 @@
 """Full issue record as stored in .coddy/issues/{issue_number}.yaml."""
 
-from typing import List, Optional
+from typing import List
 
 from pydantic import BaseModel, Field
 
@@ -24,9 +24,9 @@ class IssueFile(BaseModel):
         description="Thread: user comments and bot replies",
     )
 
-    repo: Optional[str] = Field(default=None, description="Repository full_name, e.g. owner/repo")
-    issue_id: Optional[int] = Field(default=None, description="Issue ID")
-    assigned_at: Optional[str] = Field(
+    repo: str | None = Field(default=None, description="Repository full_name, e.g. owner/repo")
+    issue_id: int | None = Field(default=None, description="Issue ID")
+    assigned_at: str | None = Field(
         default=None,
         description="When bot was assigned (ISO)",
     )

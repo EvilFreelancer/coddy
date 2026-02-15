@@ -5,8 +5,8 @@ from unittest.mock import MagicMock, patch
 
 import pytest
 
-from coddy.services.store import IssueFile, load_issue
 from coddy.observer.webhook.handlers import handle_github_event
+from coddy.services.store import IssueFile, load_issue
 
 
 @pytest.fixture
@@ -138,8 +138,8 @@ def test_handle_issues_assigned_creates_issue_file_when_bot_in_assignees(tmp_pat
 
 
 def test_handle_issues_assigned_ignores_when_bot_not_assignee(tmp_path: Path) -> None:
-    """On issues.assigned without bot in assignees, create_issue is not
-    called."""
+    """On issues.assigned without bot in assignees, issue is stored but
+    run_planner is not called (work only when assignee is bot)."""
     config = type("Config", (), {})()
     config.bot = type("Bot", (), {})()
     config.bot.repository = "owner/repo"
@@ -151,9 +151,13 @@ def test_handle_issues_assigned_ignores_when_bot_not_assignee(tmp_path: Path) ->
         "issue": {"number": 42, "assignees": [{"login": "other-user"}]},
         "repository": {"full_name": "owner/repo"},
     }
-    with patch("coddy.observer.webhook.handlers.create_issue") as mock_create:
+    with patch("coddy.observer.webhook.handlers.run_planner") as mock_planner:
         handle_github_event(config, "issues", payload, repo_dir=tmp_path)
-    mock_create.assert_not_called()
+    mock_planner.assert_not_called()
+    # Issue is still stored
+    issue = load_issue(tmp_path, 42)
+    assert issue is not None
+    assert issue.status == "pending_plan"
 
 
 def test_handle_issue_comment_calls_on_user_confirmed_when_affirmative(tmp_path: Path) -> None:

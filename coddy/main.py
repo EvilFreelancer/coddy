@@ -7,7 +7,10 @@ from coddy.worker import run as worker_run
 
 
 def main(argv: list[str] | None = None) -> int:
-    """Dispatch to observer or worker subcommand. Default: observer."""
+    """Dispatch to observer or worker subcommand.
+
+    Default: observer.
+    """
     args = argv if argv is not None else sys.argv[1:]
     if args and args[0] == "worker":
         return worker_run.main(args[1:])

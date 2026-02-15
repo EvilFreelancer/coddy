@@ -12,7 +12,7 @@ from pathlib import Path
 
 import yaml
 
-from coddy.config import AppConfig, load_config, LoggingConfig
+from coddy.config import AppConfig, LoggingConfig, load_config
 from coddy.logging import CoddyLogging
 from coddy.services.store import list_queued, set_issue_status
 from coddy.worker.task_yaml import report_file_path

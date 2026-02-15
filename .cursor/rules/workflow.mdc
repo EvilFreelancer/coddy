@@ -35,8 +35,8 @@ When the agent works on an issue (creates a branch and makes commits), follow th
 2. Implement the task following project rules (.cursor/rules, docs)
 3. **Final verification loop** (repeat until all pass):
    - Run **full test suite**: `pytest tests/ -v`
-   - Run **pre-commit**: `pre-commit run -a`, fix any errors
-   - If there are failures: fix the issues, **commit** with message `#{issue_number} <description of fix>`, then repeat from step 3
+   - If tests fail: fix the issues, **commit** with message `#{issue_number} <description of fix>`, then repeat from step 3
+   - **Last step before PR**: Run **pre-commit**: `pre-commit run -a`. If there are errors, fix them and run `pre-commit run -a` again until all hooks pass. Then commit fixes if any.
 4. **Last mandatory step**: Write the description of what was done to `.coddy/pr-{issue_number}.md` (PR report). Include: what was done, how to test, reference to issue, and a line that closes the issue (e.g. `Closes #42` or `Fixes #42` so the issue is auto-closed when the PR is merged). Use markdown; do not write code in this file. This step must be done **after** all implementation and verification (linter, tests) are complete. The bot uses this file as the PR description when creating the pull request.
 5. Only then consider the work session complete (bot will commit/push and open PR).
 6. **After PR is created**: Switch back to the default branch (e.g. `git checkout main`). Do not leave the repository on the feature branch so that the next issue or run starts from default.
@@ -49,7 +49,7 @@ See @docs/system-specification.md for the full issue processing workflow.
 
 1. Run **full test suite**: `pytest tests/ -v`
 2. If there are failures: fix the issues, **commit** with message `#{issue_number} <description of fix>`, then repeat from step 1 until all checks pass
-3. Run **pre-commit**: `pre-commit run -a`, fix any errors
+3. **Last verification step**: Run **pre-commit**: `pre-commit run -a`. If there are errors, fix them and run `pre-commit run -a` again until all hooks pass. Commit fixes if any.
 4. **Last mandatory step**: Write the PR description (what was done, how to test, and a line like `Closes #42` so the issue is closed when the PR is merged) to `.coddy/pr-{issue_number}.md` - the code agent must do this as the final step of every task
 5. Only then consider the work session complete (e.g. open PR or report).
 6. **After PR is created**: Switch back to the default branch so the next issue or run starts from default (do not leave the repo on the feature branch).
@@ -80,7 +80,7 @@ Before making a commit, **always** run `pre-commit run -a` and fix any reported 
 
 **CRITICALLY IMPORTANT**: When user asks to implement a new feature (using words "фича", "feature", "новая функция", "добавить", "implement", "add"), **always** apply TDD approach and follow this strict workflow:
 
-**Do not skip any step!** Always follow order: write test (red) → verify test fails → implement feature → test (green) → run all tests → run linter → report.
+**Do not skip any step!** Always follow order: write test (red) → verify test fails → implement feature → test (green) → run all tests → run pre-commit run -a (fix errors until pass) → report.
 
 ### Step-by-step Process for New Features
 
@@ -110,18 +110,17 @@ Before making a commit, **always** run `pre-commit run -a` and fix any reported 
    - Make sure **all tests are green**
    - If there are failing tests - fix them before proceeding
 
-6. **Run linter**
-   - Execute linter: `ruff check .`
-   - Execute formatter: `ruff format .`
-   - Fix all linting errors
-   - Make sure linter passes completely
+6. **Run pre-commit (last step before report)**
+   - Execute: `pre-commit run -a`
+   - If there are errors, fix them and run `pre-commit run -a` again until all hooks pass
+   - Do not write the report until pre-commit passes
 
 7. **Write report**
    - Brief report of work done
    - What feature was implemented
    - Which tests were added/changed
    - Test run results
-   - Linter results
+   - Pre-commit (linter) results
 
 ### Report Structure Example for New Features
 
@@ -133,7 +132,7 @@ Before making a commit, **always** run `pre-commit run -a` and fix any reported 
 2. Implemented `new_method` in `coddy/module.py`
 3. Ran new test - passed (green)
 4. Ran all tests - all green (X passed)
-5. Ran linter - all checks passed
+5. Ran pre-commit run -a - all hooks passed
 
 ### Changed Files
 - `coddy/module.py` - added new_method implementation
@@ -152,7 +151,7 @@ Before making a commit, **always** run `pre-commit run -a` and fix any reported 
 First write a test reproducing this bug, make sure the error actually exists, then write code fixing the error and run the test, then when the new test works run all tests and if they are all green write a brief report of the work done.
 ```
 
-**Do not skip any step!** Always follow order: test (red) → fix → test (green) → all tests → run linter → report.
+**Do not skip any step!** Always follow order: test (red) → fix → test (green) → all tests → run pre-commit run -a (fix errors until pass) → report.
 
 ### Step-by-step Process
 
@@ -174,18 +173,17 @@ First write a test reproducing this bug, make sure the error actually exists, th
    - Make sure **all tests are green**
    - If there are failing tests - fix them
 
-5. **Run linter**
-   - Execute linter: `ruff check .`
-   - Execute formatter: `ruff format .`
-   - Fix all linting errors
-   - Make sure linter passes completely
+5. **Run pre-commit (last step before report)**
+   - Execute: `pre-commit run -a`
+   - If there are errors, fix them and run `pre-commit run -a` again until all hooks pass
+   - Do not write the report until pre-commit passes
 
 6. **Write report**
    - Brief report of work done
    - What was fixed
    - Which tests were added/changed
    - Test run results
-   - Linter results
+   - Pre-commit (linter) results
 
 ### Report Structure Example for Bug Fixes
 
@@ -200,7 +198,7 @@ First write a test reproducing this bug, make sure the error actually exists, th
 2. Fixed method `method_name` in `coddy/module.py`
 3. Ran new test - passed (green)
 4. Ran all tests - all green (X passed)
-5. Ran linter - all checks passed
+5. Ran pre-commit run -a - all hooks passed
 
 ### Changed Files
 - `coddy/module.py` - fixed processing logic
@@ -211,25 +209,19 @@ First write a test reproducing this bug, make sure the error actually exists, th
 
 **MANDATORY**: Before writing final report for any work (bug fix or new feature), **always** complete these steps:
 
-1. **Run pre-commit**: `pre-commit run -a`
-   - Fix any errors reported by hooks
-   - All hooks must pass before proceeding
-
-2. **Run all tests**: `pytest tests/ -v`
+1. **Run all tests**: `pytest tests/ -v`
    - All tests must pass (green)
    - No test failures allowed
+   - If there are failures, fix them and repeat
 
-3. **Run linter**: `ruff check .`
-   - All linting checks must pass
-   - Fix all errors and warnings
+2. **Last step - run pre-commit**: `pre-commit run -a`
+   - If there are errors, fix them and run `pre-commit run -a` again
+   - Repeat until all hooks pass (lint, format, etc.)
+   - Do not write the report until pre-commit passes
 
-4. **Run formatter**: `ruff format .`
-   - Code must be properly formatted
-   - Fix all formatting issues
-
-5. **Only then write report**
+3. **Only then write report**
    - Report must include test results
-   - Report must include linter results
+   - Report must include pre-commit (linter) results
    - Report must confirm all checks passed
 
 ## References

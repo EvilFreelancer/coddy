@@ -1,7 +1,5 @@
 """PR record as stored in .coddy/prs/{pr_number}.yaml."""
 
-from typing import Optional
-
 from pydantic import BaseModel, Field
 
 
@@ -14,7 +12,7 @@ class PRFile(BaseModel):
         default="open",
         description="PR state: open, merged, closed",
     )
-    issue_id: Optional[int] = Field(default=None, description="Linked issue ID if any")
+    issue_id: int | None = Field(default=None, description="Linked issue ID if any")
     created_at: str = Field(..., description="ISO timestamp when record was created")
     updated_at: str = Field(..., description="ISO timestamp of last status update")
 

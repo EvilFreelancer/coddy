@@ -16,7 +16,8 @@ from coddy.services.git import (
 
 
 class TestBranches:
-    """coddy.services.git.branches: branch names, sanitize, validate, checkout."""
+    """coddy.services.git.branches: branch names, sanitize, validate,
+    checkout."""
 
     def test_branch_name_from_issue(self) -> None:
         """Branch name is number plus slugified title."""
@@ -32,7 +33,8 @@ class TestBranches:
         assert len(name) <= 104
 
     def test_branch_name_from_issue_produces_valid_branch_name(self) -> None:
-        """Branch name built from issue is valid (sanitization applied correctly)."""
+        """Branch name built from issue is valid (sanitization applied
+        correctly)."""
         name = branch_name_from_issue(42, "Add user login form with validation???")
         assert is_valid_branch_name(name), f"branch_name_from_issue produced invalid name: {name!r}"
         name2 = branch_name_from_issue(1, "Fix: bug ~ ^ : ? * [ ]")
@@ -81,14 +83,16 @@ class TestBranches:
         assert sanitize_branch_name("   ") == ""
 
     def test_is_valid_branch_name_accepts_valid_names(self) -> None:
-        """Valid branch names (digits, lowercase letters, dashes) are accepted."""
+        """Valid branch names (digits, lowercase letters, dashes) are
+        accepted."""
         assert is_valid_branch_name("42-add-feature") is True
         assert is_valid_branch_name("1-fix-bug") is True
         assert is_valid_branch_name("123") is True
         assert is_valid_branch_name("a-b-c") is True
 
     def test_is_valid_branch_name_rejects_invalid(self) -> None:
-        """Invalid branch names are rejected (spaces, special chars, double dot)."""
+        """Invalid branch names are rejected (spaces, special chars, double
+        dot)."""
         assert is_valid_branch_name("42 add feature") is False
         assert is_valid_branch_name("42..add") is False
         assert is_valid_branch_name("42~feature") is False

@@ -1,4 +1,5 @@
-"""Branch name sanitization, validation, and local branch operations (checkout, fetch)."""
+"""Branch name sanitization, validation, and local branch operations (checkout,
+fetch)."""
 
 import logging
 import re
@@ -39,7 +40,8 @@ def sanitize_branch_name(text: str, max_length: int = 100) -> str:
 
 
 def is_valid_branch_name(name: str) -> bool:
-    """Check that a branch name is valid (transformation was applied correctly).
+    """Check that a branch name is valid (transformation was applied
+    correctly).
 
     Valid: non-empty, only lowercase letters, digits, dashes; no "..";
     no leading or trailing dash.
@@ -103,7 +105,8 @@ def fetch_and_checkout_branch(
     repo_dir: Path | None = None,
     log: logging.Logger | None = None,
 ) -> None:
-    """Fetch from origin and checkout the given branch (must exist on remote)."""
+    """Fetch from origin and checkout the given branch (must exist on
+    remote)."""
     cwd = Path(repo_dir) if repo_dir is not None else Path.cwd()
     _run_git(["fetch", "origin", branch_name], cwd=cwd, log=log)
     _run_git(["checkout", branch_name], cwd=cwd, log=log)

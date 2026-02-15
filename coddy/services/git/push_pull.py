@@ -41,7 +41,8 @@ def commit_all_and_push(
 ) -> None:
     """Stage all changes, commit with bot identity, and push branch to origin.
 
-    Pass bot_name and bot_email from config (config.bot.name, config.bot.email).
+    Pass bot_name and bot_email from config (config.bot.name,
+    config.bot.email).
     """
     if add_all_and_commit(commit_message, bot_name, bot_email, repo_dir=repo_dir, log=log):
         push_branch(branch_name, repo_dir=repo_dir, log=log)

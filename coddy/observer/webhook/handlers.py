@@ -1,7 +1,8 @@
 """Handle GitHub webhook events (PR merged, issues assigned, issue comment).
 
 On PR merged runs git pull and exits for restart. On issue assigned
-creates issue file and runs planner; on user confirmation sets status queued.
+creates issue file and runs planner; on user confirmation sets status
+queued.
 """
 
 import logging
@@ -12,13 +13,14 @@ from typing import Any, Dict
 from coddy.observer.adapters.github import GitHubAdapter
 from coddy.observer.planner import is_affirmative_comment, on_user_confirmed, run_planner
 from coddy.services.git import GitRunnerError, run_git_pull
-from coddy.worker.agents.cursor_cli_agent import make_cursor_cli_agent
 from coddy.services.store import (
     create_issue,
     load_issue,
+    save_issue,
     set_issue_status,
     set_pr_status,
 )
+from coddy.worker.agents.cursor_cli_agent import make_cursor_cli_agent
 
 
 def _working_dir_from_config(config: Any) -> Path:
@@ -120,20 +122,62 @@ def _handle_issue_comment(
     )
 
 
+def _ensure_issue_in_store(
+    config: Any, payload: Dict[str, Any], repo_dir: Path, log: logging.Logger
+) -> bool:
+    """Create issue in store from payload if not present. Returns True if repo matches and issue stored."""
+    repo_payload = payload.get("repository") or {}
+    repo = repo_payload.get("full_name") or getattr(config.bot, "repository", "")
+    if not repo or repo != getattr(config.bot, "repository", ""):
+        return False
+    issue_payload = payload.get("issue") or {}
+    issue_number = issue_payload.get("number")
+    if issue_number is None:
+        return False
+    if load_issue(repo_dir, int(issue_number)):
+        return True
+    title = issue_payload.get("title") or ""
+    body = issue_payload.get("body") or ""
+    user_payload = issue_payload.get("user") or {}
+    author = user_payload.get("login") or "unknown"
+    create_issue(repo_dir, int(issue_number), repo, title, body, author)
+    return True
+
+
 def _handle_issues(config: Any, payload: Dict[str, Any], repo_dir: Path, log: logging.Logger) -> None:
-    """Dispatch issues event: assigned -> create issue; closed -> set issue status closed."""
+    """Store all issue events; run planner only when action=assigned and
+    assignee is bot."""
     action = payload.get("action")
+    issue_payload = payload.get("issue") or {}
+    issue_number = issue_payload.get("number")
+    repo_payload = payload.get("repository") or {}
+    repo = repo_payload.get("full_name") or getattr(config.bot, "repository", "")
+
     if action == "closed":
-        issue_payload = payload.get("issue") or {}
-        issue_number = issue_payload.get("number")
-        if issue_number is not None:
+        if issue_number is not None and repo and repo == getattr(config.bot, "repository", ""):
+            if not load_issue(repo_dir, int(issue_number)):
+                title = issue_payload.get("title") or ""
+                body = issue_payload.get("body") or ""
+                user_payload = issue_payload.get("user") or {}
+                author = user_payload.get("login") or "unknown"
+                create_issue(repo_dir, int(issue_number), repo, title, body, author)
+            set_issue_status(repo_dir, int(issue_number), "closed")
+            log.info("Issue #%s closed, status -> closed", issue_number)
+        return
+    if action == "edited":
+        if issue_number is not None and repo and repo == getattr(config.bot, "repository", ""):
             issue_file = load_issue(repo_dir, int(issue_number))
             if issue_file:
-                set_issue_status(repo_dir, int(issue_number), "closed")
-                log.info("Issue #%s closed, status -> closed", issue_number)
+                issue_file.title = issue_payload.get("title") or issue_file.title
+                issue_file.description = issue_payload.get("body") or issue_file.description
+                issue_file.updated_at = issue_payload.get("updated_at") or issue_file.updated_at
+                save_issue(repo_dir, int(issue_number), issue_file)
+                log.debug("Issue #%s updated (title/description)", issue_number)
         return
-    if action == "assigned":
-        _handle_issues_assigned(config, payload, repo_dir, log)
+    if action in ("opened", "assigned"):
+        _ensure_issue_in_store(config, payload, repo_dir, log)
+        if action == "assigned":
+            _handle_issues_assigned(config, payload, repo_dir, log)
 
 
 def _handle_issues_assigned(
@@ -142,17 +186,19 @@ def _handle_issues_assigned(
     repo_dir: Path,
     log: logging.Logger,
 ) -> None:
-    """On issue assigned: if bot is in assignees, create issue and run planner (post plan, waiting_confirmation)."""
+    """Run planner only when bot is in assignees (issue already stored by
+    _handle_issues)."""
     if payload.get("action") != "assigned":
         return
     issue_payload = payload.get("issue") or {}
     assignees = issue_payload.get("assignees") or []
     bot_username = getattr(config.bot, "username", None)
     if not bot_username:
-        log.debug("Skipping issues.assigned: no bot username configured")
+        log.debug("Skipping work on issues.assigned: no bot username configured")
         return
     logins = [a.get("login") for a in assignees if isinstance(a, dict) and a.get("login")]
     if bot_username not in logins:
+        log.debug("Skipping work on issues.assigned: assignee is not bot (%s)", bot_username)
         return
     repo_payload = payload.get("repository") or {}
     repo = repo_payload.get("full_name") or getattr(config.bot, "repository", "")
@@ -160,20 +206,8 @@ def _handle_issues_assigned(
         log.debug("Skipping issues.assigned: repository %s not configured", repo)
         return
     issue_number = issue_payload.get("number")
-    title = issue_payload.get("title") or ""
     if issue_number is None:
         return
-    user_payload = issue_payload.get("user") or {}
-    author = user_payload.get("login") or "unknown"
-    body = issue_payload.get("body") or ""
-    create_issue(
-        repo_dir,
-        int(issue_number),
-        repo,
-        title,
-        body,
-        author,
-    )
     token = getattr(config, "github_token_resolved", None)
     if token and getattr(config.bot, "git_platform", "") == "github":
         try:

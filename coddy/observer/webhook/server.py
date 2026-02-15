@@ -7,8 +7,8 @@ added.
 import json
 import logging
 from http.server import BaseHTTPRequestHandler, HTTPServer
-from urllib.parse import parse_qs
 from typing import Any
+from urllib.parse import parse_qs
 
 from coddy.config import AppConfig
 
@@ -38,7 +38,10 @@ class WebhookHandler(BaseHTTPRequestHandler):
         self.end_headers()
 
     def _parse_webhook_body(self, body: bytes) -> dict:
-        """Parse webhook body as JSON. Supports raw JSON and application/x-www-form-urlencoded (payload=...)."""
+        """Parse webhook body as JSON.
+
+        Supports raw JSON and application/x-www-form-urlencoded (payload=...).
+        """
         if not body:
             return {}
         content_type = self.headers.get("Content-Type", "")

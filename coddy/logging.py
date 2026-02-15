@@ -26,7 +26,10 @@ DEFAULT_FORMAT = "%(asctime)s - %(name)s - %(levelname)s - %(message)s"
 
 
 def _resolve_level(level: str) -> int:
-    """Map level name to logging constant. Falls back to INFO if unknown."""
+    """Map level name to logging constant.
+
+    Falls back to INFO if unknown.
+    """
     return LEVELS.get(level.upper().strip(), logging.INFO)
 
 

@@ -65,7 +65,7 @@ class TestCoddyLogging:
     """CoddyLogging applies LoggingConfig (level + format) to root logger."""
 
     def test_setup_sets_root_level_from_config(self) -> None:
-        """setup() sets root logger level from config.level."""
+        """Setup() sets root logger level from config.level."""
         for level_name, expected_num in LEVELS.items():
             cfg = LoggingConfig(level=level_name, format="%(message)s")
             CoddyLogging(cfg).setup()
@@ -78,7 +78,7 @@ class TestCoddyLogging:
         assert logging.root.level == logging.INFO
 
     def test_setup_applies_format(self) -> None:
-        """setup() uses config.format for the root handler."""
+        """Setup() uses config.format for the root handler."""
         custom = "%(levelname)s || %(message)s"
         cfg = LoggingConfig(level="INFO", format=custom)
         CoddyLogging(cfg).setup()
