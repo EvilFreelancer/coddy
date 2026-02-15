@@ -172,7 +172,7 @@ def _handle_issues(config: Any, payload: Dict[str, Any], repo_dir: Path, log: lo
             if issue_file:
                 issue_file.title = issue_payload.get("title") or issue_file.title
                 issue_file.description = issue_payload.get("body") or issue_file.description
-                issue_file.updated_at = datetime.now(UTC).isoformat()
+                issue_file.updated_at = int(datetime.now(UTC).timestamp())
                 save_issue(repo_dir, int(issue_number), issue_file)
                 log.debug("Issue #%s updated (title/description)", issue_number)
         return

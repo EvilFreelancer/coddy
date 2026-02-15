@@ -1,10 +1,23 @@
 """Full issue record as stored in .coddy/issues/{issue_number}.yaml."""
 
-from typing import List
+from datetime import datetime, timezone
+from typing import Annotated, List
 
-from pydantic import BaseModel, Field
+from pydantic import BaseModel, BeforeValidator, Field
 
 from coddy.services.store.schemas.issue_comment import IssueComment
+
+
+def _ensure_unix_ts(value: int | str | None) -> int | None:
+    """Coerce ISO date string or int to Unix timestamp (int). Accepts None for optional fields."""
+    if value is None:
+        return None
+    if isinstance(value, int):
+        return value
+    dt = datetime.fromisoformat(str(value).replace("Z", "+00:00"))
+    if dt.tzinfo is None:
+        dt = dt.replace(tzinfo=timezone.utc)
+    return int(dt.timestamp())
 
 
 class IssueFile(BaseModel):
@@ -14,13 +27,19 @@ class IssueFile(BaseModel):
     issue_id: int | None = Field(default=None, description="Issue ID")
 
     author: str = Field(..., description="Issue author login")
-    assigned_at: str | None = Field(
+    assigned_at: Annotated[int | None, BeforeValidator(_ensure_unix_ts)] = Field(
         default=None,
-        description="When bot was assigned (ISO)",
+        description="When bot was assigned (Unix timestamp)",
     )
 
-    created_at: str = Field(..., description="ISO or unix timestamp when issue was created")
-    updated_at: str = Field(..., description="ISO or unix timestamp of last update")
+    created_at: Annotated[int, BeforeValidator(_ensure_unix_ts)] = Field(
+        ...,
+        description="Unix timestamp when issue was created",
+    )
+    updated_at: Annotated[int, BeforeValidator(_ensure_unix_ts)] = Field(
+        ...,
+        description="Unix timestamp of last update",
+    )
 
     status: str = Field(
         default="pending_plan",

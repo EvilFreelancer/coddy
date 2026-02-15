@@ -73,16 +73,17 @@ def create_issue(
     title: str,
     description: str,
     author: str,
-    created_at: str | None = None,
-    updated_at: str | None = None,
+    created_at: int | None = None,
+    updated_at: int | None = None,
 ) -> IssueFile:
     """Create a new issue file with status pending_plan.
 
     comments is empty by default (title/description are separate fields).
+    All date fields are Unix timestamps.
     """
-    now = datetime.now(UTC).isoformat()
-    created = created_at or now
-    updated = updated_at or now
+    now_ts = int(datetime.now(UTC).timestamp())
+    created = created_at if created_at is not None else now_ts
+    updated = updated_at if updated_at is not None else now_ts
     issue = IssueFile(
         author=author,
         created_at=created,
@@ -93,7 +94,7 @@ def create_issue(
         comments=[],
         repo=repo,
         issue_id=issue_id,
-        assigned_at=now,
+        assigned_at=now_ts,
     )
     save_issue(repo_dir, issue_id, issue)
     LOG.info("Created issue #%s, status pending_plan", issue_id)
@@ -117,7 +118,7 @@ def add_comment(
     ts_created = created_at if created_at is not None else now_ts
     ts_updated = updated_at if updated_at is not None else now_ts
     issue.comments.append(IssueComment(name=name, content=content, created_at=ts_created, updated_at=ts_updated))
-    issue.updated_at = datetime.now(UTC).isoformat()
+    issue.updated_at = now_ts
     save_issue(repo_dir, issue_id, issue)
     LOG.debug("Added comment to issue #%s from %s", issue_id, name)
 
@@ -129,7 +130,7 @@ def set_issue_status(repo_dir: Path, issue_id: int, status: str) -> None:
         LOG.warning("Cannot set status: issue #%s not found", issue_id)
         return
     issue.status = status
-    issue.updated_at = datetime.now(UTC).isoformat()
+    issue.updated_at = int(datetime.now(UTC).timestamp())
     save_issue(repo_dir, issue_id, issue)
     LOG.info("Issue #%s status -> %s", issue_id, status)
 

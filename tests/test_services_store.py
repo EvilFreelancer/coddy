@@ -230,7 +230,9 @@ class TestIssueStore:
         assert loaded.issue_id == 42
 
     def test_create_issue_with_optional_timestamps(self, tmp_path: Path) -> None:
-        """create_issue accepts optional created_at and updated_at."""
+        """create_issue accepts optional created_at and updated_at (Unix timestamps)."""
+        ts_2020_01_01 = 1577836800  # 2020-01-01T00:00:00Z
+        ts_2020_01_02 = 1577923200  # 2020-01-02T00:00:00Z
         issue = create_issue(
             tmp_path,
             issue_id=20,
@@ -238,11 +240,11 @@ class TestIssueStore:
             title="T",
             description="D",
             author="@u",
-            created_at="2020-01-01T00:00:00Z",
-            updated_at="2020-01-02T00:00:00Z",
+            created_at=ts_2020_01_01,
+            updated_at=ts_2020_01_02,
         )
-        assert issue.created_at == "2020-01-01T00:00:00Z"
-        assert issue.updated_at == "2020-01-02T00:00:00Z"
+        assert issue.created_at == ts_2020_01_01
+        assert issue.updated_at == ts_2020_01_02
 
 
 class TestPRStore:
