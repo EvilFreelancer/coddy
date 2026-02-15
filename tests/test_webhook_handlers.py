@@ -245,6 +245,37 @@ def test_handle_issue_comment_ignores_bot_comment(tmp_path: Path) -> None:
     mock_confirm.assert_not_called()
 
 
+def test_handle_issue_comment_appends_to_store_even_when_closed(tmp_path: Path) -> None:
+    """On issue_comment, comment is appended to issue in store regardless of status (e.g. closed)."""
+    from coddy.services.store import create_issue, set_issue_status
+
+    create_issue(tmp_path, 11, "owner/repo", "Closed issue", "Body", "user1")
+    set_issue_status(tmp_path, 11, "closed")
+    config = type("Config", (), {})()
+    config.bot = type("Bot", (), {})()
+    config.bot.repository = "owner/repo"
+    config.bot.username = "coddybot"
+    config.ai_agents = {"cursor_cli": type("CLI", (), {"working_directory": str(tmp_path)})()}
+    payload = {
+        "action": "created",
+        "comment": {
+            "body": "Extra comment on closed issue",
+            "user": {"login": "user2"},
+            "created_at": "2026-02-15T00:41:00Z",
+            "updated_at": "2026-02-15T00:41:00Z",
+        },
+        "issue": {"number": 11},
+        "repository": {"full_name": "owner/repo"},
+    }
+    handle_github_event(config, "issue_comment", payload, repo_dir=tmp_path)
+    issue = load_issue(tmp_path, 11)
+    assert issue is not None
+    assert issue.status == "closed"
+    assert len(issue.comments) == 1
+    assert issue.comments[0].name == "user2"
+    assert issue.comments[0].content == "Extra comment on closed issue"
+
+
 # --- Issue flow integration tests (real state/queue on tmp_path) ---
 
 

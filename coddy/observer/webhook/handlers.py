@@ -15,6 +15,7 @@ from coddy.observer.adapters.github import GitHubAdapter
 from coddy.observer.planner import is_affirmative_comment, on_user_confirmed, run_planner
 from coddy.services.git import GitRunnerError, run_git_pull
 from coddy.services.store import (
+    add_comment,
     create_issue,
     load_issue,
     save_issue,
@@ -73,13 +74,26 @@ def _handle_pull_request_closed(
     sys.exit(0)
 
 
+def _parse_comment_timestamp(iso_str: str | None) -> int | None:
+    """Parse GitHub ISO date to Unix timestamp, or None if missing/invalid."""
+    if not iso_str:
+        return None
+    try:
+        dt = datetime.fromisoformat(str(iso_str).replace("Z", "+00:00"))
+        if dt.tzinfo is None:
+            dt = dt.replace(tzinfo=UTC)
+        return int(dt.timestamp())
+    except (ValueError, TypeError):
+        return None
+
+
 def _handle_issue_comment(
     config: Any,
     payload: Dict[str, Any],
     repo_dir: Path,
     log: logging.Logger,
 ) -> None:
-    """On new comment: if issue is waiting_confirmation and user says yes, set queued and post work started."""
+    """On new comment: always append to issue in store; if waiting_confirmation and affirmative, run on_user_confirmed."""
     if payload.get("action") != "created":
         return
     comment_payload = payload.get("comment") or {}
@@ -98,6 +112,18 @@ def _handle_issue_comment(
     if not repo or repo != getattr(config.bot, "repository", ""):
         return
     issue_file = load_issue(repo_dir, int(issue_number))
+    if issue_file:
+        ts_created = _parse_comment_timestamp(comment_payload.get("created_at"))
+        ts_updated = _parse_comment_timestamp(comment_payload.get("updated_at"))
+        add_comment(
+            repo_dir,
+            int(issue_number),
+            author,
+            body,
+            created_at=ts_created,
+            updated_at=ts_updated,
+        )
+        log.debug("Added comment to issue #%s from %s", issue_number, author)
     if not issue_file or issue_file.status != "waiting_confirmation":
         return
     if not is_affirmative_comment(body):
