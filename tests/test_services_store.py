@@ -45,7 +45,8 @@ class TestIssueStore:
         assert "Add login" in content
         assert "Add a login form" in content
         assert "owner/repo" in content
-        assert "assigned_at" in content
+        assert "assigned_at" not in content
+        assert "assigned_to" not in content
 
     def test_load_issue_returns_issue_file(self, tmp_path: Path) -> None:
         """load_issue parses YAML into IssueFile."""
@@ -293,6 +294,34 @@ class TestIssueStore:
         assert issue.created_at == ts_2020_01_01
         assert issue.updated_at == ts_2020_01_02
 
+    def test_create_issue_without_assignee_omits_assignment_in_yaml(self, tmp_path: Path) -> None:
+        """When no assignee is passed, assigned_at and assigned_to are omitted from YAML."""
+        create_issue(tmp_path, 25, "o/r", "T", "D", "@u")
+        content = (tmp_path / ".coddy" / "issues" / "25.yaml").read_text(encoding="utf-8")
+        assert "assigned_at" not in content
+        assert "assigned_to" not in content
+
+    def test_create_issue_with_assignee_writes_assignment_in_yaml(self, tmp_path: Path) -> None:
+        """When assigned_at and assigned_to are passed, both are written to YAML."""
+        create_issue(
+            tmp_path,
+            26,
+            "o/r",
+            "T",
+            "D",
+            "@u",
+            assigned_at=1704067200,
+            assigned_to="coddybot",
+        )
+        content = (tmp_path / ".coddy" / "issues" / "26.yaml").read_text(encoding="utf-8")
+        assert "assigned_at" in content
+        assert "assigned_to" in content
+        assert "coddybot" in content
+        issue = load_issue(tmp_path, 26)
+        assert issue is not None
+        assert issue.assigned_at == 1704067200
+        assert issue.assigned_to == "coddybot"
+
 
 class TestPRStore:
     """Tests for pr_store (load_pr, save_pr, set_pr_status)."""
@@ -478,8 +507,6 @@ class TestIssueFileSchema:
         assert "T\n\nD" in md
         assert "### @bot" in md
         assert "Here is the plan." in md
-        assert "created_at: 1000" in md
-        assert "created_at: 2000" in md
 
     def test_issue_to_markdown_without_issue_id(self) -> None:
         """to_markdown() works without issue_id (no # Issue N line)."""

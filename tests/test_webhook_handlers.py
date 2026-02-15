@@ -393,6 +393,8 @@ def test_webhook_issues_assigned_creates_issue_file(tmp_path: Path) -> None:
     assert "owner/repo" in content
     assert "Add login form" in content
     assert "assigned_at" in content
+    assert "assigned_to" in content
+    assert "coddybot" in content
 
     issue = load_issue(tmp_path, 42)
     assert issue is not None

@@ -29,7 +29,11 @@ class IssueFile(BaseModel):
     author: str = Field(..., description="Issue author login")
     assigned_at: Annotated[int | None, BeforeValidator(_ensure_unix_ts)] = Field(
         default=None,
-        description="When bot was assigned (Unix timestamp)",
+        description="When issue was assigned (Unix timestamp). Omitted when not assigned.",
+    )
+    assigned_to: str | None = Field(
+        default=None,
+        description="Login of the assignee. Omitted when not assigned.",
     )
 
     created_at: Annotated[int, BeforeValidator(_ensure_unix_ts)] = Field(
@@ -73,7 +77,5 @@ class IssueFile(BaseModel):
                 lines.append(f"### {msg.name}")
                 lines.append("")
                 lines.append(msg.content)
-                lines.append("")
-                lines.append(f"*created_at: {msg.created_at}, updated_at: {msg.updated_at}*")
                 lines.append("")
         return "\n".join(lines).strip() + "\n"

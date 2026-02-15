@@ -52,6 +52,10 @@ def save_issue(repo_dir: Path, issue_id: int, issue: IssueFile) -> Path:
     path = _issue_path(repo_dir, issue_id)
     path.parent.mkdir(parents=True, exist_ok=True)
     payload = issue.model_dump(mode="json", exclude_none=True)
+    if payload.get("assigned_at") is None:
+        payload.pop("assigned_at", None)
+    if payload.get("assigned_to") is None or payload.get("assigned_to") == "":
+        payload.pop("assigned_to", None)
     for comment in payload.get("comments") or []:
         if comment.get("deleted_at") is None:
             comment.pop("deleted_at", None)
@@ -78,11 +82,13 @@ def create_issue(
     author: str,
     created_at: int | None = None,
     updated_at: int | None = None,
+    assigned_at: int | None = None,
+    assigned_to: str | None = None,
 ) -> IssueFile:
     """Create a new issue file with status pending_plan.
 
     comments is empty by default (title/description are separate fields).
-    All date fields are Unix timestamps.
+    All date fields are Unix timestamps. assigned_at/assigned_to omitted when not assigned.
     """
     now_ts = int(datetime.now(UTC).timestamp())
     created = created_at if created_at is not None else now_ts
@@ -97,7 +103,8 @@ def create_issue(
         comments=[],
         repo=repo,
         issue_id=issue_id,
-        assigned_at=now_ts,
+        assigned_at=assigned_at,
+        assigned_to=assigned_to,
     )
     save_issue(repo_dir, issue_id, issue)
     LOG.info("Created issue #%s, status pending_plan", issue_id)

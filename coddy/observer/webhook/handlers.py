@@ -180,13 +180,28 @@ def _ensure_issue_in_store(config: Any, payload: Dict[str, Any], repo_dir: Path,
     issue_number = issue_payload.get("number")
     if issue_number is None:
         return False
-    if load_issue(repo_dir, int(issue_number)):
+    existing = load_issue(repo_dir, int(issue_number))
+    if existing:
         return True
     title = issue_payload.get("title") or ""
     body = issue_payload.get("body") or ""
     user_payload = issue_payload.get("user") or {}
     author = user_payload.get("login") or "unknown"
-    create_issue(repo_dir, int(issue_number), repo, title, body, author)
+    assignees = issue_payload.get("assignees") or []
+    first_assignee = assignees[0].get("login") if assignees and isinstance(assignees[0], dict) else None
+    now_ts = int(datetime.now(UTC).timestamp())
+    assigned_at = now_ts if first_assignee else None
+    assigned_to = first_assignee
+    create_issue(
+        repo_dir,
+        int(issue_number),
+        repo,
+        title,
+        body,
+        author,
+        assigned_at=assigned_at,
+        assigned_to=assigned_to,
+    )
     return True
 
 
@@ -223,6 +238,14 @@ def _handle_issues(config: Any, payload: Dict[str, Any], repo_dir: Path, log: lo
     if action in ("opened", "assigned"):
         _ensure_issue_in_store(config, payload, repo_dir, log)
         if action == "assigned":
+            assignees = issue_payload.get("assignees") or []
+            first_assignee = assignees[0].get("login") if assignees and isinstance(assignees[0], dict) else None
+            if first_assignee and issue_number is not None and repo and repo == getattr(config.bot, "repository", ""):
+                issue_file = load_issue(repo_dir, int(issue_number))
+                if issue_file:
+                    issue_file.assigned_at = int(datetime.now(UTC).timestamp())
+                    issue_file.assigned_to = first_assignee
+                    save_issue(repo_dir, int(issue_number), issue_file)
             _handle_issues_assigned(config, payload, repo_dir, log)
 
 
