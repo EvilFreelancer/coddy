@@ -7,6 +7,7 @@ added.
 import json
 import logging
 from http.server import BaseHTTPRequestHandler, HTTPServer
+from urllib.parse import parse_qs
 from typing import Any
 
 from coddy.config import AppConfig
@@ -36,11 +37,24 @@ class WebhookHandler(BaseHTTPRequestHandler):
         self.send_response(404)
         self.end_headers()
 
+    def _parse_webhook_body(self, body: bytes) -> dict:
+        """Parse webhook body as JSON. Supports raw JSON and application/x-www-form-urlencoded (payload=...)."""
+        if not body:
+            return {}
+        content_type = self.headers.get("Content-Type", "")
+        if "application/x-www-form-urlencoded" in content_type:
+            parsed = parse_qs(body.decode("utf-8", errors="replace"), keep_blank_values=True)
+            raw = (parsed.get("payload") or [None])[0]
+            if raw is None:
+                return {}
+            return json.loads(raw)
+        return json.loads(body.decode())
+
     def _handle_github_webhook(self) -> None:
         length = int(self.headers.get("Content-Length", 0))
         body = self.rfile.read(length) if length else b""
         try:
-            payload = json.loads(body.decode()) if body else {}
+            payload = self._parse_webhook_body(body)
             event = self.headers.get("X-GitHub-Event", "")
             LOG.info("Webhook event: %s (payload keys: %s)", event, list(payload.keys()) if payload else [])
             from coddy.observer.webhook.handlers import handle_github_event
