@@ -2,10 +2,11 @@ FROM python:3.14-slim
 
 WORKDIR /app
 
-# Install system dependencies
+# Install system dependencies (node required by Cursor agent script)
 RUN apt update \
- && apt install -y --no-install-recommends git curl openssh-client \
- && rm -rf /var/lib/apt/lists/*
+ && apt install -y --no-install-recommends git curl openssh-client nodejs \
+ && rm -rf /var/lib/apt/lists/* \
+ && (ln -sf /usr/bin/node /usr/local/bin/node 2>/dev/null || true)
 
 # Install Cursor CLI (agent binary) for the worker
 RUN curl -fsSL https://cursor.com/install | bash \
