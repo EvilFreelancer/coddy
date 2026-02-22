@@ -150,21 +150,21 @@ def run_worker(config: AppConfig, once: bool = False, poll_interval: int = 10) -
     )
 
     while True:
-        pending_plan = _filter_by_assignment(list_pending_plan(repo_dir), assignment_only, bot_username)
-        user_replied = _filter_by_assignment(
-            list_issues_by_status(repo_dir, "user_replied"), assignment_only, bot_username
-        )
-        queued = _filter_by_assignment(list_queued(repo_dir), assignment_only, bot_username)
-
         if assignment_only and not bot_username:
             log.warning("assignment_only is True but bot username is not set; skipping issues. Set BOT_USERNAME.")
-            pending_plan = []
-            user_replied = []
-            queued = []
+            if once:
+                return
+            time.sleep(poll_interval)
+            continue
 
+        # First drain all pending_plan and user_replied (plan and replies run immediately)
         did_work = False
-
-        if pending_plan and agent:
+        while True:
+            pending_plan = _filter_by_assignment(
+                list_pending_plan(repo_dir), assignment_only, bot_username
+            )
+            if not pending_plan or not agent:
+                break
             pending_plan.sort(key=lambda t: t[0])
             issue_number, issue_file = pending_plan[0]
             issue, comments = _issue_file_to_issue_and_comments(issue_number, issue_file)
@@ -178,7 +178,12 @@ def run_worker(config: AppConfig, once: bool = False, poll_interval: int = 10) -
             log.info("Issue #%s: plan written to YAML, status -> plan_ready", issue_number)
             did_work = True
 
-        if not did_work and user_replied and adapter and agent:
+        while True:
+            user_replied = _filter_by_assignment(
+                list_issues_by_status(repo_dir, "user_replied"), assignment_only, bot_username
+            )
+            if not user_replied or not adapter or not agent:
+                break
             user_replied.sort(key=lambda t: t[0])
             issue_number, issue_file = user_replied[0]
             issue, comments = _issue_file_to_issue_and_comments(issue_number, issue_file)
@@ -201,6 +206,8 @@ def run_worker(config: AppConfig, once: bool = False, poll_interval: int = 10) -
                 log.info("Issue #%s: data insufficient, wrote clarification to YAML", issue_number)
             did_work = True
 
+        # Only then take one queued task (implementation)
+        queued = _filter_by_assignment(list_queued(repo_dir), assignment_only, bot_username)
         if not did_work and queued:
             queued.sort(key=lambda t: t[0])
             issue_number, _ = queued[0]
