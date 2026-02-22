@@ -7,6 +7,7 @@ clarification we post and exit (task can be re-queued when user comments).
 """
 
 import logging
+from datetime import UTC, datetime
 from pathlib import Path
 from typing import Literal
 
@@ -18,7 +19,8 @@ from coddy.services.git import (
     commit_all_and_push,
     fetch_and_checkout_branch,
 )
-from coddy.services.store import set_agent_clarification
+from coddy.services.store import save_pr, set_agent_clarification
+from coddy.services.store.schemas import PRFile
 from coddy.worker.agents.base import AIAgent
 from coddy.worker.task_yaml import read_agent_clarification, read_pr_report
 
@@ -117,7 +119,7 @@ def run_ralph_loop_for_issue(
                     logger.warning("Failed to commit/push: %s", e)
             try:
                 base = default_branch or adapter.get_default_branch(repo)
-                adapter.create_pr(
+                pr = adapter.create_pr(
                     repo,
                     title=issue.title,
                     body=pr_body or issue.body or "",
@@ -126,15 +128,25 @@ def run_ralph_loop_for_issue(
                 )
                 adapter.set_issue_labels(repo, issue.number, ["review"])
                 logger.info("Issue #%s: PR created, label set to review", issue.number)
+                now = datetime.now(UTC).isoformat()
+                pr_status = getattr(pr, "state", None)
+                if not isinstance(pr_status, str):
+                    pr_status = "open"
+                save_pr(repo_dir, PRFile(pr_id=getattr(pr, "number", 0), repo=repo, status=pr_status, issue_id=issue.number, created_at=now, updated_at=now))
+                try:
+                    checkout_branch(base, repo_dir=repo_dir, log=logger)
+                    logger.info("Switched back to default branch: %s", base)
+                except Exception as e:
+                    logger.warning("Failed to switch back to default branch: %s", e)
+                return "success"
             except GitPlatformError as e:
                 logger.warning("Failed to create PR or set labels: %s", e)
-            try:
-                base = default_branch or adapter.get_default_branch(repo)
-                checkout_branch(base, repo_dir=repo_dir, log=logger)
-                logger.info("Switched back to default branch: %s", base)
-            except Exception as e:
-                logger.warning("Failed to switch back to default branch: %s", e)
-            return "success"
+                try:
+                    base = default_branch or adapter.get_default_branch(repo)
+                    checkout_branch(base, repo_dir=repo_dir, log=logger)
+                except Exception:
+                    pass
+                return "failed"
 
         clarification = read_agent_clarification(repo_dir, issue.number)
         if clarification:
@@ -164,7 +176,7 @@ def run_ralph_loop_for_issue(
                     logger.warning("Failed to commit/push: %s", e)
             try:
                 base = default_branch or adapter.get_default_branch(repo)
-                adapter.create_pr(
+                pr = adapter.create_pr(
                     repo,
                     title=issue.title,
                     body=report_body or issue.body or "",
@@ -172,10 +184,22 @@ def run_ralph_loop_for_issue(
                     base=base,
                 )
                 adapter.set_issue_labels(repo, issue.number, ["review"])
+                logger.info("Issue #%s: PR created, label set to review", issue.number)
+                now = datetime.now(UTC).isoformat()
+                pr_status = getattr(pr, "state", None)
+                if not isinstance(pr_status, str):
+                    pr_status = "open"
+                save_pr(repo_dir, PRFile(pr_id=getattr(pr, "number", 0), repo=repo, status=pr_status, issue_id=issue.number, created_at=now, updated_at=now))
                 checkout_branch(base, repo_dir=repo_dir, log=logger)
+                return "success"
             except GitPlatformError as e:
-                logger.warning("Failed to create PR or switch branch: %s", e)
-            return "success"
+                logger.warning("Failed to create PR or set labels: %s", e)
+                try:
+                    base = default_branch or adapter.get_default_branch(repo)
+                    checkout_branch(base, repo_dir=repo_dir, log=logger)
+                except Exception:
+                    pass
+                return "failed"
 
     logger.warning("Issue #%s: max iterations (%s) reached without PR report", issue.number, max_iterations)
     try:

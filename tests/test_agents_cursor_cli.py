@@ -46,7 +46,7 @@ def test_extract_plan_from_cli_output_result_string() -> None:
 
 
 def test_cursor_cli_agent_writes_log_file(tmp_path: Path) -> None:
-    """generate_code writes .coddy/task-{issue}.log with header and CLI
+    """generate_code writes .coddy/issues/{issue}.log with header and CLI
     output."""
     with (
         patch("coddy.worker.agents.cursor_cli_agent.subprocess.run") as mock_run,
@@ -61,7 +61,7 @@ def test_cursor_cli_agent_writes_log_file(tmp_path: Path) -> None:
         issue = _issue(number=7)
         result = agent.generate_code(issue, [])
     assert result == "PR description"
-    log_path = tmp_path / ".coddy" / "task-7.log"
+    log_path = tmp_path / ".coddy" / "issues" / "7.log"
     assert log_path.is_file()
     content = log_path.read_text(encoding="utf-8")
     assert "Issue #7" in content
@@ -86,7 +86,7 @@ def test_cursor_cli_agent_log_file_on_timeout(tmp_path: Path) -> None:
         issue = _issue(number=8)
         result = agent.generate_code(issue, [])
     assert result is None
-    log_path = tmp_path / ".coddy" / "task-8.log"
+    log_path = tmp_path / ".coddy" / "issues" / "8.log"
     assert log_path.is_file()
     content = log_path.read_text(encoding="utf-8")
     assert "Timed out after 60s" in content
@@ -103,7 +103,7 @@ def test_cursor_cli_agent_log_file_on_cli_not_found(tmp_path: Path) -> None:
         issue = _issue(number=9)
         result = agent.generate_code(issue, [])
     assert result is None
-    log_path = tmp_path / ".coddy" / "task-9.log"
+    log_path = tmp_path / ".coddy" / "issues" / "9.log"
     assert log_path.is_file()
     content = log_path.read_text(encoding="utf-8")
     assert "CLI not found" in content or "not found" in content

@@ -181,7 +181,7 @@ def test_ralph_loop_returns_failed_after_max_iterations_without_pr(tmp_path: Pat
 def test_ralph_loop_runs_real_cursor_cli_integration(tmp_path: Path) -> None:
     """Integration: ralph loop starts real Cursor CLI; skip if agent not in PATH.
 
-    Verifies the loop creates task YAML, invokes the agent, and writes .coddy/task-N.log.
+    Verifies the loop creates task YAML, invokes the agent, and writes .coddy/issues/N.log.
     Does not require the agent to complete the task (may timeout).
     """
     from coddy.services.store import create_issue
@@ -232,8 +232,8 @@ def test_ralph_loop_runs_real_cursor_cli_integration(tmp_path: Path) -> None:
             max_iterations=1,
         )
 
-    log_path = tmp_path / ".coddy" / "task-1.log"
-    assert log_path.is_file(), "Ralph loop must invoke Cursor CLI and write task-1.log"
+    log_path = tmp_path / ".coddy" / "issues" / "1.log"
+    assert log_path.is_file(), "Ralph loop must invoke Cursor CLI and write issues/1.log"
     content = log_path.read_text(encoding="utf-8")
     assert "command=agent" in content or "Issue #1" in content
     assert "timeout=30" in content

@@ -31,8 +31,8 @@ def test_report_file_path() -> None:
 
 
 def test_task_log_path() -> None:
-    """task_log_path returns .coddy/task-{n}.log under repo_dir."""
-    assert task_log_path(Path("/repo"), 42) == Path("/repo/.coddy/task-42.log")
+    """task_log_path returns .coddy/issues/{n}.log under repo_dir."""
+    assert task_log_path(Path("/repo"), 42) == Path("/repo/.coddy/issues/42.log")
 
 
 def test_read_agent_clarification_missing_file(tmp_path: Path) -> None:

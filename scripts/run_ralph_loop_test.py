@@ -133,7 +133,7 @@ def main() -> int:
         "--show-agent-log",
         action="store_true",
         default=None,
-        help="After run, print .coddy/task-N.log (default: on when --use-real-agent)",
+        help="After run, print .coddy/issues/N.log (default: on when --use-real-agent)",
     )
     parser.add_argument(
         "--no-show-agent-log",
@@ -188,7 +188,7 @@ def main() -> int:
             stream_output_to_log=args.stream_agent_output,
         )
         log.info("Using real Cursor CLI agent (timeout=60s, token=%s)", "set" if args.cursor_token else "not set")
-        agent_log_path = workspace / ".coddy" / "task-1.log"
+        agent_log_path = workspace / ".coddy" / "issues" / "1.log"
         task_yaml_path = workspace / ".coddy" / "task-1.yaml"
         log.info("Agent log file: %s (tail -f in another terminal for live output)", agent_log_path)
         log.info("Task YAML: %s", task_yaml_path)
@@ -232,16 +232,16 @@ def main() -> int:
         print(f"create_pr called with body: {body[:200]}{'...' if len(body) > 200 else ''}")
 
     if args.show_agent_log and args.use_real_agent:
-        agent_log_path = workspace / ".coddy" / "task-1.log"
+        agent_log_path = workspace / ".coddy" / "issues" / "1.log"
         task_yaml_path = workspace / ".coddy" / "task-1.yaml"
         if task_yaml_path.exists():
             print("\n--- Task YAML (input to agent) ---")
             print(task_yaml_path.read_text(encoding="utf-8"))
         if agent_log_path.exists():
-            print("\n--- Agent log (task-1.log) ---")
+            print("\n--- Agent log (issues/1.log) ---")
             print(agent_log_path.read_text(encoding="utf-8"))
         else:
-            print("\n(No agent log file yet: task-1.log not found)")
+            print("\n(No agent log file yet: issues/1.log not found)")
     return 0
 
 

@@ -4,7 +4,7 @@ Cursor CLI agent: headless mode with task YAML and PR report YAML.
 Coddy writes .coddy/task-{n}.yaml. Agent runs and either: (1) implements and writes
 .coddy/pr-{n}.yaml for PR body, or (2) finds data insufficient and adds
 agent_clarification to the task YAML and stops; Coddy reads that
-and posts it to the issue. Run log is in .coddy/task-{n}.log.
+and posts it to the issue. Run log is in .coddy/issues/{n}.log.
 """
 
 import json
@@ -207,7 +207,7 @@ class CursorCLIAgent(AIAgent):
         """Write task YAML, run Cursor CLI headless, read PR report.
 
         All run info and CLI stdout/stderr are written to
-        .coddy/task-{issue}.log. Returns PR description string for
+        .coddy/issues/{issue}.log. Returns PR description string for
         create_pr, or None if report missing.
         """
         repo_dir = Path(self.working_directory).resolve()
@@ -356,7 +356,7 @@ class CursorCLIAgent(AIAgent):
         task_path = write_review_task_file(pr_number, issue_number, comments, current_index, Path(repo_dir))
         current = comments[current_index - 1]
         reply_path = review_reply_file_path(Path(repo_dir), pr_number, current.id)
-        log_path = Path(repo_dir) / ".coddy" / f"task-{issue_number}.log"
+        log_path = task_log_path(Path(repo_dir), issue_number)
         log_path.parent.mkdir(parents=True, exist_ok=True)
 
         prompt = (
