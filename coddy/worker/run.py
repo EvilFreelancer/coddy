@@ -212,7 +212,7 @@ def run_worker_poll(
     return did_work
 
 
-def run_worker(config: AppConfig, once: bool = False, poll_interval: int = 10) -> None:
+def run_worker(config: AppConfig, once: bool = False, poll_interval: int = 15) -> None:
     """Daemon: poll .coddy/issues/ every poll_interval seconds; process pending_plan, user_replied, queued."""
     CoddyLogging(config.logging).setup()
     log = logging.getLogger("coddy.worker")
@@ -292,7 +292,9 @@ def main(argv: list[str] | None = None) -> int:
         return 0
 
     poll_interval = (
-        args.poll_interval if args.poll_interval is not None else getattr(config.worker, "poll_interval_seconds", 10)
+        args.poll_interval
+        if args.poll_interval is not None
+        else getattr(config.worker, "poll_interval_seconds", 15)
     )
     try:
         run_worker(
