@@ -12,17 +12,17 @@ Coddy Bot follows a **two-module** design: an **observer** that receives webhook
 
 - **Entry point**: `coddy observer` (or `python -m coddy.observer`)
 - **Implementation**: `coddy.observer.run`
-- **Responsibilities**: Run HTTP server for webhooks; verify signatures; on issue assigned to bot, create issue file and run planner (post plan, set waiting_confirmation; optional stable delay); on user confirmation set issue status to queued. Optional poll of `.coddy/issues/`: when status=waiting_user_reply and agent wrote a question, post it to the platform and set clarification_sent. On issue comment: add to YAML; if status=clarification_sent set user_replied; if status=waiting_go and comment affirmative set queued. Does **not** run the development loop - that is done by the worker.
+- **Responsibilities**: Run HTTP server for webhooks; verify signatures; on issue assigned to bot, create issue file and set status pending_plan (worker builds plan). Poll of `.coddy/issues/`: status=plan_ready -> post worker's plan to platform, set waiting_confirmation; status=waiting_user_reply -> post clarification, set clarification_sent. On issue comment: add to YAML; if status=clarification_sent set user_replied; if status=waiting_go and comment affirmative set queued. Does **not** run the development loop or the planner - that is done by the worker.
 
 ### Worker
 
 - **Entry point**: `coddy worker` (or `python -m coddy.worker`)
 - **Implementation**: `coddy.worker.run`
-- **Responsibilities**: Daemon that watches `.coddy/issues/` (and `.coddy/prs/`). Each cycle: (1) Process one issue with status=user_replied: evaluate sufficiency; if sufficient post "Data sufficient, shall I proceed?" and set status=waiting_go; if insufficient write agent clarification to issue YAML and set waiting_user_reply. (2) Process one issue with status=queued: ensure branch, evaluate sufficiency (if insufficient write clarification to issue YAML and set waiting_user_reply); if sufficient run the **ralph loop** (task YAML, agent until PR report or agent_clarification); on clarification write to issue YAML and set waiting_user_reply; on success create PR, set labels, switch to default branch. Uses platform adapter and agent.
+- **Responsibilities**: Daemon that **polls** `.coddy/issues/` every `worker.poll_interval_seconds` (default 10). Each poll: (1) Drain all pending_plan (build plan via agent, write to YAML, set plan_ready; observer posts to platform). (2) Drain all user_replied (evaluate sufficiency; if sufficient post "proceed?" and set waiting_go; if insufficient write clarification to YAML). (3) Process one queued: run **ralph loop** (branch, task YAML, agent until PR report or clarification); on success create PR, set labels, switch to default branch. Uses platform adapter and agent.
 
 ### Task source and status
 
-- **Issues**: `.coddy/issues/{issue_number}.yaml` - one YAML per issue. Status: pending_plan, waiting_confirmation, queued, in_progress, waiting_user_reply, clarification_sent, user_replied, waiting_go, done, failed, closed. Worker watches this folder (daemon); picks user_replied (post "proceed?", set waiting_go) then queued (ralph loop). Agent can write clarification into the issue YAML (waiting_user_reply); observer polls and posts to platform. See [code-agent-flow.md](code-agent-flow.md).
+- **Issues**: `.coddy/issues/{issue_number}.yaml` - one YAML per issue. Status: pending_plan, plan_ready, waiting_confirmation, queued, in_progress, waiting_user_reply, clarification_sent, user_replied, waiting_go, done, failed, closed. Worker polls this folder every `worker.poll_interval_seconds`; observer polls for plan_ready and waiting_user_reply to post to platform. See [code-agent-flow.md](code-agent-flow.md).
 - **PRs**: `.coddy/prs/{pr_number}.yaml` - one YAML per PR. Status: open, merged, closed. On PR closed (webhook), status is set to merged or closed.
 - **Legacy**: `.coddy/queue/` (pending/done/failed) is no longer used; queue logic uses issue status only.
 
@@ -51,7 +51,7 @@ Everything that observes events, stores state, and enqueues work. Does not run t
 | `observer/models/` | Pydantic models: Issue, Comment, PR, ReviewComment. |
 | `observer/planner.py` | Plan generation and user confirmation flow. |
 | `observer/webhook/` | Webhook server and event handlers. |
-| `observer/run.py` | Observer entry: webhook server only (plan on assignment). |
+| `observer/run.py` | Observer entry: webhook server + poll (plan_ready, clarification). |
 
 **Dependencies**: config, standard lib, third-party, `coddy.services.store`, `coddy.services.git`.
 
@@ -64,7 +64,7 @@ Runs the development loop and uses the AI agent.
 | `worker/task_yaml.py` | Task and PR report YAML (`.coddy/task-{n}.yaml`, `.coddy/pr-{n}.yaml`), review task/reply files, log path. |
 | `worker/agents/` | AI agent interface: `base.py` (AIAgent, SufficiencyResult), `cursor_cli_agent.py` (Cursor CLI headless). |
 | `worker/ralph_loop.py` | Ralph loop: sufficiency, branch, repeated agent runs until PR report or clarification. |
-| `worker/run.py` | Worker entry: reads queued issues from store, currently dry-run stub (writes empty PR YAML). |
+| `worker/run.py` | Worker entry: poll loop over .coddy/issues/ (pending_plan, user_replied, queued); interval from worker.poll_interval_seconds. |
 
 **Dependencies**: observer (models), `coddy.services.store`, `coddy.services.git`.
 
@@ -120,7 +120,7 @@ Business logic for events, state, queue, and planning. No agent execution.
 Orchestrates the development loop and uses the agent.
 
 - `ralph_loop.py` - Sufficiency, branch, loop until PR report or clarification
-- `run.py` - Queue polling; when `assignment_only` is true, only issues with `assigned_to == bot.username` (e.g. coddybot) are processed; then ralph loop per task
+- `run.py` - Poll .coddy/issues/ every `worker.poll_interval_seconds`; drain pending_plan and user_replied, then one queued (ralph loop). When `assignment_only`, filter by `assigned_to == bot.username`.
 
 **Dependencies**: Observer (adapters, queue, models), worker.agents, worker.task_yaml
 
@@ -128,9 +128,8 @@ Orchestrates the development loop and uses the agent.
 
 ```
   OBSERVER (observer.run)
-  Webhook Server -> on assigned: planner -> .coddy/issues/ (waiting_confirmation -> queued)
-  Worker (worker.run) polls .coddy/issues/ (status=queued); if assignment_only, filters to assigned_to=bot.username -> for each task: ralph loop -> Cursor CLI (per iteration)
-  -> PR report (.coddy/pr-{n}.yaml) or agent_clarification -> Create PR / post comment; labels; checkout default.
+  Webhook Server -> on assigned: .coddy/issues/ status=pending_plan. Poll: plan_ready -> post plan; waiting_user_reply -> post clarification.
+  Worker (worker.run) polls .coddy/issues/ every worker.poll_interval_seconds: pending_plan -> build plan (plan_ready); user_replied -> proceed? or clarification; queued -> ralph loop -> Cursor CLI -> PR or clarification.
 ```
 
 ## Design Patterns
@@ -156,10 +155,11 @@ Used for:
 
 ### Issue Processing Flow
 
-1. **Trigger Event** -> Webhook "bot assigned to issue"; issue stored in `.coddy/issues/{n}.yaml`, planner runs, plan posted, status -> waiting_confirmation
-2. **User confirms** -> Webhook issue_comment (affirmative); issue status set to queued in `.coddy/issues/{n}.yaml`
-3. **Worker** -> Picks queued issue; ralph loop: sufficiency, branch, write `.coddy/task-{n}.yaml`, run agent until `.coddy/pr-{n}.yaml` or agent_clarification
-4. **PR Creation** -> Worker creates PR from report body, sets label, checkout default branch
+1. **Trigger Event** -> Webhook "bot assigned to issue"; issue stored in `.coddy/issues/{n}.yaml`, status -> pending_plan
+2. **Worker poll** -> Builds plan, writes to YAML, status -> plan_ready; observer poll posts plan, status -> waiting_confirmation
+3. **User confirms** -> Webhook issue_comment (affirmative); issue status set to queued
+4. **Worker poll** -> Picks queued issue; ralph loop: branch, `.coddy/task-{n}.yaml`, agent until `.coddy/pr-{n}.yaml` or clarification
+5. **PR Creation** -> Worker creates PR from report body, sets label, checkout default branch
 
 ## Configuration Management
 

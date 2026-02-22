@@ -11,7 +11,7 @@ import sys
 import time
 from datetime import UTC, datetime
 from pathlib import Path
-from typing import List, Tuple
+from typing import Any, List, Tuple
 
 import yaml
 
@@ -81,8 +81,8 @@ def parse_args(argv: list[str] | None = None) -> argparse.Namespace:
     parser.add_argument(
         "--poll-interval",
         type=int,
-        default=10,
-        help="Seconds to wait when queue is empty (default 10)",
+        default=None,
+        help="Seconds between .coddy/issues/ poll runs (default from config worker.poll_interval_seconds or 15)",
     )
     parser.add_argument(
         "--check",
@@ -103,8 +103,116 @@ def _filter_by_assignment(
     return [(n, i) for n, i in items if i.assigned_to == bot_username]
 
 
+def run_worker_poll(
+    config: AppConfig,
+    repo_dir: Path,
+    adapter: Any,
+    agent: Any,
+    log: logging.Logger,
+) -> bool:
+    """One pass over .coddy/issues/: drain pending_plan, drain user_replied, then one queued.
+    Returns True if any work was done."""
+    repo = config.bot.repository
+    assignment_only = getattr(config.bot, "assignment_only", True)
+    bot_username = getattr(config.bot, "username", None)
+    default_branch = getattr(config.bot, "default_branch", "main")
+    did_work = False
+
+    while True:
+        pending_plan = _filter_by_assignment(
+            list_pending_plan(repo_dir), assignment_only, bot_username
+        )
+        if not pending_plan or not agent:
+            break
+        pending_plan.sort(key=lambda t: t[0])
+        issue_number, issue_file = pending_plan[0]
+        issue, comments = _issue_file_to_issue_and_comments(issue_number, issue_file)
+        from coddy.observer.planner import TEMPLATE_PLAN_ERROR, format_plan_request
+
+        plan = agent.generate_plan(issue, comments)
+        message = format_plan_request(plan) if plan else TEMPLATE_PLAN_ERROR
+        bot_name = f"@{bot_username}" if bot_username else "@bot"
+        add_comment(repo_dir, issue_number, bot_name, message)
+        set_issue_status(repo_dir, issue_number, "plan_ready")
+        log.info("Issue #%s: plan written to YAML, status -> plan_ready", issue_number)
+        did_work = True
+
+    while True:
+        user_replied = _filter_by_assignment(
+            list_issues_by_status(repo_dir, "user_replied"), assignment_only, bot_username
+        )
+        if not user_replied or not adapter or not agent:
+            break
+        user_replied.sort(key=lambda t: t[0])
+        issue_number, issue_file = user_replied[0]
+        issue, comments = _issue_file_to_issue_and_comments(issue_number, issue_file)
+        result = agent.evaluate_sufficiency(issue, comments)
+        if result.sufficient:
+            from coddy.observer.planner import TEMPLATE_PROCEED_REQUEST
+
+            msg = TEMPLATE_PROCEED_REQUEST
+            try:
+                adapter.create_comment(repo, issue_number, msg)
+                bot_name = f"@{bot_username}" if bot_username else "@bot"
+                add_comment(repo_dir, issue_number, bot_name, msg)
+                set_issue_status(repo_dir, issue_number, "waiting_go")
+                log.info("Issue #%s: data sufficient, posted proceed request, status -> waiting_go", issue_number)
+            except Exception as e:
+                log.warning("Failed to post proceed request for #%s: %s", issue_number, e)
+        else:
+            bot_comment_name = f"@{bot_username}" if bot_username else "@bot"
+            set_agent_clarification(repo_dir, issue_number, result.clarification, bot_name=bot_comment_name)
+            log.info("Issue #%s: data insufficient, wrote clarification to YAML", issue_number)
+        did_work = True
+
+    queued = _filter_by_assignment(list_queued(repo_dir), assignment_only, bot_username)
+    if not did_work and queued:
+        queued.sort(key=lambda t: t[0])
+        issue_number, _ = queued[0]
+        if adapter and agent:
+            try:
+                platform_issue = adapter.get_issue(repo, issue_number)
+                comments = adapter.get_issue_comments(repo, issue_number, since=None)
+                set_issue_status(repo_dir, issue_number, "in_progress")
+                result_kind = run_ralph_loop_for_issue(
+                    adapter,
+                    agent,
+                    platform_issue,
+                    repo,
+                    repo_dir,
+                    bot_name=getattr(config.bot, "name", None),
+                    bot_email=getattr(config.bot, "email", None),
+                    bot_username=bot_username,
+                    default_branch=default_branch,
+                    log=log,
+                )
+                if result_kind == "success":
+                    set_issue_status(repo_dir, issue_number, "done")
+                elif result_kind == "clarification":
+                    pass
+                else:
+                    set_issue_status(repo_dir, issue_number, "failed")
+            except Exception as e:
+                log.exception("Ralph loop failed for #%s: %s", issue_number, e)
+                set_issue_status(repo_dir, issue_number, "failed")
+        else:
+            log.info("Dry run: processing issue #%s", issue_number)
+            report_path = report_file_path(repo_dir, issue_number)
+            report_path.parent.mkdir(parents=True, exist_ok=True)
+            body = "# Dry run\n\nNo agent configured; worker wrote empty PR YAML."
+            report_path.write_text(
+                yaml.dump({"body": body}, default_flow_style=False, allow_unicode=True, sort_keys=False),
+                encoding="utf-8",
+            )
+            set_issue_status(repo_dir, issue_number, "done")
+            log.info("Dry run: wrote empty PR YAML for issue #%s", issue_number)
+        did_work = True
+
+    return did_work
+
+
 def run_worker(config: AppConfig, once: bool = False, poll_interval: int = 10) -> None:
-    """Daemon: process user_replied (proceed? or clarification), then queued (ralph loop or dry run)."""
+    """Daemon: poll .coddy/issues/ every poll_interval seconds; process pending_plan, user_replied, queued."""
     CoddyLogging(config.logging).setup()
     log = logging.getLogger("coddy.worker")
 
@@ -124,7 +232,6 @@ def run_worker(config: AppConfig, once: bool = False, poll_interval: int = 10) -
     assignment_only = getattr(config.bot, "assignment_only", True)
     bot_username = getattr(config.bot, "username", None)
     token = getattr(config, "github_token_resolved", None)
-    default_branch = getattr(config.bot, "default_branch", "main")
 
     adapter = None
     agent = None
@@ -148,6 +255,7 @@ def run_worker(config: AppConfig, once: bool = False, poll_interval: int = 10) -
         assignment_only,
         "yes" if agent else "no",
     )
+    log.info("Worker poll started (interval=%ss)", poll_interval)
 
     while True:
         if assignment_only and not bot_username:
@@ -157,98 +265,11 @@ def run_worker(config: AppConfig, once: bool = False, poll_interval: int = 10) -
             time.sleep(poll_interval)
             continue
 
-        # First drain all pending_plan and user_replied (plan and replies run immediately)
-        did_work = False
-        while True:
-            pending_plan = _filter_by_assignment(
-                list_pending_plan(repo_dir), assignment_only, bot_username
-            )
-            if not pending_plan or not agent:
-                break
-            pending_plan.sort(key=lambda t: t[0])
-            issue_number, issue_file = pending_plan[0]
-            issue, comments = _issue_file_to_issue_and_comments(issue_number, issue_file)
-            from coddy.observer.planner import TEMPLATE_PLAN_ERROR, format_plan_request
-
-            plan = agent.generate_plan(issue, comments)
-            message = format_plan_request(plan) if plan else TEMPLATE_PLAN_ERROR
-            bot_name = f"@{bot_username}" if bot_username else "@bot"
-            add_comment(repo_dir, issue_number, bot_name, message)
-            set_issue_status(repo_dir, issue_number, "plan_ready")
-            log.info("Issue #%s: plan written to YAML, status -> plan_ready", issue_number)
-            did_work = True
-
-        while True:
-            user_replied = _filter_by_assignment(
-                list_issues_by_status(repo_dir, "user_replied"), assignment_only, bot_username
-            )
-            if not user_replied or not adapter or not agent:
-                break
-            user_replied.sort(key=lambda t: t[0])
-            issue_number, issue_file = user_replied[0]
-            issue, comments = _issue_file_to_issue_and_comments(issue_number, issue_file)
-            result = agent.evaluate_sufficiency(issue, comments)
-            if result.sufficient:
-                from coddy.observer.planner import TEMPLATE_PROCEED_REQUEST
-
-                msg = TEMPLATE_PROCEED_REQUEST
-                try:
-                    adapter.create_comment(repo, issue_number, msg)
-                    bot_name = f"@{bot_username}" if bot_username else "@bot"
-                    add_comment(repo_dir, issue_number, bot_name, msg)
-                    set_issue_status(repo_dir, issue_number, "waiting_go")
-                    log.info("Issue #%s: data sufficient, posted proceed request, status -> waiting_go", issue_number)
-                except Exception as e:
-                    log.warning("Failed to post proceed request for #%s: %s", issue_number, e)
-            else:
-                bot_comment_name = f"@{bot_username}" if bot_username else "@bot"
-                set_agent_clarification(repo_dir, issue_number, result.clarification, bot_name=bot_comment_name)
-                log.info("Issue #%s: data insufficient, wrote clarification to YAML", issue_number)
-            did_work = True
-
-        # Only then take one queued task (implementation)
-        queued = _filter_by_assignment(list_queued(repo_dir), assignment_only, bot_username)
-        if not did_work and queued:
-            queued.sort(key=lambda t: t[0])
-            issue_number, _ = queued[0]
-            if adapter and agent:
-                try:
-                    platform_issue = adapter.get_issue(repo, issue_number)
-                    comments = adapter.get_issue_comments(repo, issue_number, since=None)
-                    set_issue_status(repo_dir, issue_number, "in_progress")
-                    result_kind = run_ralph_loop_for_issue(
-                        adapter,
-                        agent,
-                        platform_issue,
-                        repo,
-                        repo_dir,
-                        bot_name=getattr(config.bot, "name", None),
-                        bot_email=getattr(config.bot, "email", None),
-                        bot_username=bot_username,
-                        default_branch=default_branch,
-                        log=log,
-                    )
-                    if result_kind == "success":
-                        set_issue_status(repo_dir, issue_number, "done")
-                    elif result_kind == "clarification":
-                        pass
-                    else:
-                        set_issue_status(repo_dir, issue_number, "failed")
-                except Exception as e:
-                    log.exception("Ralph loop failed for #%s: %s", issue_number, e)
-                    set_issue_status(repo_dir, issue_number, "failed")
-            else:
-                log.info("Dry run: processing issue #%s", issue_number)
-                report_path = report_file_path(repo_dir, issue_number)
-                report_path.parent.mkdir(parents=True, exist_ok=True)
-                body = "# Dry run\n\nNo agent configured; worker wrote empty PR YAML."
-                report_path.write_text(
-                    yaml.dump({"body": body}, default_flow_style=False, allow_unicode=True, sort_keys=False),
-                    encoding="utf-8",
-                )
-                set_issue_status(repo_dir, issue_number, "done")
-                log.info("Dry run: wrote empty PR YAML for issue #%s", issue_number)
-            did_work = True
+        try:
+            did_work = run_worker_poll(config, repo_dir, adapter, agent, log)
+        except Exception as e:
+            log.warning("Worker poll error: %s", e)
+            did_work = False
 
         if once:
             return
@@ -272,11 +293,16 @@ def main(argv: list[str] | None = None) -> int:
         print("Config OK:", config.bot.repository, config.bot.git_platform)
         return 0
 
+    poll_interval = (
+        args.poll_interval
+        if args.poll_interval is not None
+        else getattr(config.worker, "poll_interval_seconds", 10)
+    )
     try:
         run_worker(
             config,
             once=args.once,
-            poll_interval=args.poll_interval,
+            poll_interval=poll_interval,
         )
     except KeyboardInterrupt:
         return 0

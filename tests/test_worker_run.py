@@ -2,7 +2,7 @@
 
 from pathlib import Path
 
-from coddy.config import AppConfig, BotConfig, LoggingConfig
+from coddy.config import AppConfig, BotConfig, LoggingConfig, load_config
 from coddy.services.store import create_issue, load_issue, set_issue_status
 from coddy.worker.run import run_worker
 
@@ -132,3 +132,18 @@ def test_worker_skips_issue_with_no_assignee_when_assignment_only(tmp_path: Path
     assert issue5 is not None
     assert issue5.status == "queued"
     assert not (tmp_path / ".coddy" / "pr-5.yaml").exists()
+
+
+def test_worker_config_has_poll_interval_seconds(tmp_path: Path) -> None:
+    """AppConfig has worker with poll_interval_seconds; load_config reads worker section from YAML."""
+    config = AppConfig()
+    assert hasattr(config, "worker")
+    assert getattr(config.worker, "poll_interval_seconds", None) >= 1
+
+    yaml_path = tmp_path / "config.yaml"
+    yaml_path.write_text(
+        "bot:\n  repository: owner/repo\nworker:\n  poll_interval_seconds: 5\n",
+        encoding="utf-8",
+    )
+    loaded = load_config(yaml_path)
+    assert loaded.worker.poll_interval_seconds == 5

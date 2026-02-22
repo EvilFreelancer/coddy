@@ -7,10 +7,10 @@ This document describes how the code agent is started, how it can ask the user f
 - **Observer**: Webhook server + optional poll of `.coddy/issues/`. Receives platform events; when the agent writes a clarification question into an issue YAML, the observer posts it to the issue and marks it as sent. On user comments it updates the issue file and status.
 - **Worker**: Daemon that watches `.coddy/issues/` (and `.coddy/prs/`). Handles issues in status `user_replied` (evaluate sufficiency, post "proceed?" and set `waiting_go`), then picks `queued` issues and runs the ralph loop (code agent). When the agent needs clarification it writes to the issue YAML; the observer then posts that to the platform.
 
-## Trigger: when the agent builds the plan
+## Trigger: when the plan is built
 
-- When an issue is **assigned to the bot** and (optionally) has been **unchanged for some time** (`issue_stable_seconds`), the observer runs the **planner**: the code agent builds a detailed but concise work plan.
-- If `issue_stable_seconds` is 0 (default), the plan is run immediately on assignment. If > 0, the observer only runs the planner for issues with `status=pending_plan`, `assigned_to=bot`, and `updated_at` older than `now - issue_stable_seconds`.
+- When an issue is **assigned to the bot**, the observer only sets `status=pending_plan` in `.coddy/issues/`.
+- The **worker** (poll loop) sees `pending_plan`, runs the code agent to build a plan, writes it to the issue YAML and sets `status=plan_ready`. The observer then posts that plan to the platform and sets `waiting_confirmation`.
 
 ## Status flow (extended)
 
@@ -49,24 +49,27 @@ This document describes how the code agent is started, how it can ask the user f
 
 6. **Worker** sees `status=queued`, runs the ralph loop (branch, task YAML, agent until PR report or clarification).
 
-## Worker as daemon
+## Worker as daemon (poll)
 
-- The worker runs in a loop. It watches `.coddy/issues/` (and `.coddy/prs/` if needed).
-- In each iteration it:
-  1. Processes at most one issue with `status=user_replied` (sufficiency, post "proceed?", set `waiting_go`).
-  2. Then processes at most one issue with `status=queued` (run ralph loop).
-- So "proceed?" is handled first; then one task is run. Both observer and worker use the same issue YAML as the source of truth.
+- The worker runs a **poll loop** over `.coddy/issues/` every N seconds (config: `worker.poll_interval_seconds`, default 10; CLI: `--poll-interval` overrides).
+- In each poll pass it:
+  1. Drains all `status=pending_plan` (build plan, write to YAML, set `plan_ready`; observer then posts to platform).
+  2. Drains all `status=user_replied` (sufficiency, post "proceed?" and set `waiting_go`, or write clarification).
+  3. Then processes at most one `status=queued` (run ralph loop).
+- So plans and user replies are handled before any implementation task. Both observer and worker use the same issue YAML as the source of truth.
 
-## Observer poll (clarification)
+## Observer poll
 
-- Besides the webhook server, the observer can run an optional **poll loop** over `.coddy/issues/`: every N seconds it looks for issues with `status=waiting_user_reply`; for each it posts the last comment's content to the platform and sets `status=clarification_sent`.
-- Poll interval and enable flag can be configured (e.g. `observer.poll_interval_seconds`, `observer.poll_clarifications`).
+- Besides the webhook server, the observer runs a **poll loop** over `.coddy/issues/` every N seconds (`observer.poll_interval_seconds`, default 15):
+  - Issues with `status=plan_ready`: post last comment (worker's plan) to the platform, set `waiting_confirmation`.
+  - Issues with `status=waiting_user_reply`: post last comment (clarification) to the platform, set `clarification_sent`.
+- Enable flag: `observer.poll_clarifications` (default true).
 
 ## Configuration (optional)
 
-- `bot.issue_stable_seconds`: If > 0, planner runs only for issues that have been unchanged for this many seconds (default 0 = run plan immediately on assignment).
-- `observer.poll_interval_seconds`: Interval for scanning `.coddy/issues/` for clarification to post (e.g. 15).
-- `observer.poll_clarifications`: Whether to run the clarification poll loop (default true when webhook is enabled).
+- `observer.poll_interval_seconds`: Interval for observer poll (plan_ready and clarification), e.g. 15.
+- `observer.poll_clarifications`: Whether to run the observer poll loop (default true).
+- `worker.poll_interval_seconds`: Interval for worker poll of `.coddy/issues/` (pending_plan, user_replied, queued), e.g. 10. Env: `WORKER_POLL_INTERVAL_SECONDS`. CLI `--poll-interval` overrides.
 
 ## References
 

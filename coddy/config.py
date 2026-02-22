@@ -134,6 +134,18 @@ class ObserverConfig(BaseSettings):
     )
 
 
+class WorkerConfig(BaseSettings):
+    """Worker-specific settings (.coddy/issues/ poll)."""
+
+    model_config = SettingsConfigDict(env_prefix="WORKER_", extra="ignore")
+
+    poll_interval_seconds: int = Field(
+        default=15,
+        ge=1,
+        description="Seconds between .coddy/issues/ poll runs (pending_plan, user_replied, queued)",
+    )
+
+
 class LoggingConfig(BaseSettings):
     """Logging settings."""
 
@@ -158,6 +170,7 @@ class AppConfig(BaseSettings):
     ai_agents: dict[str, Any] = Field(default_factory=dict)
     webhook: WebhookConfig = Field(default_factory=WebhookConfig)
     observer: ObserverConfig = Field(default_factory=ObserverConfig)
+    worker: WorkerConfig = Field(default_factory=WorkerConfig)
     logging: LoggingConfig = Field(default_factory=LoggingConfig)
 
     @property
@@ -237,6 +250,7 @@ def load_config(config_path: Path | None = None) -> AppConfig:
     bitbucket = BitbucketConfig(**(raw.get("bitbucket") or {}))
     webhook = WebhookConfig(**(raw.get("webhook") or {}))
     observer = ObserverConfig(**(raw.get("observer") or {}))
+    worker = WorkerConfig(**(raw.get("worker") or {}))
     logging = LoggingConfig(**(raw.get("logging") or {}))
 
     ai_agents_raw = raw.get("ai_agents") or {}
@@ -255,5 +269,6 @@ def load_config(config_path: Path | None = None) -> AppConfig:
         ai_agents=ai_agents,
         webhook=webhook,
         observer=observer,
+        worker=worker,
         logging=logging,
     )

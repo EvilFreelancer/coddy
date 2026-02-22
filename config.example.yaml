@@ -52,9 +52,13 @@ webhook:
   debug: false
   enabled: true
 
-# Observer: optional poll of .coddy/issues/ for agent clarification (waiting_user_reply -> post to platform)
+# Observer: optional poll of .coddy/issues/ (plan_ready -> post to GitHub; waiting_user_reply -> post clarification)
 observer:
   poll_clarifications: true
+  poll_interval_seconds: 15
+
+# Worker: poll of .coddy/issues/ for pending_plan, user_replied, queued (env WORKER_POLL_INTERVAL_SECONDS)
+worker:
   poll_interval_seconds: 15
 
 # Logging Configuration (optional)
