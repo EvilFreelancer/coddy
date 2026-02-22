@@ -111,7 +111,8 @@ def test_ralph_loop_returns_success_when_pr_report_written(tmp_path: Path) -> No
 
 
 def test_ralph_loop_calls_agent_each_iteration_until_pr_body(tmp_path: Path) -> None:
-    """When generate_code returns None then PR body, loop runs agent twice then succeeds."""
+    """When generate_code returns None then PR body, loop runs agent twice then
+    succeeds."""
     adapter = MagicMock()
     adapter.get_issue_comments.return_value = []
     adapter.get_default_branch.return_value = "main"
@@ -145,7 +146,8 @@ def test_ralph_loop_calls_agent_each_iteration_until_pr_body(tmp_path: Path) -> 
 
 
 def test_ralph_loop_returns_failed_after_max_iterations_without_pr(tmp_path: Path) -> None:
-    """When generate_code always returns None and no report file, loop runs max_iterations then returns failed."""
+    """When generate_code always returns None and no report file, loop runs
+    max_iterations then returns failed."""
     adapter = MagicMock()
     adapter.get_issue_comments.return_value = []
     adapter.get_default_branch.return_value = "main"

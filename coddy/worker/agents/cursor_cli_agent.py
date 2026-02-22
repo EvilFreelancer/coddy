@@ -10,6 +10,7 @@ and posts it to the issue. Run log is in .coddy/task-{n}.log.
 import logging
 import os
 import subprocess
+import threading
 import time
 from datetime import UTC, datetime
 from pathlib import Path
@@ -52,8 +53,9 @@ class CursorCLIAgent(AIAgent):
         timeout: int = 600,
         working_directory: str = ".",
         token: str | None = None,
-        output_format: str | None = None,
+        output_format: str | None = "stream-json",
         stream_partial_output: bool = False,
+        stream_output_to_log: bool = False,
         model: str | None = None,
         mode: str | None = None,
         log: logging.Logger | None = None,
@@ -64,20 +66,24 @@ class CursorCLIAgent(AIAgent):
         self.token = token
         self.output_format = output_format
         self.stream_partial_output = stream_partial_output
+        self.stream_output_to_log = stream_output_to_log
         self.model = model
         self.mode = mode
         self._log = log or logging.getLogger("coddy.worker.agents.cursor_cli")
 
     def generate_plan(self, issue: Issue, comments: List[Comment]) -> str | None:
         """Run Cursor CLI with a plan-only prompt; return plan text in issue
-        language. Retries on transient errors (e.g. connection stalled)."""
+        language.
+
+        Retries on transient errors (e.g. connection stalled).
+        """
         prompt = (
             f"You are a planner. The user created an issue. Output ONLY a short implementation plan "
             f"(bullet points, no code). Use the same language as the issue. "
             f"Issue title: {issue.title!r}\n\nBody:\n{issue.body or '(none)'}\n\n"
             "Output only the plan, nothing else."
         )
-        cmd = [self.command, "-p", "--force"]
+        cmd = [self.command, "--print", "--force"]
         if self.output_format:
             cmd.extend(["--output-format", self.output_format])
         if self.model:
@@ -188,27 +194,14 @@ class CursorCLIAgent(AIAgent):
 
         self._log.info("Running Cursor CLI (headless): %s (timeout=%ss)", self.command, self.timeout)
         try:
-            with open(log_path, "w", encoding="utf-8") as log_file:
-                log_file.write(
-                    f"[{datetime.now(UTC).isoformat()}] Issue #{issue.number} | "
-                    f"command={self.command} timeout={self.timeout}s\n"
-                )
-                log_file.write(f"Task file: {task_path}\n")
-                log_file.write(f"Report file: {report_path}\n")
-                log_file.write("-" * 60 + "\n")
-                log_file.flush()
-                result = subprocess.run(
-                    cmd,
-                    cwd=self.working_directory,
-                    env=env,
-                    timeout=self.timeout,
-                    check=False,
-                    stdout=log_file,
-                    stderr=subprocess.STDOUT,
-                    text=True,
-                )
-                log_file.write("-" * 60 + "\n")
-                log_file.write(f"Exit code: {result.returncode}\n")
+            if self.stream_output_to_log:
+                result = self._run_with_streaming_log(cmd, env, log_path, issue.number)
+            else:
+                result = self._run_with_file_log(cmd, env, log_path, issue.number)
+            if result is not None:
+                log_suffix = "-" * 60 + f"\nExit code: {result.returncode}\n"
+                with open(log_path, "a", encoding="utf-8") as f:
+                    f.write(log_suffix)
         except subprocess.TimeoutExpired:
             with open(log_path, "a", encoding="utf-8") as log_file:
                 log_file.write("-" * 60 + "\n")
@@ -222,6 +215,85 @@ class CursorCLIAgent(AIAgent):
             return None
 
         return read_pr_report(repo_dir, issue.number) or None
+
+    def _run_with_file_log(
+        self,
+        cmd: List[str],
+        env: dict[str, Any],
+        log_path: Path,
+        issue_number: int,
+    ) -> subprocess.CompletedProcess[str] | None:
+        """Run CLI with stdout/stderr redirected to log file."""
+        with open(log_path, "w", encoding="utf-8") as log_file:
+            log_file.write(
+                f"[{datetime.now(UTC).isoformat()}] Issue #{issue_number} | "
+                f"command={self.command} timeout={self.timeout}s\n"
+            )
+            log_file.write(f"Task file: {log_path.parent / f'task-{issue_number}.yaml'}\n")
+            log_file.write(f"Report file: {log_path.parent / f'pr-{issue_number}.yaml'}\n")
+            log_file.write("-" * 60 + "\n")
+            log_file.flush()
+            return subprocess.run(
+                cmd,
+                cwd=self.working_directory,
+                env=env,
+                timeout=self.timeout,
+                check=False,
+                stdout=log_file,
+                stderr=subprocess.STDOUT,
+                text=True,
+            )
+
+    def _run_with_streaming_log(
+        self,
+        cmd: List[str],
+        env: dict[str, Any],
+        log_path: Path,
+        issue_number: int,
+    ) -> subprocess.CompletedProcess[str] | None:
+        """Run CLI and stream stdout/stderr to log file and to logger (real-
+        time debug)."""
+        with open(log_path, "w", encoding="utf-8") as log_file:
+            log_file.write(
+                f"[{datetime.now(UTC).isoformat()}] Issue #{issue_number} | "
+                f"command={self.command} timeout={self.timeout}s\n"
+            )
+            log_file.write(f"Task file: {log_path.parent / f'task-{issue_number}.yaml'}\n")
+            log_file.write(f"Report file: {log_path.parent / f'pr-{issue_number}.yaml'}\n")
+            log_file.write("-" * 60 + "\n")
+            log_file.flush()
+            try:
+                proc = subprocess.Popen(
+                    cmd,
+                    cwd=self.working_directory,
+                    env=env,
+                    stdout=subprocess.PIPE,
+                    stderr=subprocess.STDOUT,
+                    text=True,
+                    bufsize=1,
+                )
+            except FileNotFoundError:
+                raise
+            lines_done: list[bool] = [False]
+
+            def read_and_log() -> None:
+                assert proc.stdout is not None
+                for line in proc.stdout:
+                    log_file.write(line)
+                    log_file.flush()
+                    self._log.debug("agent: %s", line.rstrip("\n"))
+                lines_done[0] = True
+
+            t = threading.Thread(target=read_and_log, daemon=True)
+            t.start()
+            try:
+                proc.wait(timeout=self.timeout)
+            except subprocess.TimeoutExpired:
+                proc.kill()
+                proc.wait()
+                raise
+            t.join(timeout=2.0)
+            return subprocess.CompletedProcess(proc.args, proc.returncode or 0, "", "")
 
     def process_review_item(
         self,

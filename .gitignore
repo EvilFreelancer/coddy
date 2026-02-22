@@ -45,6 +45,7 @@ htmlcov/
 
 # Coddy task and report workspace (temporary; agent reads/writes here)
 .coddy/
+.ralph_loop_test_workspace/
 
 # Configuration and secrets (never commit tokens)
 config.yaml

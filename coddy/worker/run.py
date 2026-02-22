@@ -292,9 +292,7 @@ def main(argv: list[str] | None = None) -> int:
         return 0
 
     poll_interval = (
-        args.poll_interval
-        if args.poll_interval is not None
-        else getattr(config.worker, "poll_interval_seconds", 15)
+        args.poll_interval if args.poll_interval is not None else getattr(config.worker, "poll_interval_seconds", 15)
     )
     try:
         run_worker(

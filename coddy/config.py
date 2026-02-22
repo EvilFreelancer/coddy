@@ -95,7 +95,7 @@ class CursorCLIAgentConfig(BaseSettings):
     token: str | None = Field(default=None, description="Agent token; prefer env or secret file")
     # Headless CLI options (docs: cursor.com/docs/cli/reference/parameters, output-format)
     output_format: str | None = Field(
-        default=None,
+        default="stream-json",
         description="--output-format: text (default), json, or stream-json",
     )
     stream_partial_output: bool = Field(
