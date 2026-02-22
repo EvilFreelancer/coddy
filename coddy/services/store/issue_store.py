@@ -220,7 +220,8 @@ def set_agent_clarification(repo_dir: Path, issue_id: int, message: str, bot_nam
 
 
 def mark_clarification_sent(repo_dir: Path, issue_id: int) -> None:
-    """Set issue status to clarification_sent (comment already posted by observer)."""
+    """Set issue status to clarification_sent (comment already posted by
+    observer)."""
     issue = load_issue(repo_dir, issue_id)
     if not issue:
         LOG.warning("Cannot mark clarification sent: issue #%s not found", issue_id)

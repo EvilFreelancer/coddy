@@ -138,8 +138,9 @@ def test_handle_issues_assigned_creates_issue_file_when_bot_in_assignees(tmp_pat
 
 
 def test_handle_issues_assigned_ignores_when_bot_not_assignee(tmp_path: Path) -> None:
-    """On issues.assigned without bot in assignees, issue is stored but
-    run_planner is not called (work only when assignee is bot)."""
+    """On issues.assigned without bot in assignees, issue is stored with
+    pending_plan (observer does not set status again; create_issue already uses
+    pending_plan)."""
     config = type("Config", (), {})()
     config.bot = type("Bot", (), {})()
     config.bot.repository = "owner/repo"
@@ -151,10 +152,8 @@ def test_handle_issues_assigned_ignores_when_bot_not_assignee(tmp_path: Path) ->
         "issue": {"number": 42, "assignees": [{"login": "other-user"}]},
         "repository": {"full_name": "owner/repo"},
     }
-    with patch("coddy.observer.webhook.handlers.run_planner") as mock_planner:
-        handle_github_event(config, "issues", payload, repo_dir=tmp_path)
-    mock_planner.assert_not_called()
-    # Issue is still stored
+    handle_github_event(config, "issues", payload, repo_dir=tmp_path)
+    # Issue is still stored (create_issue sets pending_plan)
     issue = load_issue(tmp_path, 42)
     assert issue is not None
     assert issue.status == "pending_plan"
@@ -538,11 +537,10 @@ def test_webhook_issues_unassigned_clears_assignment_in_file(tmp_path: Path) -> 
     assert issue.assigned_to is None
 
 
-def test_webhook_issues_assigned_runs_planner_when_token_set(tmp_path: Path) -> None:
-    """On issues.assigned with token, planner runs and status becomes
-    waiting_confirmation."""
-    from coddy.services.store import set_issue_status
-
+def test_webhook_issues_assigned_sets_pending_plan_when_bot_assignee(tmp_path: Path) -> None:
+    """On issues.assigned with bot in assignees, observer sets status
+    pending_plan (worker will build plan and write to file; observer posts it
+    via poll)."""
     config = _issues_assigned_config(tmp_path)
     config.github_token_resolved = "gh-token"
     config.github = type("GitHub", (), {"api_url": "https://api.github.com"})()
@@ -559,25 +557,11 @@ def test_webhook_issues_assigned_runs_planner_when_token_set(tmp_path: Path) -> 
         "repository": {"full_name": "owner/repo"},
     }
 
-    mock_issue = MagicMock()
-    mock_issue.number = 43
-    mock_issue.title = "Add feature"
-    mock_issue.body = "Body"
-    mock_adapter = MagicMock()
-    mock_adapter.get_issue.return_value = mock_issue
-
-    def fake_run_planner(adapter, agent, issue, repo, repo_dir, **kwargs):
-        set_issue_status(repo_dir, issue.number, "waiting_confirmation")
-
-    with patch("coddy.observer.webhook.handlers.GitHubAdapter", return_value=mock_adapter):
-        with patch("coddy.observer.webhook.handlers.run_planner", side_effect=fake_run_planner):
-            with patch("coddy.observer.webhook.handlers.make_cursor_cli_agent", return_value=MagicMock()):
-                handle_github_event(config, "issues", payload, repo_dir=tmp_path)
+    handle_github_event(config, "issues", payload, repo_dir=tmp_path)
 
     issue = load_issue(tmp_path, 43)
     assert issue is not None
-    assert issue.status == "waiting_confirmation"
-    mock_adapter.get_issue.assert_called_once_with("owner/repo", 43)
+    assert issue.status == "pending_plan"
 
 
 def test_webhook_issue_comment_affirmative_sets_queued(tmp_path: Path) -> None:

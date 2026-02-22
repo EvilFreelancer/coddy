@@ -1,8 +1,8 @@
 """Handle GitHub webhook events (PR merged, issues assigned, issue comment).
 
 On PR merged runs git pull and exits for restart. On issue assigned
-creates issue file and runs planner; on user confirmation sets status
-queued.
+creates/updates issue file and sets status pending_plan (worker builds
+plan). On user confirmation sets status queued.
 """
 
 import logging
@@ -12,7 +12,7 @@ from pathlib import Path
 from typing import Any, Dict
 
 from coddy.observer.adapters.github import GitHubAdapter
-from coddy.observer.planner import is_affirmative_comment, on_user_confirmed, run_planner
+from coddy.observer.planner import is_affirmative_comment, on_user_confirmed
 from coddy.services.git import GitRunnerError, run_git_pull
 from coddy.services.store import (
     add_comment,
@@ -24,7 +24,6 @@ from coddy.services.store import (
     set_pr_status,
     update_comment,
 )
-from coddy.worker.agents.cursor_cli_agent import make_cursor_cli_agent
 
 
 def _working_dir_from_config(config: Any) -> Path:
@@ -210,8 +209,8 @@ def _ensure_issue_in_store(config: Any, payload: Dict[str, Any], repo_dir: Path,
 
 
 def _handle_issues(config: Any, payload: Dict[str, Any], repo_dir: Path, log: logging.Logger) -> None:
-    """Store all issue events; run planner only when action=assigned and
-    assignee is bot."""
+    """Store all issue events; on action=assigned set status pending_plan when
+    bot is assignee."""
     action = payload.get("action")
     issue_payload = payload.get("issue") or {}
     issue_number = issue_payload.get("number")
@@ -269,8 +268,8 @@ def _handle_issues_assigned(
     repo_dir: Path,
     log: logging.Logger,
 ) -> None:
-    """Run planner only when bot is in assignees (issue already stored by
-    _handle_issues)."""
+    """When bot is in assignees, set status to pending_plan so worker builds
+    the plan."""
     if payload.get("action") != "assigned":
         return
     issue_payload = payload.get("issue") or {}
@@ -291,31 +290,8 @@ def _handle_issues_assigned(
     issue_number = issue_payload.get("number")
     if issue_number is None:
         return
-    token = getattr(config, "github_token_resolved", None)
-    if token and getattr(config.bot, "git_platform", "") == "github":
-        try:
-            adapter = GitHubAdapter(
-                token=token,
-                api_url=getattr(config.github, "api_url", "https://api.github.com"),
-            )
-            issue = adapter.get_issue(repo, int(issue_number))
-            agent = make_cursor_cli_agent(config)
-            run_planner(
-                adapter,
-                agent,
-                issue,
-                repo,
-                repo_dir,
-                bot_username=bot_username,
-                log=log,
-            )
-        except Exception as e:
-            log.exception("Failed to run planner for issue #%s: %s", issue_number, e)
-    else:
-        log.info(
-            "Issue #%s assigned, status pending_plan (no token or not github; plan not posted)",
-            issue_number,
-        )
+    set_issue_status(repo_dir, int(issue_number), "pending_plan")
+    log.info("Issue #%s assigned, status -> pending_plan (worker will build plan)", issue_number)
 
 
 def handle_github_event(
@@ -329,7 +305,7 @@ def handle_github_event(
 
     Supported events:
     - pull_request (action=closed, merged=true): git pull from default branch, then exit 0 to allow restart.
-    - issues (action=assigned): if bot is in assignees, enqueue task for worker.
+    - issues (action=assigned): if bot is in assignees, set status pending_plan (worker builds plan).
     - issue_comment: on user confirmation set issue status to queued.
     """
     logger = log or logging.getLogger("coddy.observer.webhook.handlers")

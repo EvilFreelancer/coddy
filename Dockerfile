@@ -10,10 +10,6 @@ RUN apt update \
  && rm -rf /var/lib/apt/lists/* \
  && (ln -sf /usr/bin/node /usr/local/bin/node 2>/dev/null || true)
 
-# Install Cursor CLI (agent binary) for the worker
-RUN curl -fsSL https://cursor.com/install | bash \
- && cp /root/.local/bin/agent /usr/local/bin/agent 2>/dev/null || true
-
 # Copy project and install
 COPY pyproject.toml ./
 RUN pip install --no-cache-dir -e .
@@ -21,9 +17,11 @@ RUN pip install --no-cache-dir -e .
 # Copy sources
 COPY coddy/ ./coddy/
 
-# Create non-root user
+# Create non-root user and install Cursor agent as coddy (so agent and index.js are under ~/.local)
 RUN useradd -m -u 1000 coddy && chown -R coddy:coddy /app
 USER coddy
+RUN curl -fsSL https://cursor.com/install | bash
+ENV PATH="/home/coddy/.local/bin:${PATH}"
 
 # Health check for daemon (HTTP server on 8000)
 HEALTHCHECK --interval=30s --timeout=10s --start-period=5s --retries=3 \

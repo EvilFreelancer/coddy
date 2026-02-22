@@ -15,6 +15,7 @@ Coddy runs as two services: **observer** (webhook server, sets issue status in `
 
    - Edit `.secrets/github_token` - put your GitHub Personal Access Token
    - Edit `.secrets/webhook_secret` - put the secret you configured in GitHub webhook
+   - Edit `.secrets/cursor_agent_token` - put your Cursor User API Key (required for worker; observer does not run the agent)
    - Edit `config.yaml`: set `webhook.enabled: true`, and under `ai_agents.cursor_cli` set `working_directory: /app/workspace` so both containers use the shared workspace.
    - Docker Compose sets `BOT_WORKSPACE=/app/workspace` so that `.coddy/` (issues, PRs) is created inside the workspace volume, not in the container cwd.
 
@@ -50,7 +51,7 @@ Coddy runs as two services: **observer** (webhook server, sets issue status in `
 ## How secrets work
 
 - Docker Compose mounts each secret file into the container at `/run/secrets/<name>`.
-- The app is given `GITHUB_TOKEN_FILE=/run/secrets/github_token` and `WEBHOOK_SECRET_FILE=/run/secrets/webhook_secret`.
+- The app is given `GITHUB_TOKEN_FILE` and `WEBHOOK_SECRET_FILE`; the worker also gets `CURSOR_AGENT_TOKEN_FILE` (only the worker runs the planner and agent).
 - The app reads the token/secret from that path and never expects them in the image or in `config.yaml`.
 
 ## Running the worker without exposing secrets

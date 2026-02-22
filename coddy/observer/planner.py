@@ -66,7 +66,10 @@ def run_planner(
     log: logging.Logger | None = None,
 ) -> None:
     """Generate plan (in issue language), post message, add to issue store, set
-    status waiting_confirmation. On agent error, log it and post a short error message."""
+    status waiting_confirmation.
+
+    On agent error, log it and post a short error message.
+    """
     logger = log or LOG
     comments = adapter.get_issue_comments(repo, issue.number, since=None)
     plan = agent.generate_plan(issue, comments)

@@ -1,12 +1,11 @@
 """
 Coddy observer: webhook server and task intake.
 
-Listens for GitHub webhooks; on issue assigned creates/updates .coddy/issues/,
-runs planner (posts plan, waiting_confirmation); on user confirmation sets
-issue status to queued (worker picks from .coddy/issues/). Optional poll of
-.coddy/issues/ for agent clarification (waiting_user_reply -> post to platform).
-On PR/issue closed updates status in .coddy/prs/ and .coddy/issues/.
-Does not run the AI agent or development loop - that is done by the worker.
+Listens for GitHub webhooks; on issue assigned creates/updates .coddy/issues/
+and sets status pending_plan (worker builds plan and writes to files). Polls
+.coddy/issues/ for plan_ready (posts worker's plan to GitHub) and
+waiting_user_reply (posts clarification). On user confirmation sets issue
+status to queued. Does not run the AI agent or development loop - that is done by the worker.
 """
 
 import argparse
@@ -18,7 +17,7 @@ from pathlib import Path
 
 from coddy.config import AppConfig, LoggingConfig, load_config
 from coddy.logging import CoddyLogging
-from coddy.observer.clarification_poll import run_clarification_poll
+from coddy.observer.clarification_poll import run_clarification_poll, run_plan_post_poll
 from coddy.observer.webhook.handlers import _working_dir_from_config
 from coddy.observer.webhook.server import run_webhook_server
 
@@ -45,14 +44,15 @@ def parse_args(argv: list[str] | None = None) -> argparse.Namespace:
 
 
 def _clarification_poll_loop(config: AppConfig, work_dir: Path, log: logging.Logger) -> None:
-    """Background loop: every poll_interval_seconds run clarification poll."""
+    """Background loop: every poll_interval_seconds run plan post and clarification poll."""
     interval = getattr(config.observer, "poll_interval_seconds", 15)
     while True:
         time.sleep(interval)
         try:
+            run_plan_post_poll(config, work_dir, log=log)
             run_clarification_poll(config, work_dir, log=log)
         except Exception as e:
-            log.warning("Clarification poll error: %s", e)
+            log.warning("Poll error: %s", e)
 
 
 def run_observer(config: AppConfig) -> None:

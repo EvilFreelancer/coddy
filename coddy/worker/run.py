@@ -22,6 +22,7 @@ from coddy.services.store import (
     IssueFile,
     add_comment,
     list_issues_by_status,
+    list_pending_plan,
     list_queued,
     set_agent_clarification,
     set_issue_status,
@@ -149,6 +150,7 @@ def run_worker(config: AppConfig, once: bool = False, poll_interval: int = 10) -
     )
 
     while True:
+        pending_plan = _filter_by_assignment(list_pending_plan(repo_dir), assignment_only, bot_username)
         user_replied = _filter_by_assignment(
             list_issues_by_status(repo_dir, "user_replied"), assignment_only, bot_username
         )
@@ -156,12 +158,27 @@ def run_worker(config: AppConfig, once: bool = False, poll_interval: int = 10) -
 
         if assignment_only and not bot_username:
             log.warning("assignment_only is True but bot username is not set; skipping issues. Set BOT_USERNAME.")
+            pending_plan = []
             user_replied = []
             queued = []
 
         did_work = False
 
-        if user_replied and adapter and agent:
+        if pending_plan and agent:
+            pending_plan.sort(key=lambda t: t[0])
+            issue_number, issue_file = pending_plan[0]
+            issue, comments = _issue_file_to_issue_and_comments(issue_number, issue_file)
+            from coddy.observer.planner import TEMPLATE_PLAN_ERROR, format_plan_request
+
+            plan = agent.generate_plan(issue, comments)
+            message = format_plan_request(plan) if plan else TEMPLATE_PLAN_ERROR
+            bot_name = f"@{bot_username}" if bot_username else "@bot"
+            add_comment(repo_dir, issue_number, bot_name, message)
+            set_issue_status(repo_dir, issue_number, "plan_ready")
+            log.info("Issue #%s: plan written to YAML, status -> plan_ready", issue_number)
+            did_work = True
+
+        if not did_work and user_replied and adapter and agent:
             user_replied.sort(key=lambda t: t[0])
             issue_number, issue_file = user_replied[0]
             issue, comments = _issue_file_to_issue_and_comments(issue_number, issue_file)

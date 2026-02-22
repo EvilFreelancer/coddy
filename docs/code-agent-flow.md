@@ -28,7 +28,7 @@ This document describes how the code agent is started, how it can ask the user f
 
 ## Clarification flow (agent asks, user answers)
 
-1. **Agent needs clarification**  
+1. **Agent needs clarification**
    During the ralph loop (or before starting), the agent adds a **bot comment** to the issue (with its role/name and the question text) and sets `status: waiting_user_reply` and `updated_at`. Everything is stored in the **comments** thread; no separate clarification fields.
 
 2. **Observer** (polling `.coddy/issues/`) sees an issue with `status=waiting_user_reply`. It:
