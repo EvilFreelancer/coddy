@@ -261,3 +261,5 @@ Picks queued issues, runs agent, creates branches/commits/PRs.
 - [x] System specification and config (env + YAML)
 - [ ] User attribution in commits
 - [ ] GitLab / Bitbucket adapters and webhook events
+
+Hello.
