@@ -2,9 +2,11 @@ FROM python:3.14-slim
 
 WORKDIR /app
 
-# Install system dependencies (node required by Cursor agent script)
+# Install system dependencies and Node.js 24 (Cursor agent needs Node 23.8+ for --use-system-ca)
 RUN apt update \
- && apt install -y --no-install-recommends git curl openssh-client nodejs \
+ && apt install -y --no-install-recommends git curl openssh-client ca-certificates gnupg \
+ && curl -fsSL https://deb.nodesource.com/setup_24.x | bash - \
+ && apt install -y --no-install-recommends nodejs \
  && rm -rf /var/lib/apt/lists/* \
  && (ln -sf /usr/bin/node /usr/local/bin/node 2>/dev/null || true)
 
@@ -16,7 +18,7 @@ RUN curl -fsSL https://cursor.com/install | bash \
 COPY pyproject.toml ./
 RUN pip install --no-cache-dir -e .
 
-# Cooy soures
+# Copy sources
 COPY coddy/ ./coddy/
 
 # Create non-root user
