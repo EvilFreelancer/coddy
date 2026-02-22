@@ -43,8 +43,7 @@ TEMPLATE_WORK_STARTED = "Work on this task has started. The implementation will 
 
 # When worker re-evaluates after user reply and data is sufficient
 TEMPLATE_PROCEED_REQUEST = (
-    "Data is sufficient. Shall I proceed with implementation? "
-    "Reply with **yes** / **go ahead** / **поехали** to start."
+    "Data is sufficient. Shall I proceed with implementation? Reply with **yes** / **go ahead** / **поехали** to start."
 )
 
 
@@ -85,7 +84,7 @@ def run_planner(
     try:
         adapter.create_comment(repo, issue.number, message)
     except GitPlatformError as e:
-        logger.warning("Failed to post plan comment: %s", e)
+        logger.warning("Issue #%s: failed to post plan comment: %s", issue.number, e)
         return
     name = f"@{bot_username}" if bot_username else "@bot"
     add_comment(repo_dir, issue.number, name, message)
@@ -115,5 +114,5 @@ def on_user_confirmed(
     try:
         adapter.create_comment(repo, issue_number, message)
     except GitPlatformError as e:
-        logger.warning("Failed to post work started: %s", e)
-    logger.info("Issue #%s confirmed, status queued and notified", issue_number)
+        logger.warning("Issue #%s: failed to post work started: %s", issue_number, e)
+    logger.info("Issue #%s: confirmed, status queued and notified", issue_number)

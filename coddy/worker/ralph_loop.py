@@ -73,21 +73,21 @@ def run_ralph_loop_for_issue(
     except GitPlatformError as e:
         err_msg = str(e).lower()
         if "already exists" in err_msg or "422" in err_msg:
-            logger.info("Branch %s already exists, switching to it", branch_name)
+            logger.info("Issue #%s: branch %s already exists, switching to it", issue.number, branch_name)
         else:
-            logger.warning("Failed to create branch %s: %s", branch_name, e)
+            logger.warning("Issue #%s: failed to create branch %s: %s", issue.number, branch_name, e)
             return "failed"
 
     try:
         fetch_and_checkout_branch(branch_name, repo_dir=repo_dir, log=logger)
     except Exception as e:
-        logger.warning("Failed to checkout branch %s: %s", branch_name, e)
+        logger.warning("Issue #%s: failed to checkout branch %s: %s", issue.number, branch_name, e)
         return "failed"
 
     try:
         adapter.set_issue_labels(repo, issue.number, ["in progress"])
     except GitPlatformError as e:
-        logger.warning("Failed to set labels: %s", e)
+        logger.warning("Issue #%s: failed to set labels: %s", issue.number, e)
 
     for iteration in range(1, max_iterations + 1):
         if iteration > 1:
@@ -116,7 +116,7 @@ def run_ralph_loop_for_issue(
                         log=logger,
                     )
                 except Exception as e:
-                    logger.warning("Failed to commit/push: %s", e)
+                    logger.warning("Issue #%s: failed to commit/push: %s", issue.number, e)
             try:
                 base = default_branch or adapter.get_default_branch(repo)
                 pr = adapter.create_pr(
@@ -132,15 +132,23 @@ def run_ralph_loop_for_issue(
                 pr_status = getattr(pr, "state", None)
                 if not isinstance(pr_status, str):
                     pr_status = "open"
-                save_pr(repo_dir, PRFile(pr_id=getattr(pr, "number", 0), repo=repo, status=pr_status, issue_id=issue.number, created_at=now, updated_at=now))
+                pr_file = PRFile(
+                    pr_id=getattr(pr, "number", 0),
+                    repo=repo,
+                    status=pr_status,
+                    issue_id=issue.number,
+                    created_at=now,
+                    updated_at=now,
+                )
+                save_pr(repo_dir, pr_file)
                 try:
                     checkout_branch(base, repo_dir=repo_dir, log=logger)
-                    logger.info("Switched back to default branch: %s", base)
+                    logger.info("Issue #%s: switched back to default branch: %s", issue.number, base)
                 except Exception as e:
-                    logger.warning("Failed to switch back to default branch: %s", e)
+                    logger.warning("Issue #%s: failed to switch back to default branch: %s", issue.number, e)
                 return "success"
             except GitPlatformError as e:
-                logger.warning("Failed to create PR or set labels: %s", e)
+                logger.warning("Issue #%s: failed to create PR or set labels: %s", issue.number, e)
                 try:
                     base = default_branch or adapter.get_default_branch(repo)
                     checkout_branch(base, repo_dir=repo_dir, log=logger)
@@ -173,7 +181,7 @@ def run_ralph_loop_for_issue(
                         log=logger,
                     )
                 except Exception as e:
-                    logger.warning("Failed to commit/push: %s", e)
+                    logger.warning("Issue #%s: failed to commit/push: %s", issue.number, e)
             try:
                 base = default_branch or adapter.get_default_branch(repo)
                 pr = adapter.create_pr(
@@ -184,16 +192,24 @@ def run_ralph_loop_for_issue(
                     base=base,
                 )
                 adapter.set_issue_labels(repo, issue.number, ["review"])
-                logger.info("Issue #%s: PR created, label set to review", issue.number)
+                logger.info("Issue #%s: PR created from report, label set to review", issue.number)
                 now = datetime.now(UTC).isoformat()
                 pr_status = getattr(pr, "state", None)
                 if not isinstance(pr_status, str):
                     pr_status = "open"
-                save_pr(repo_dir, PRFile(pr_id=getattr(pr, "number", 0), repo=repo, status=pr_status, issue_id=issue.number, created_at=now, updated_at=now))
+                pr_file = PRFile(
+                    pr_id=getattr(pr, "number", 0),
+                    repo=repo,
+                    status=pr_status,
+                    issue_id=issue.number,
+                    created_at=now,
+                    updated_at=now,
+                )
+                save_pr(repo_dir, pr_file)
                 checkout_branch(base, repo_dir=repo_dir, log=logger)
                 return "success"
             except GitPlatformError as e:
-                logger.warning("Failed to create PR or set labels: %s", e)
+                logger.warning("Issue #%s: failed to create PR or set labels: %s", issue.number, e)
                 try:
                     base = default_branch or adapter.get_default_branch(repo)
                     checkout_branch(base, repo_dir=repo_dir, log=logger)

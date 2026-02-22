@@ -52,7 +52,7 @@ def _handle_pull_request_closed(
     repo_payload = payload.get("repository") or {}
     repo_full_name = repo_payload.get("full_name") or ""
     if repo_full_name and repo_full_name != getattr(config.bot, "repository", ""):
-        logger.debug("Skipping PR closed: repository %s is not configured repo", repo_full_name)
+        logger.debug("PR #%s: skipping PR closed - repository %s is not configured repo", pr_number, repo_full_name)
         return
     working_dir = Path(repo_dir) if repo_dir is not None else _working_dir_from_config(config)
     if pr_number is not None and repo_full_name:
@@ -62,15 +62,15 @@ def _handle_pull_request_closed(
     if not pull.get("merged"):
         return
     if getattr(config.bot, "git_platform", "") != "github":
-        logger.debug("Skipping PR merged: platform is not github")
+        logger.debug("PR #%s: skipping PR merged - platform is not github", pr_number)
         return
     default_branch = getattr(config.bot, "default_branch", "main")
     try:
         run_git_pull(default_branch, repo_dir=working_dir, log=logger)
     except GitRunnerError as e:
-        logger.warning("PR merged: git pull failed - %s", e)
+        logger.warning("PR #%s: git pull failed - %s", pr_number, e)
         return
-    logger.info("PR merged: pulled origin/%s, exiting for restart", default_branch)
+    logger.info("PR #%s: pulled origin/%s, exiting for restart", pr_number, default_branch)
     sys.exit(0)
 
 
