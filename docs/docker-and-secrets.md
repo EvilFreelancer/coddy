@@ -13,13 +13,19 @@ Coddy runs as two services: **observer** (webhook server, sets issue status in `
 
 2. **Replace placeholders with real values** (never commit `.secrets/`):
 
-   - Edit `.secrets/github_token` - put your GitHub Personal Access Token
+   - Edit `.secrets/github_token` - put your GitHub Personal Access Token **with push access** to the repo (see [GitHub token (push access)](#github-token-push-access) below).
    - Edit `.secrets/webhook_secret` - put the secret you configured in GitHub webhook
    - Edit `.secrets/cursor_agent_token` - put your Cursor User API Key (required for worker; observer does not run the agent)
    - Edit `config.yaml`: set `webhook.enabled: true` and `bot.workspace_path: /app/workspace` (or set env `BOT_WORKSPACE_PATH=/app/workspace`) so both containers use the same workspace.
    - Docker Compose sets `BOT_WORKSPACE_PATH=/app/workspace` so that `.coddy/` (issues, PRs) is created inside the workspace volume, not in the container cwd.
 
-3. **Workspace (repo)**
+3. **SSH for git (fetch/push)**
+   If the workspace repo uses an SSH remote (`git@github.com:...`), the worker (and observer) need access to your SSH keys and `known_hosts`. The dist compose mounts the host `.ssh` directory read-only into the container:
+   - `${HOME}/.ssh` → `/home/coddy/.ssh:ro`
+   - Ensure `HOME` is set when you run `docker compose` (normal when run from your shell), or set `CODDY_SSH_DIR` in `.env` to the path of your `.ssh` directory.
+   - Without this mount, `git fetch` / `git push` will fail with "Host key verification failed" or "Permission denied (publickey)".
+
+4. **Workspace (repo)**
    The worker needs the target repo on disk to run git and the Cursor CLI. Either:
    - Copy `docker-compose.dist.yaml` to `docker-compose.yaml` and add a bind mount for your repo, e.g. under `coddy-worker` and `coddy-daemon` (observer service):
      ```yaml
@@ -30,7 +36,7 @@ Coddy runs as two services: **observer** (webhook server, sets issue status in `
      (remove the `coddy-workspace` named volume for those services if you use a bind mount), or
    - Use the default `coddy-workspace` volume and clone the repo into it (e.g. via an init container or one-off run).
 
-4. **Start the bot**:
+5. **Start the bot**:
 
    ```bash
    docker compose -f docker-compose.dist.yaml up -d
@@ -40,13 +46,36 @@ Coddy runs as two services: **observer** (webhook server, sets issue status in `
    docker compose up -d
    ```
 
-5. **Check**:
+6. **Check**:
 
    ```bash
    curl http://localhost:8000/health
    docker compose logs -f coddy-daemon
    docker compose logs -f coddy-worker
    ```
+
+## GitHub token (push access)
+
+The app uses the GitHub token to create branches, push commits, open PRs, and post comments. **Do not forget** to create a token that has **write (push) access** to the repository; otherwise the worker will create a branch via API but `git fetch` / `git push` (or API push) will fail.
+
+### How to create the token
+
+1. **Open GitHub → Settings → Developer settings → Personal access tokens**
+   - Classic: [github.com/settings/tokens](https://github.com/settings/tokens)
+   - Fine-grained: [github.com/settings/tokens?type=fine_grained](https://github.com/settings/tokens?type=fine_grained)
+
+2. **Create a token with access to the target repo**
+   - **Classic token**: enable scope **repo** (full control of private repositories), or at least **public_repo** for public repos.
+   - **Fine-grained token**: grant **Contents** (Read and write), **Pull requests** (Read and write), **Issues** (Read and write), **Metadata** (Read) for the repository Coddy works on.
+
+3. **Put the token into the secret file**
+   - Copy the token and write it into `.secrets/github_token` (no trailing newline):
+     ```bash
+     echo -n "YOUR_GITHUB_TOKEN" > .secrets/github_token
+     ```
+   - Or edit `.secrets/github_token` and replace the placeholder.
+
+Without a token that can push, the bot will not be able to push branches or open PRs after working on an issue.
 
 ## How secrets work
 

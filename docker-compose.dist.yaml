@@ -23,6 +23,7 @@ services:
     volumes:
       - ./config.yaml:/app/config.yaml:ro
       - ${REPO_PATH:-.}:/app/workspace:rw
+      - ${SSH_DIR:-${HOME}/.ssh}:/home/coddy/.ssh:ro
     ports:
       - "${CODDY_PORT:-8000}:8000"
     command: ["python", "-m", "coddy", "observer", "--config", "/app/config.yaml"]
@@ -45,6 +46,7 @@ services:
     volumes:
       - ./config.yaml:/app/config.yaml:ro
       - ${REPO_PATH:-.}:/app/workspace:rw
+      - ${CODDY_SSH_DIR:-${HOME}/.ssh}:/home/coddy/.ssh:ro
     command: ["python", "-m", "coddy", "worker", "--config", "/app/config.yaml"]
     <<: *shared-logs
 
