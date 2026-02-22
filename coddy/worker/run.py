@@ -68,10 +68,35 @@ def run_worker(config: AppConfig, once: bool = False, poll_interval: int = 10) -
             repo_dir = Path(wd).resolve()
 
     repo = config.bot.repository
-    log.info("Coddy worker started (dry run) | repo=%s | workspace=%s | once=%s", repo, repo_dir, once)
+    assignment_only = getattr(config.bot, "assignment_only", True)
+    bot_username = getattr(config.bot, "username", None)
+    log.info(
+        "Coddy worker started (dry run) | repo=%s | workspace=%s | once=%s | assignment_only=%s",
+        repo,
+        repo_dir,
+        once,
+        assignment_only,
+    )
 
     while True:
         queued = list_queued(repo_dir)
+        if assignment_only:
+            if not bot_username:
+                log.warning(
+                    "assignment_only is True but bot username is not set; skipping all queued issues. "
+                    "Set BOT_USERNAME (e.g. coddybot) to process only issues assigned to the bot."
+                )
+                queued = []
+            else:
+                before = len(queued)
+                queued = [(n, i) for n, i in queued if i.assigned_to == bot_username]
+                if before > len(queued):
+                    log.debug(
+                        "Filtered to issues assigned to %s: %s of %s",
+                        bot_username,
+                        len(queued),
+                        before,
+                    )
         if not queued:
             if once:
                 log.info("No queued issues, exiting (--once)")

@@ -4,7 +4,8 @@
 bot:
   name: "Coddy Bot"   # Git commit author (user.name)
   email: "bot@coddy.dev"  # Git commit author (user.email)
-  username: "coddybot"  # Platform account for mention logic
+  username: "coddybot"  # GitHub (or platform) login; worker only takes issues assigned to this user when assignment_only is true
+  assignment_only: true  # When true, worker processes only issues assigned to the bot (e.g. coddybot)
   git_platform: "github"  # github, gitlab, bitbucket
   repository: "owner/repo"
   default_branch: "main"   # used for git pull on PR merge and for PR base

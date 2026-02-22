@@ -95,7 +95,8 @@ def _handle_issue_comment(
     repo_dir: Path,
     log: logging.Logger,
 ) -> None:
-    """On comment: created -> append to store; edited -> update; deleted -> set deleted_at. If created + waiting_confirmation + affirmative -> on_user_confirmed."""
+    """On comment: created -> append; edited -> update; deleted -> set deleted_at.
+    If created + waiting_confirmation + affirmative -> on_user_confirmed."""
     action = payload.get("action")
     if action not in ("created", "edited", "deleted"):
         return

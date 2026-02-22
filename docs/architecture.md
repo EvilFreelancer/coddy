@@ -120,7 +120,7 @@ Business logic for events, state, queue, and planning. No agent execution.
 Orchestrates the development loop and uses the agent.
 
 - `ralph_loop.py` - Sufficiency, branch, loop until PR report or clarification
-- `run.py` - Queue polling, run ralph loop per task
+- `run.py` - Queue polling; when `assignment_only` is true, only issues with `assigned_to == bot.username` (e.g. coddybot) are processed; then ralph loop per task
 
 **Dependencies**: Observer (adapters, queue, models), worker.agents, worker.task_yaml
 
@@ -129,7 +129,7 @@ Orchestrates the development loop and uses the agent.
 ```
   OBSERVER (observer.run)
   Webhook Server -> on assigned: planner -> .coddy/issues/ (waiting_confirmation -> queued)
-  Worker (worker.run) polls .coddy/issues/ (status=queued) -> for each task: ralph loop -> Cursor CLI (per iteration)
+  Worker (worker.run) polls .coddy/issues/ (status=queued); if assignment_only, filters to assigned_to=bot.username -> for each task: ralph loop -> Cursor CLI (per iteration)
   -> PR report (.coddy/pr-{n}.yaml) or agent_clarification -> Create PR / post comment; labels; checkout default.
 ```
 

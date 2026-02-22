@@ -45,7 +45,11 @@ class BotConfig(BaseSettings):
     )
     username: str | None = Field(
         default=None,
-        description="Platform account for mentions (skip own comments, react to user); env BOT_USERNAME",
+        description="Platform login (e.g. coddybot on GitHub); assignment check and mentions; env BOT_USERNAME",
+    )
+    assignment_only: bool = Field(
+        default=True,
+        description="When True, worker only processes issues assigned to bot; env BOT_ASSIGNMENT_ONLY",
     )
     webhook_secret: str = Field(default="", description="Secret for webhook verification")
     ai_agent: str = Field(default="cursor_cli", description="AI agent key from ai_agents")

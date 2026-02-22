@@ -293,6 +293,8 @@ class FileChange:
 bot:
   name: "Coddy Bot"
   email: "bot@coddy.dev"
+  username: "coddybot"  # Platform login (e.g. GitHub); when assignment_only is true, worker only processes issues assigned to this user
+  assignment_only: true  # When true, worker picks only issues where assigned_to == username (default true)
   git_platform: "github"  # github, gitlab, bitbucket
   repository: "owner/repo"
   webhook_secret: "secret"
