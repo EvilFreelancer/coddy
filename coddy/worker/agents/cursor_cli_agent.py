@@ -49,7 +49,7 @@ class CursorCLIAgent(AIAgent):
     def __init__(
         self,
         command: str = "agent",
-        timeout: int = 300,
+        timeout: int = 600,
         working_directory: str = ".",
         token: str | None = None,
         output_format: str | None = None,
@@ -309,7 +309,7 @@ def make_cursor_cli_agent(config: Any) -> CursorCLIAgent:
     workspace = getattr(config.bot, "workspace_path", ".") or "."
     return CursorCLIAgent(
         command=getattr(cfg, "command", "agent"),
-        timeout=getattr(cfg, "timeout", 300),
+        timeout=getattr(cfg, "timeout", 600),
         working_directory=workspace,
         token=token,
         output_format=getattr(cfg, "output_format", None),

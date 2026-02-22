@@ -88,7 +88,15 @@ def run_ralph_loop_for_issue(
         logger.warning("Failed to set labels: %s", e)
 
     for iteration in range(1, max_iterations + 1):
-        logger.info("Issue #%s: ralph iteration %s/%s", issue.number, iteration, max_iterations)
+        if iteration > 1:
+            logger.info(
+                "Issue #%s: ralph iteration %s/%s (previous run produced no PR, e.g. timeout)",
+                issue.number,
+                iteration,
+                max_iterations,
+            )
+        else:
+            logger.info("Issue #%s: ralph iteration %s/%s", issue.number, iteration, max_iterations)
         issue = adapter.get_issue(repo, issue.number)
         comments = adapter.get_issue_comments(repo, issue.number, since=None)
 
