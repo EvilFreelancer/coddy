@@ -16,8 +16,8 @@ Coddy runs as two services: **observer** (webhook server, sets issue status in `
    - Edit `.secrets/github_token` - put your GitHub Personal Access Token
    - Edit `.secrets/webhook_secret` - put the secret you configured in GitHub webhook
    - Edit `.secrets/cursor_agent_token` - put your Cursor User API Key (required for worker; observer does not run the agent)
-   - Edit `config.yaml`: set `webhook.enabled: true`, and under `ai_agents.cursor_cli` set `working_directory: /app/workspace` so both containers use the shared workspace.
-   - Docker Compose sets `BOT_WORKSPACE=/app/workspace` so that `.coddy/` (issues, PRs) is created inside the workspace volume, not in the container cwd.
+   - Edit `config.yaml`: set `webhook.enabled: true` and `bot.workspace_path: /app/workspace` (or set env `BOT_WORKSPACE_PATH=/app/workspace`) so both containers use the same workspace.
+   - Docker Compose sets `BOT_WORKSPACE_PATH=/app/workspace` so that `.coddy/` (issues, PRs) is created inside the workspace volume, not in the container cwd.
 
 3. **Workspace (repo)**
    The worker needs the target repo on disk to run git and the Cursor CLI. Either:

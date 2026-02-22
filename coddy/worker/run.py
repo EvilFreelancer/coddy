@@ -110,8 +110,11 @@ def run_worker_poll(
     agent: Any,
     log: logging.Logger,
 ) -> bool:
-    """One pass over .coddy/issues/: drain pending_plan, drain user_replied, then one queued.
-    Returns True if any work was done."""
+    """One pass over .coddy/issues/: drain pending_plan, drain user_replied,
+    then one queued.
+
+    Returns True if any work was done.
+    """
     repo = config.bot.repository
     assignment_only = getattr(config.bot, "assignment_only", True)
     bot_username = getattr(config.bot, "username", None)
@@ -119,9 +122,7 @@ def run_worker_poll(
     did_work = False
 
     while True:
-        pending_plan = _filter_by_assignment(
-            list_pending_plan(repo_dir), assignment_only, bot_username
-        )
+        pending_plan = _filter_by_assignment(list_pending_plan(repo_dir), assignment_only, bot_username)
         if not pending_plan or not agent:
             break
         pending_plan.sort(key=lambda t: t[0])
@@ -216,17 +217,14 @@ def run_worker(config: AppConfig, once: bool = False, poll_interval: int = 10) -
     CoddyLogging(config.logging).setup()
     log = logging.getLogger("coddy.worker")
 
-    workspace = getattr(config.bot, "workspace", ".") or "."
+    # Only bot.workspace_path is used for .coddy/issues/ (same as observer).
+    workspace = getattr(config.bot, "workspace_path", ".") or "."
     repo_dir = Path(workspace).resolve()
     if (repo_dir / ".secrets").exists():
         log.warning(
             "Workspace contains .secrets/ - tokens may be visible to anyone with access to the workspace. "
             "Use a workspace path that does not contain .secrets/ (see docs/docker-and-secrets.md)."
         )
-    if config.ai_agents and "cursor_cli" in config.ai_agents:
-        wd = getattr(config.ai_agents["cursor_cli"], "working_directory", None)
-        if wd:
-            repo_dir = Path(wd).resolve()
 
     repo = config.bot.repository
     assignment_only = getattr(config.bot, "assignment_only", True)
@@ -294,9 +292,7 @@ def main(argv: list[str] | None = None) -> int:
         return 0
 
     poll_interval = (
-        args.poll_interval
-        if args.poll_interval is not None
-        else getattr(config.worker, "poll_interval_seconds", 10)
+        args.poll_interval if args.poll_interval is not None else getattr(config.worker, "poll_interval_seconds", 10)
     )
     try:
         run_worker(

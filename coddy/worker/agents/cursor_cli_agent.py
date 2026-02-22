@@ -254,13 +254,17 @@ class CursorCLIAgent(AIAgent):
 
 def make_cursor_cli_agent(config: Any) -> CursorCLIAgent:
     """Build CursorCLIAgent from app config (ai_agents.cursor_cli and resolved
-    token)."""
+    token).
+
+    Agent CWD is always bot.workspace_path.
+    """
     cfg = getattr(config, "ai_agents", {}).get("cursor_cli") or {}
     token = getattr(config, "cursor_agent_token_resolved", None) or getattr(cfg, "token", None)
+    workspace = getattr(config.bot, "workspace_path", ".") or "."
     return CursorCLIAgent(
         command=getattr(cfg, "command", "agent"),
         timeout=getattr(cfg, "timeout", 300),
-        working_directory=getattr(cfg, "working_directory", "."),
+        working_directory=workspace,
         token=token,
         output_format=getattr(cfg, "output_format", None),
         stream_partial_output=getattr(cfg, "stream_partial_output", False),

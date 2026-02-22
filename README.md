@@ -239,7 +239,7 @@ Runs as a daemon: receives webhooks, stores events, runs planner when the bot is
 
 Picks queued issues, runs agent, creates branches/commits/PRs.
 
-- [x] Task/PR YAML paths and workspace under `bot.workspace`
+- [x] Task/PR YAML paths and workspace under `bot.workspace_path`
 - [x] Ralph loop (sufficiency, branch, agent loop) – structure in place
 - [x] **Agents**
   - [x] Cursor CLI agent (partial integration)
@@ -254,7 +254,7 @@ Picks queued issues, runs agent, creates branches/commits/PRs.
   - [x] Issue store (`.coddy/issues/` – one YAML per issue, status, comments, `assigned_at` / `assigned_to`)
   - [x] PR store (`.coddy/prs/`)
 - [x] **Git** – branches, commits, push/pull (used by observer on PR merged and by worker)
-- [x] **Workspace** – single working directory per bot (`BOT_WORKSPACE`), repo cloned there
+- [x] **Workspace** – single working directory per bot (`BOT_WORKSPACE_PATH`), repo cloned there
 
 ### Other
 

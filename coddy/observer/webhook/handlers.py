@@ -27,15 +27,14 @@ from coddy.services.store import (
 
 
 def _working_dir_from_config(config: Any) -> Path:
-    """Resolve workspace path (sources and .coddy/) from config."""
-    workspace = getattr(config.bot, "workspace", ".") or "."
-    if workspace != ".":
-        return Path(workspace).resolve()
-    if config.ai_agents and "cursor_cli" in config.ai_agents:
-        wd = getattr(config.ai_agents["cursor_cli"], "working_directory", None)
-        if wd:
-            return Path(wd).resolve()
-    return Path.cwd()
+    """Resolve workspace path (sources and .coddy/) from config.
+
+    Only bot.workspace_path is used.
+    """
+    workspace = getattr(config.bot, "workspace_path", ".") or "."
+    if workspace == ".":
+        return Path.cwd()
+    return Path(workspace).resolve()
 
 
 def _handle_pull_request_closed(

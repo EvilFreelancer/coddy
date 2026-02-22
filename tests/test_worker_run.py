@@ -1,6 +1,7 @@
 """Tests for worker run (queue polling, assignment-only filtering)."""
 
 from pathlib import Path
+from unittest.mock import MagicMock, patch
 
 from coddy.config import AppConfig, BotConfig, LoggingConfig, load_config
 from coddy.services.store import create_issue, load_issue, set_issue_status
@@ -8,10 +9,11 @@ from coddy.worker.run import run_worker
 
 
 def _make_config(tmp_path: Path, assignment_only: bool = True, username: str | None = "coddybot") -> AppConfig:
-    """Build AppConfig with workspace at tmp_path and given bot options."""
+    """Build AppConfig with workspace_path at tmp_path and given bot
+    options."""
     config = AppConfig()
     config.bot = BotConfig(
-        workspace=str(tmp_path),
+        workspace_path=str(tmp_path),
         repository="owner/repo",
         assignment_only=assignment_only,
         username=username,
@@ -135,7 +137,8 @@ def test_worker_skips_issue_with_no_assignee_when_assignment_only(tmp_path: Path
 
 
 def test_worker_config_has_poll_interval_seconds(tmp_path: Path) -> None:
-    """AppConfig has worker with poll_interval_seconds; load_config reads worker section from YAML."""
+    """AppConfig has worker with poll_interval_seconds; load_config reads
+    worker section from YAML."""
     config = AppConfig()
     assert hasattr(config, "worker")
     assert getattr(config.worker, "poll_interval_seconds", None) >= 1
@@ -147,3 +150,59 @@ def test_worker_config_has_poll_interval_seconds(tmp_path: Path) -> None:
     )
     loaded = load_config(yaml_path)
     assert loaded.worker.poll_interval_seconds == 5
+
+
+def test_worker_polls_bot_workspace_not_cursor_working_directory(tmp_path: Path) -> None:
+    """Worker reads .coddy/issues/ only from bot.workspace_path (same as
+    observer)."""
+    import coddy.config as config_module
+    from coddy.config import CursorCLIAgentConfig
+
+    store_dir = tmp_path / "store"
+    store_dir.mkdir()
+    other_dir = tmp_path / "other"
+    other_dir.mkdir()
+
+    create_issue(
+        store_dir,
+        issue_id=20,
+        repo="owner/repo",
+        title="Need plan",
+        description="Body",
+        author="u",
+        assigned_at=1704067200,
+        assigned_to="coddybot",
+    )
+    set_issue_status(store_dir, 20, "pending_plan")
+    assert load_issue(store_dir, 20).status == "pending_plan"
+
+    config = AppConfig()
+    config.bot = BotConfig(
+        workspace_path=str(store_dir),
+        repository="owner/repo",
+        assignment_only=True,
+        username="coddybot",
+    )
+    config.bot.git_platform = "github"
+    config.logging = LoggingConfig()
+    config.github = MagicMock()
+    config.github.api_url = "https://api.github.com"
+    config.ai_agents = {"cursor_cli": CursorCLIAgentConfig()}
+
+    mock_agent = MagicMock()
+    mock_agent.generate_plan.return_value = "1. Step one\n2. Step two"
+
+    old_env = getattr(config_module, "_current_env", {})
+    try:
+        config_module._current_env = {**old_env, "GITHUB_TOKEN": "token"}
+        with patch("coddy.worker.agents.cursor_cli_agent.make_cursor_cli_agent", return_value=mock_agent):
+            with patch("coddy.observer.adapters.github.GitHubAdapter"):
+                run_worker(config, once=True)
+    finally:
+        config_module._current_env = old_env
+
+    issue = load_issue(store_dir, 20)
+    assert issue is not None
+    assert issue.status == "plan_ready"
+    assert len(issue.comments) == 1
+    assert "Step one" in (issue.comments[0].content or "")

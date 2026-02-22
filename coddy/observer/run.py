@@ -64,10 +64,10 @@ def run_observer(config: AppConfig) -> None:
         log.warning("Webhook disabled in config; observer will do nothing useful.")
 
     work_dir = _working_dir_from_config(config)
-    if (getattr(config.bot, "workspace", ".") or ".") == ".":
+    if (getattr(config.bot, "workspace_path", ".") or ".") == ".":
         log.warning(
-            "bot.workspace not set; .coddy (issues, prs) will be under cwd. "
-            "Set BOT_WORKSPACE or bot.workspace to the repo root for a predictable path.",
+            "bot.workspace_path not set; .coddy (issues, prs) will be under cwd. "
+            "Set BOT_WORKSPACE_PATH or bot.workspace_path to the repo root for a predictable path.",
         )
 
     poll_clarifications = getattr(config.observer, "poll_clarifications", True)
@@ -79,7 +79,7 @@ def run_observer(config: AppConfig) -> None:
         )
         thread.start()
         interval = getattr(config.observer, "poll_interval_seconds", 15)
-        log.info("Clarification poll thread started (interval=%ss)", interval)
+        log.info("Observer poll thread started (interval=%ss)", interval)
 
     log.info(
         "Coddy observer started | repo=%s | webhook=%s | workspace=%s",

@@ -9,7 +9,7 @@ bot:
   git_platform: "github"  # github, gitlab, bitbucket
   repository: "owner/repo"
   default_branch: "main"   # used for git pull on PR merge and for PR base
-  workspace: "./workspace"  # Workspace: path to repo root (sources + .coddy/ with issues and PRs); env BOT_WORKSPACE
+  workspace_path: "./workspace"  # Path to repo root (sources + .coddy/ with issues and PRs); env BOT_WORKSPACE_PATH
   webhook_secret: "your-webhook-secret-here"
   ai_agent: "cursor_cli"
 

@@ -39,9 +39,9 @@ class BotConfig(BaseSettings):
     git_platform: str = Field(default="github", description="github, gitlab, bitbucket")
     repository: str = Field(default="owner/repo", description="Target repo e.g. EvilFreelancer/coddy")
     default_branch: str = Field(default="main", description="Default branch for pull and PR base (e.g. main)")
-    workspace: str = Field(
+    workspace_path: str = Field(
         default=".",
-        description="Path to workspace (sources and .coddy/ with issues and PRs); env BOT_WORKSPACE",
+        description="Path to workspace (sources and .coddy/ with issues and PRs); env BOT_WORKSPACE_PATH",
     )
     username: str | None = Field(
         default=None,
@@ -92,7 +92,6 @@ class CursorCLIAgentConfig(BaseSettings):
     command: str = Field(default="agent", description="CLI command name (agent from Cursor install)")
     args: list[str] = Field(default_factory=lambda: ["generate"], description="CLI args")
     timeout: int = Field(default=300, ge=1, description="Timeout in seconds")
-    working_directory: str = Field(default=".", description="CWD for agent")
     token: str | None = Field(default=None, description="Agent token; prefer env or secret file")
     # Headless CLI options (docs: cursor.com/docs/cli/reference/parameters, output-format)
     output_format: str | None = Field(
@@ -238,10 +237,12 @@ def load_config(config_path: Path | None = None) -> AppConfig:
     raw = yaml.safe_load(path.read_text()) or {}
     raw = _substitute_env(raw)
 
-    # Env overrides for nested values (e.g. BOT_REPOSITORY)
+    # Env overrides for nested values (e.g. BOT_REPOSITORY, BOT_WORKSPACE_PATH)
     bot_raw = raw.get("bot") or {}
     if _current_env.get("BOT_REPOSITORY"):
         bot_raw = {**bot_raw, "repository": _current_env.get("BOT_REPOSITORY")}
+    if _current_env.get("BOT_WORKSPACE_PATH"):
+        bot_raw = {**bot_raw, "workspace_path": _current_env.get("BOT_WORKSPACE_PATH")}
 
     # Build nested models from raw dict
     bot = BotConfig(**bot_raw)
