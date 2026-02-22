@@ -10,9 +10,20 @@ and posts it to the issue. Run log is in .coddy/task-{n}.log.
 import logging
 import os
 import subprocess
+import time
 from datetime import UTC, datetime
 from pathlib import Path
 from typing import Any, List
+
+# Substrings in CLI stderr that suggest a transient error (worth retrying).
+_TRANSIENT_PLAN_ERRORS = (
+    "Connection stalled",
+    "ECONNRESET",
+    "ETIMEDOUT",
+    "Connection reset",
+    "timeout",
+    "T: Connection stalled",
+)
 
 from coddy.observer.models import Comment, Issue, ReviewComment
 from coddy.worker.agents.base import AIAgent, SufficiencyResult
@@ -59,7 +70,7 @@ class CursorCLIAgent(AIAgent):
 
     def generate_plan(self, issue: Issue, comments: List[Comment]) -> str | None:
         """Run Cursor CLI with a plan-only prompt; return plan text in issue
-        language."""
+        language. Retries on transient errors (e.g. connection stalled)."""
         prompt = (
             f"You are a planner. The user created an issue. Output ONLY a short implementation plan "
             f"(bullet points, no code). Use the same language as the issue. "
@@ -75,28 +86,63 @@ class CursorCLIAgent(AIAgent):
         env = os.environ.copy()
         if self.token:
             env["CURSOR_API_KEY"] = self.token
-        try:
-            result = subprocess.run(
-                cmd,
-                cwd=self.working_directory,
-                env=env,
-                timeout=min(self.timeout, 120),
-                check=False,
-                capture_output=True,
-                text=True,
-            )
-            out = (result.stdout or "") + (result.stderr or "")
-            if result.returncode != 0:
+
+        max_attempts = 3
+        retry_delay_sec = 10
+        last_out = ""
+        last_code: int | None = None
+
+        for attempt in range(1, max_attempts + 1):
+            try:
+                result = subprocess.run(
+                    cmd,
+                    cwd=self.working_directory,
+                    env=env,
+                    timeout=min(self.timeout, 120),
+                    check=False,
+                    capture_output=True,
+                    text=True,
+                )
+                out = (result.stdout or "") + (result.stderr or "")
+                last_out = out.strip() or "(no output)"
+                last_code = result.returncode
+
+                if result.returncode == 0:
+                    return out.strip() or "1. Analyze issue\n2. Implement\n3. Test"
+
+                is_transient = any(
+                    phrase in (result.stdout or "") or phrase in (result.stderr or "")
+                    for phrase in _TRANSIENT_PLAN_ERRORS
+                )
+                if is_transient and attempt < max_attempts:
+                    self._log.warning(
+                        "Plan generation attempt %s/%s failed (exit %s, transient): %s; retrying in %ss",
+                        attempt,
+                        max_attempts,
+                        result.returncode,
+                        last_out[:200],
+                        retry_delay_sec,
+                    )
+                    time.sleep(retry_delay_sec)
+                    continue
+
                 self._log.error(
                     "Plan generation failed (exit %s): %s",
                     result.returncode,
-                    out.strip() or "(no output)",
+                    last_out,
                 )
                 return None
-            return out.strip() or "1. Analyze issue\n2. Implement\n3. Test"
-        except (subprocess.TimeoutExpired, FileNotFoundError) as e:
-            self._log.exception("Plan generation failed: %s", e)
-            return None
+            except (subprocess.TimeoutExpired, FileNotFoundError) as e:
+                self._log.exception("Plan generation failed: %s", e)
+                return None
+
+        self._log.error(
+            "Plan generation failed after %s attempts (exit %s): %s",
+            max_attempts,
+            last_code,
+            last_out,
+        )
+        return None
 
     def evaluate_sufficiency(self, issue: Issue, comments: List[Comment]) -> SufficiencyResult:
         """Use simple heuristic: sufficient if body has some content."""
