@@ -7,6 +7,7 @@ agent_clarification to the task YAML and stops; Coddy reads that
 and posts it to the issue. Run log is in .coddy/task-{n}.log.
 """
 
+import json
 import logging
 import os
 import subprocess
@@ -15,6 +16,45 @@ import time
 from datetime import UTC, datetime
 from pathlib import Path
 from typing import Any, List
+
+def _extract_plan_from_cli_output(raw: str) -> str | None:
+    """Extract final plan text from Cursor CLI output (JSON lines or stream-json).
+
+    Looks for type 'assistant' with message.content[].type 'text', or type 'result'
+    with a string result. Returns the last such text so the issue comment shows
+    only the plan, not raw JSON.
+    """
+    last_plan: str | None = None
+    for line in (raw or "").strip().splitlines():
+        line = line.strip()
+        if not line:
+            continue
+        try:
+            obj = json.loads(line)
+        except json.JSONDecodeError:
+            continue
+        if not isinstance(obj, dict):
+            continue
+        kind = obj.get("type")
+        if kind == "assistant":
+            msg = obj.get("message")
+            if isinstance(msg, dict):
+                content = msg.get("content")
+                if isinstance(content, list):
+                    parts = []
+                    for item in content:
+                        if isinstance(item, dict) and item.get("type") == "text":
+                            t = item.get("text")
+                            if isinstance(t, str):
+                                parts.append(t)
+                    if parts:
+                        last_plan = "\n".join(parts)
+        elif kind == "result" and obj.get("subtype") == "success":
+            result = obj.get("result")
+            if isinstance(result, str):
+                last_plan = result
+    return last_plan.strip() if (last_plan and last_plan.strip()) else None
+
 
 # Substrings in CLI stderr that suggest a transient error (worth retrying).
 _TRANSIENT_PLAN_ERRORS = (
@@ -114,6 +154,10 @@ class CursorCLIAgent(AIAgent):
                 last_code = result.returncode
 
                 if result.returncode == 0:
+                    plan = _extract_plan_from_cli_output(out)
+                    if plan:
+                        return plan
+                    # Plain text format or unparseable
                     return out.strip() or "1. Analyze issue\n2. Implement\n3. Test"
 
                 is_transient = any(

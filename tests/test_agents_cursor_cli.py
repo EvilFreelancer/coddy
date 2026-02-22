@@ -6,7 +6,7 @@ from pathlib import Path
 from unittest.mock import MagicMock, patch
 
 from coddy.observer.models import Issue
-from coddy.worker.agents.cursor_cli_agent import CursorCLIAgent
+from coddy.worker.agents.cursor_cli_agent import CursorCLIAgent, _extract_plan_from_cli_output
 
 
 def _issue(number: int = 42, body: str = "Enough body for sufficiency check.") -> Issue:
@@ -20,6 +20,29 @@ def _issue(number: int = 42, body: str = "Enough body for sufficiency check.") -
         created_at=datetime.now(UTC),
         updated_at=datetime.now(UTC),
     )
+
+
+def test_extract_plan_from_cli_output_returns_last_assistant_text() -> None:
+    """Stream-json output: only the last assistant message text is extracted."""
+    raw = '''{"type":"system","subtype":"init"}
+{"type":"user","message":{}}
+{"type":"thinking","subtype":"delta","text":"x"}
+{"type":"assistant","message":{"role":"assistant","content":[{"type":"text","text":"## Plan\\n\\n- Step 1"}]}}
+{"type":"assistant","message":{"role":"assistant","content":[{"type":"text","text":"## Final plan\\n\\n- A\\n- B"}]}}
+{"type":"result","subtype":"success"}
+'''
+    assert _extract_plan_from_cli_output(raw) == "## Final plan\n\n- A\n- B"
+
+
+def test_extract_plan_from_cli_output_returns_none_for_non_json() -> None:
+    """Plain text output is not parsed; returns None so caller uses raw."""
+    assert _extract_plan_from_cli_output("Just plain text plan") is None
+
+
+def test_extract_plan_from_cli_output_result_string() -> None:
+    """If result type has string result, use it."""
+    raw = '{"type":"result","subtype":"success","result":"Plan: do X"}'
+    assert _extract_plan_from_cli_output(raw) == "Plan: do X"
 
 
 def test_cursor_cli_agent_writes_log_file(tmp_path: Path) -> None:
