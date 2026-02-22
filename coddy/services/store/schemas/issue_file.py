@@ -1,6 +1,6 @@
 """Full issue record as stored in .coddy/issues/{issue_number}.yaml."""
 
-from datetime import datetime, timezone
+from datetime import UTC, datetime
 from typing import Annotated, List
 
 from pydantic import BaseModel, BeforeValidator, Field
@@ -9,14 +9,17 @@ from coddy.services.store.schemas.issue_comment import IssueComment
 
 
 def _ensure_unix_ts(value: int | str | None) -> int | None:
-    """Coerce ISO date string or int to Unix timestamp (int). Accepts None for optional fields."""
+    """Coerce ISO date string or int to Unix timestamp (int).
+
+    Accepts None for optional fields.
+    """
     if value is None:
         return None
     if isinstance(value, int):
         return value
     dt = datetime.fromisoformat(str(value).replace("Z", "+00:00"))
     if dt.tzinfo is None:
-        dt = dt.replace(tzinfo=timezone.utc)
+        dt = dt.replace(tzinfo=UTC)
     return int(dt.timestamp())
 
 

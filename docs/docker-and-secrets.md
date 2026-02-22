@@ -53,6 +53,22 @@ Coddy runs as two services: **observer** (webhook server, sets issue status in `
 - The app is given `GITHUB_TOKEN_FILE=/run/secrets/github_token` and `WEBHOOK_SECRET_FILE=/run/secrets/webhook_secret`.
 - The app reads the token/secret from that path and never expects them in the image or in `config.yaml`.
 
+## Running the worker without exposing secrets
+
+The **workspace** is mounted into the container as a volume. Whatever is inside the workspace path on the host is visible inside the container (e.g. to anyone who can `docker exec` into it or to other processes). To avoid exposing secrets:
+
+1. **Do not use as workspace a directory that contains `.secrets/`.**
+   If you set `REPO_PATH=.` (default) and your current directory is the Coddy repo (where `.secrets/` lives), then `/app/workspace` in the container will contain `.secrets/` and tokens can be read.
+   **Use a dedicated workspace path instead:**
+   - Clone the **target repo** (the one Coddy works on) into a separate directory, e.g. `~/coddy-workspace` or `/tmp/my-repo`, and set `REPO_PATH` to that path. That directory must not contain `.secrets/`.
+   - Example: `REPO_PATH=/home/user/coddy-workspace docker compose -f docker-compose.dist.yaml up -d`, where `/home/user/coddy-workspace` is a clone of the target repo and has no `.secrets/`.
+
+2. **Secrets only via env or Docker/Kubernetes secrets.**
+   Pass tokens via `GITHUB_TOKEN`, `CURSOR_AGENT_TOKEN` or `*_FILE` (e.g. `GITHUB_TOKEN_FILE=/run/secrets/github_token`). Do not put secret files inside the workspace; keep `.secrets/` only on the host and let Docker Compose mount them as Docker secrets into `/run/secrets/`.
+
+3. **CI or shared runners.**
+   Run the worker with a workspace that is a clean checkout of the target repo (no `.secrets/` in that checkout). Inject tokens via environment or your platform’s secret store (e.g. GitHub Actions secrets, Kubernetes secrets).
+
 ## Cursor Agent token (optional)
 
 For the Cursor CLI agent to call the API, it needs a token. The setup script creates `.secrets/cursor_agent_token` with a placeholder; `docker-compose.yml` mounts it. Replace the placeholder with your Cursor Agent token to enable the agent, or leave it as is if you use `stub_agent`. Alternatively set `CURSOR_AGENT_TOKEN` in the environment (e.g. in a non-committed `.env`).

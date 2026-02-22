@@ -112,7 +112,7 @@ curl http://localhost:8000/health
 docker compose logs -f coddy
 ```
 
-See [Docker and Secrets](docs/docker-and-secrets.md) for details (Cursor Agent token, config mount, CLI in container).
+See [Docker and Secrets](docs/docker-and-secrets.md) for details (Cursor Agent token, config mount, CLI in container). To run the worker without exposing secrets, use a workspace path that does not contain `.secrets/` (same doc).
 
 ### Docker (single run)
 

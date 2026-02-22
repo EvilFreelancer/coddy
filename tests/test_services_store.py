@@ -278,7 +278,8 @@ class TestIssueStore:
         assert loaded.issue_id == 42
 
     def test_create_issue_with_optional_timestamps(self, tmp_path: Path) -> None:
-        """create_issue accepts optional created_at and updated_at (Unix timestamps)."""
+        """create_issue accepts optional created_at and updated_at (Unix
+        timestamps)."""
         ts_2020_01_01 = 1577836800  # 2020-01-01T00:00:00Z
         ts_2020_01_02 = 1577923200  # 2020-01-02T00:00:00Z
         issue = create_issue(
@@ -295,14 +296,16 @@ class TestIssueStore:
         assert issue.updated_at == ts_2020_01_02
 
     def test_create_issue_without_assignee_omits_assignment_in_yaml(self, tmp_path: Path) -> None:
-        """When no assignee is passed, assigned_at and assigned_to are omitted from YAML."""
+        """When no assignee is passed, assigned_at and assigned_to are omitted
+        from YAML."""
         create_issue(tmp_path, 25, "o/r", "T", "D", "@u")
         content = (tmp_path / ".coddy" / "issues" / "25.yaml").read_text(encoding="utf-8")
         assert "assigned_at" not in content
         assert "assigned_to" not in content
 
     def test_create_issue_with_assignee_writes_assignment_in_yaml(self, tmp_path: Path) -> None:
-        """When assigned_at and assigned_to are passed, both are written to YAML."""
+        """When assigned_at and assigned_to are passed, both are written to
+        YAML."""
         create_issue(
             tmp_path,
             26,

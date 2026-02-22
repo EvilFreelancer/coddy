@@ -246,7 +246,8 @@ def test_handle_issue_comment_ignores_bot_comment(tmp_path: Path) -> None:
 
 
 def test_handle_issue_comment_appends_to_store_even_when_closed(tmp_path: Path) -> None:
-    """On issue_comment, comment is appended to issue in store regardless of status (e.g. closed)."""
+    """On issue_comment, comment is appended to issue in store regardless of
+    status (e.g. closed)."""
     from coddy.services.store import create_issue, set_issue_status
 
     create_issue(tmp_path, 11, "owner/repo", "Closed issue", "Body", "user1")
@@ -293,7 +294,13 @@ def test_handle_issue_comment_edited_updates_in_store(tmp_path: Path) -> None:
         "issue_comment",
         {
             "action": "created",
-            "comment": {"comment_id": 2001, "body": "Original", "user": {"login": "user2"}, "created_at": "2026-02-15T00:00:00Z", "updated_at": "2026-02-15T00:00:00Z"},
+            "comment": {
+                "comment_id": 2001,
+                "body": "Original",
+                "user": {"login": "user2"},
+                "created_at": "2026-02-15T00:00:00Z",
+                "updated_at": "2026-02-15T00:00:00Z",
+            },
             "issue": {"number": 12},
             "repository": {"full_name": "owner/repo"},
         },
@@ -304,7 +311,12 @@ def test_handle_issue_comment_edited_updates_in_store(tmp_path: Path) -> None:
         "issue_comment",
         {
             "action": "edited",
-            "comment": {"comment_id": 2001, "body": "Edited text", "user": {"login": "user2"}, "updated_at": "2026-02-15T00:50:00Z"},
+            "comment": {
+                "comment_id": 2001,
+                "body": "Edited text",
+                "user": {"login": "user2"},
+                "updated_at": "2026-02-15T00:50:00Z",
+            },
             "issue": {"number": 12},
             "repository": {"full_name": "owner/repo"},
         },
@@ -318,7 +330,8 @@ def test_handle_issue_comment_edited_updates_in_store(tmp_path: Path) -> None:
 
 
 def test_handle_issue_comment_deleted_sets_deleted_at(tmp_path: Path) -> None:
-    """On issue_comment action=deleted, comment gets deleted_at set (soft delete)."""
+    """On issue_comment action=deleted, comment gets deleted_at set (soft
+    delete)."""
     from coddy.services.store import create_issue
 
     create_issue(tmp_path, 13, "owner/repo", "Issue", "Body", "user1")
@@ -332,7 +345,13 @@ def test_handle_issue_comment_deleted_sets_deleted_at(tmp_path: Path) -> None:
         "issue_comment",
         {
             "action": "created",
-            "comment": {"comment_id": 3001, "body": "To delete", "user": {"login": "user2"}, "created_at": "2026-02-15T00:00:00Z", "updated_at": "2026-02-15T00:00:00Z"},
+            "comment": {
+                "comment_id": 3001,
+                "body": "To delete",
+                "user": {"login": "user2"},
+                "created_at": "2026-02-15T00:00:00Z",
+                "updated_at": "2026-02-15T00:00:00Z",
+            },
             "issue": {"number": 13},
             "repository": {"full_name": "owner/repo"},
         },
@@ -407,7 +426,8 @@ def test_webhook_issues_assigned_creates_issue_file(tmp_path: Path) -> None:
 
 
 def test_webhook_issues_unassigned_clears_assignment_in_file(tmp_path: Path) -> None:
-    """On issues.unassigned, assigned_at and assigned_to are cleared in store."""
+    """On issues.unassigned, assigned_at and assigned_to are cleared in
+    store."""
     from coddy.services.store import create_issue
 
     config = _issues_assigned_config(tmp_path)

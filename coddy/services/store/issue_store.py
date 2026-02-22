@@ -87,8 +87,9 @@ def create_issue(
 ) -> IssueFile:
     """Create a new issue file with status pending_plan.
 
-    comments is empty by default (title/description are separate fields).
-    All date fields are Unix timestamps. assigned_at/assigned_to omitted when not assigned.
+    comments is empty by default (title/description are separate
+    fields). All date fields are Unix timestamps.
+    assigned_at/assigned_to omitted when not assigned.
     """
     now_ts = int(datetime.now(UTC).timestamp())
     created = created_at if created_at is not None else now_ts
@@ -149,7 +150,10 @@ def update_comment(
     content: str,
     updated_at: int | None = None,
 ) -> bool:
-    """Update comment by comment_id. Returns True if found and updated."""
+    """Update comment by comment_id.
+
+    Returns True if found and updated.
+    """
     issue = load_issue(repo_dir, issue_id)
     if not issue:
         return False
@@ -167,7 +171,10 @@ def update_comment(
 
 
 def delete_comment(repo_dir: Path, issue_id: int, comment_id: int, deleted_at: int | None = None) -> bool:
-    """Mark comment as deleted (soft delete, set deleted_at). Returns True if found."""
+    """Mark comment as deleted (soft delete, set deleted_at).
+
+    Returns True if found.
+    """
     issue = load_issue(repo_dir, issue_id)
     if not issue:
         return False

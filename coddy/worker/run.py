@@ -57,6 +57,11 @@ def run_worker(config: AppConfig, once: bool = False, poll_interval: int = 10) -
 
     workspace = getattr(config.bot, "workspace", ".") or "."
     repo_dir = Path(workspace).resolve()
+    if (repo_dir / ".secrets").exists():
+        log.warning(
+            "Workspace contains .secrets/ - tokens may be visible to anyone with access to the workspace. "
+            "Use a workspace path that does not contain .secrets/ (see docs/docker-and-secrets.md)."
+        )
     if config.ai_agents and "cursor_cli" in config.ai_agents:
         wd = getattr(config.ai_agents["cursor_cli"], "working_directory", None)
         if wd:
