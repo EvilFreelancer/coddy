@@ -57,7 +57,7 @@ class CursorCLIAgent(AIAgent):
         self.mode = mode
         self._log = log or logging.getLogger("coddy.worker.agents.cursor_cli")
 
-    def generate_plan(self, issue: Issue, comments: List[Comment]) -> str:
+    def generate_plan(self, issue: Issue, comments: List[Comment]) -> str | None:
         """Run Cursor CLI with a plan-only prompt; return plan text in issue
         language."""
         prompt = (
@@ -86,10 +86,17 @@ class CursorCLIAgent(AIAgent):
                 text=True,
             )
             out = (result.stdout or "") + (result.stderr or "")
+            if result.returncode != 0:
+                self._log.error(
+                    "Plan generation failed (exit %s): %s",
+                    result.returncode,
+                    out.strip() or "(no output)",
+                )
+                return None
             return out.strip() or "1. Analyze issue\n2. Implement\n3. Test"
         except (subprocess.TimeoutExpired, FileNotFoundError) as e:
-            self._log.warning("Plan generation failed: %s", e)
-            return "1. Analyze issue\n2. Implement\n3. Test"
+            self._log.exception("Plan generation failed: %s", e)
+            return None
 
     def evaluate_sufficiency(self, issue: Issue, comments: List[Comment]) -> SufficiencyResult:
         """Use simple heuristic: sufficient if body has some content."""

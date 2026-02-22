@@ -31,12 +31,13 @@ class AIAgent:
         """
         raise NotImplementedError
 
-    def generate_plan(self, issue: Issue, comments: List[Comment]) -> str:
+    def generate_plan(self, issue: Issue, comments: List[Comment]) -> str | None:
         """Produce a short implementation plan in the same language as the
         issue.
 
         Used before taking the task in work: post plan and ask user to confirm.
-        Returns plan text (markdown), no code.
+        Returns plan text (markdown), or None if generation failed (caller should
+        log and post a user-facing error message).
         """
         raise NotImplementedError
 

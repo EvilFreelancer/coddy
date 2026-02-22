@@ -30,6 +30,11 @@ TEMPLATE_PLAN_REQUEST = """## Plan
 ---
 Does this approach work for you? Reply with **yes** / **go ahead** / **looks good** to start implementation."""
 
+# When plan generation fails (agent error, missing node, etc.)
+TEMPLATE_PLAN_ERROR = (
+    "A worker error occurred while generating the plan. Please check the server logs or try again later."
+)
+
 TEMPLATE_WORK_STARTED = "Work on this task has started. The implementation will appear in a pull request."
 
 # When worker re-evaluates after user reply and data is sufficient
@@ -61,11 +66,15 @@ def run_planner(
     log: logging.Logger | None = None,
 ) -> None:
     """Generate plan (in issue language), post message, add to issue store, set
-    status waiting_confirmation."""
+    status waiting_confirmation. On agent error, log it and post a short error message."""
     logger = log or LOG
     comments = adapter.get_issue_comments(repo, issue.number, since=None)
     plan = agent.generate_plan(issue, comments)
-    message = format_plan_request(plan)
+    if plan is None:
+        logger.warning("Plan generation failed for issue #%s, posting error message", issue.number)
+        message = TEMPLATE_PLAN_ERROR
+    else:
+        message = format_plan_request(plan)
     try:
         adapter.create_comment(repo, issue.number, message)
     except GitPlatformError as e:
