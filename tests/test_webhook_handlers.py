@@ -6,7 +6,7 @@ from unittest.mock import MagicMock, patch
 import pytest
 
 from coddy.observer.webhook.handlers import handle_github_event
-from coddy.services.store import IssueFile, load_issue
+from coddy.services.store import IssueFile, load_issue, set_issue_status
 
 
 @pytest.fixture
@@ -373,6 +373,82 @@ def test_handle_issue_comment_deleted_sets_deleted_at(tmp_path: Path) -> None:
     assert len(issue.comments) == 1
     assert issue.comments[0].comment_id == 3001
     assert issue.comments[0].deleted_at is not None
+
+
+def test_handle_issue_comment_clarification_sent_sets_user_replied(tmp_path: Path) -> None:
+    """When issue has status clarification_sent and user posts comment, status
+    -> user_replied."""
+    from coddy.services.store import create_issue
+
+    create_issue(tmp_path, 14, "owner/repo", "Issue", "Body", "user1")
+    set_issue_status(tmp_path, 14, "clarification_sent")
+    config = type("Config", (), {})()
+    config.bot = type("Bot", (), {})()
+    config.bot.repository = "owner/repo"
+    config.bot.username = "coddybot"
+    config.ai_agents = {"cursor_cli": type("CLI", (), {"working_directory": str(tmp_path)})()}
+    handle_github_event(
+        config,
+        "issue_comment",
+        {
+            "action": "created",
+            "comment": {
+                "comment_id": 4001,
+                "body": "Use API v2",
+                "user": {"login": "user2"},
+                "created_at": "2026-02-15T00:00:00Z",
+                "updated_at": "2026-02-15T00:00:00Z",
+            },
+            "issue": {"number": 14},
+            "repository": {"full_name": "owner/repo"},
+        },
+        repo_dir=tmp_path,
+    )
+    issue = load_issue(tmp_path, 14)
+    assert issue is not None
+    assert issue.status == "user_replied"
+    assert len(issue.comments) == 1
+    assert issue.comments[0].content == "Use API v2"
+
+
+def test_handle_issue_comment_waiting_go_affirmative_sets_queued(tmp_path: Path) -> None:
+    """When issue has status waiting_go and user posts affirmative (e.g.
+    poehali), status -> queued."""
+    from coddy.services.store import create_issue
+
+    create_issue(tmp_path, 15, "owner/repo", "Issue", "Body", "user1")
+    set_issue_status(tmp_path, 15, "waiting_go")
+    config = type("Config", (), {})()
+    config.bot = type("Bot", (), {})()
+    config.bot.repository = "owner/repo"
+    config.bot.username = "coddybot"
+    config.github_token_resolved = "token"
+    config.github = type("G", (), {"api_url": "https://api.github.com"})()
+    config.ai_agents = {"cursor_cli": type("CLI", (), {"working_directory": str(tmp_path)})()}
+    with patch("coddy.observer.webhook.handlers.GitHubAdapter") as mock_adapter_class:
+        mock_adapter = MagicMock()
+        mock_adapter_class.return_value = mock_adapter
+        handle_github_event(
+            config,
+            "issue_comment",
+            {
+                "action": "created",
+                "comment": {
+                    "comment_id": 5001,
+                    "body": "поехали",
+                    "user": {"login": "user2"},
+                    "created_at": "2026-02-15T00:00:00Z",
+                    "updated_at": "2026-02-15T00:00:00Z",
+                },
+                "issue": {"number": 15},
+                "repository": {"full_name": "owner/repo"},
+            },
+            repo_dir=tmp_path,
+        )
+    issue = load_issue(tmp_path, 15)
+    assert issue is not None
+    assert issue.status == "queued"
+    mock_adapter.create_comment.assert_called_once()
 
 
 # --- Issue flow integration tests (real state/queue on tmp_path) ---

@@ -3,18 +3,22 @@ Coddy observer: webhook server and task intake.
 
 Listens for GitHub webhooks; on issue assigned creates/updates .coddy/issues/,
 runs planner (posts plan, waiting_confirmation); on user confirmation sets
-issue status to queued (worker picks from .coddy/issues/). On PR/issue closed
-updates status in .coddy/prs/ and .coddy/issues/. Does not run the AI agent
-or development loop - that is done by the worker.
+issue status to queued (worker picks from .coddy/issues/). Optional poll of
+.coddy/issues/ for agent clarification (waiting_user_reply -> post to platform).
+On PR/issue closed updates status in .coddy/prs/ and .coddy/issues/.
+Does not run the AI agent or development loop - that is done by the worker.
 """
 
 import argparse
 import logging
 import sys
+import threading
+import time
 from pathlib import Path
 
 from coddy.config import AppConfig, LoggingConfig, load_config
 from coddy.logging import CoddyLogging
+from coddy.observer.clarification_poll import run_clarification_poll
 from coddy.observer.webhook.handlers import _working_dir_from_config
 from coddy.observer.webhook.server import run_webhook_server
 
@@ -40,8 +44,19 @@ def parse_args(argv: list[str] | None = None) -> argparse.Namespace:
     return parser.parse_args(argv)
 
 
+def _clarification_poll_loop(config: AppConfig, work_dir: Path, log: logging.Logger) -> None:
+    """Background loop: every poll_interval_seconds run clarification poll."""
+    interval = getattr(config.observer, "poll_interval_seconds", 15)
+    while True:
+        time.sleep(interval)
+        try:
+            run_clarification_poll(config, work_dir, log=log)
+        except Exception as e:
+            log.warning("Clarification poll error: %s", e)
+
+
 def run_observer(config: AppConfig) -> None:
-    """Run the webhook server (plan on assignment, no polling)."""
+    """Run the webhook server and optional clarification poll thread."""
     CoddyLogging(config.logging).setup()
     log = logging.getLogger("coddy.observer.run")
 
@@ -54,6 +69,18 @@ def run_observer(config: AppConfig) -> None:
             "bot.workspace not set; .coddy (issues, prs) will be under cwd. "
             "Set BOT_WORKSPACE or bot.workspace to the repo root for a predictable path.",
         )
+
+    poll_clarifications = getattr(config.observer, "poll_clarifications", True)
+    if poll_clarifications:
+        thread = threading.Thread(
+            target=_clarification_poll_loop,
+            args=(config, work_dir, log),
+            daemon=True,
+        )
+        thread.start()
+        interval = getattr(config.observer, "poll_interval_seconds", 15)
+        log.info("Clarification poll thread started (interval=%ss)", interval)
+
     log.info(
         "Coddy observer started | repo=%s | webhook=%s | workspace=%s",
         config.bot.repository,

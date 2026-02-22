@@ -52,6 +52,11 @@ webhook:
   debug: false
   enabled: true
 
+# Observer: optional poll of .coddy/issues/ for agent clarification (waiting_user_reply -> post to platform)
+observer:
+  poll_clarifications: true
+  poll_interval_seconds: 15
+
 # Logging Configuration (optional)
 logging:
   level: "INFO"  # DEBUG, INFO (default), WARNING, ERROR

@@ -37,9 +37,11 @@ This document describes how an issue gets from "bot assigned" to the task queue.
 
 | Step | Trigger              | Where it is stored / what happens                          |
 |------|----------------------|------------------------------------------------------------|
-| 1    | Webhook: assigned    | Observer creates `.coddy/issues/{N}.yaml`, runs planner, status -> **waiting_confirmation** |
+| 1    | Webhook: assigned    | Observer creates `.coddy/issues/{N}.yaml`, runs planner (after optional stable delay), status -> **waiting_confirmation** |
 | 2    | Webhook: comment "yes" | Observer sets issue status to **queued** in `.coddy/issues/{N}.yaml`; post "work started" |
 | 3    | Worker               | Pick queued issue from .coddy/issues/; ralph loop; set status done/failed; PR in .coddy/prs/ on merge/close |
+
+For the extended flow (agent clarification, "proceed?", worker as daemon), see [code-agent-flow.md](code-agent-flow.md).
 
 ## Configuration
 

@@ -12,17 +12,17 @@ Coddy Bot follows a **two-module** design: an **observer** that receives webhook
 
 - **Entry point**: `coddy observer` (or `python -m coddy.observer`)
 - **Implementation**: `coddy.observer.run`
-- **Responsibilities**: Run HTTP server for webhooks; verify signatures; on issue assigned to bot, create issue file and run planner (post plan, set waiting_confirmation); on user confirmation set issue status to queued. Does **not** run the development loop - that is done by the worker.
+- **Responsibilities**: Run HTTP server for webhooks; verify signatures; on issue assigned to bot, create issue file and run planner (post plan, set waiting_confirmation; optional stable delay); on user confirmation set issue status to queued. Optional poll of `.coddy/issues/`: when status=waiting_user_reply and agent wrote a question, post it to the platform and set clarification_sent. On issue comment: add to YAML; if status=clarification_sent set user_replied; if status=waiting_go and comment affirmative set queued. Does **not** run the development loop - that is done by the worker.
 
 ### Worker
 
 - **Entry point**: `coddy worker` (or `python -m coddy.worker`)
 - **Implementation**: `coddy.worker.run`
-- **Responsibilities**: Poll the task queue; for each task (e.g. issue number): ensure branch exists and checkout; evaluate sufficiency (agent or heuristic); if insufficient, post clarification and exit; if sufficient, write task YAML and run the **ralph loop**: repeatedly run the Cursor CLI agent until `.coddy/pr-{issue_number}.yaml` exists or `agent_clarification` appears in task YAML or max iterations reached; then create PR, set labels, switch to default branch. Uses platform adapter for API calls and agent for a single run per iteration.
+- **Responsibilities**: Daemon that watches `.coddy/issues/` (and `.coddy/prs/`). Each cycle: (1) Process one issue with status=user_replied: evaluate sufficiency; if sufficient post "Data sufficient, shall I proceed?" and set status=waiting_go; if insufficient write agent clarification to issue YAML and set waiting_user_reply. (2) Process one issue with status=queued: ensure branch, evaluate sufficiency (if insufficient write clarification to issue YAML and set waiting_user_reply); if sufficient run the **ralph loop** (task YAML, agent until PR report or agent_clarification); on clarification write to issue YAML and set waiting_user_reply; on success create PR, set labels, switch to default branch. Uses platform adapter and agent.
 
 ### Task source and status
 
-- **Issues**: `.coddy/issues/{issue_number}.yaml` - one YAML per issue. Status: pending_plan, waiting_confirmation, queued, in_progress, done, failed, closed. Worker picks issues with status=queued; on success/failure sets status to done/failed. On issue closed (webhook), status is set to closed.
+- **Issues**: `.coddy/issues/{issue_number}.yaml` - one YAML per issue. Status: pending_plan, waiting_confirmation, queued, in_progress, waiting_user_reply, clarification_sent, user_replied, waiting_go, done, failed, closed. Worker watches this folder (daemon); picks user_replied (post "proceed?", set waiting_go) then queued (ralph loop). Agent can write clarification into the issue YAML (waiting_user_reply); observer polls and posts to platform. See [code-agent-flow.md](code-agent-flow.md).
 - **PRs**: `.coddy/prs/{pr_number}.yaml` - one YAML per PR. Status: open, merged, closed. On PR closed (webhook), status is set to merged or closed.
 - **Legacy**: `.coddy/queue/` (pending/done/failed) is no longer used; queue logic uses issue status only.
 

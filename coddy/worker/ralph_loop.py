@@ -18,6 +18,7 @@ from coddy.services.git import (
     commit_all_and_push,
     fetch_and_checkout_branch,
 )
+from coddy.services.store import set_agent_clarification
 from coddy.worker.agents.base import AIAgent
 from coddy.worker.task_yaml import read_agent_clarification, read_pr_report
 
@@ -35,6 +36,7 @@ def run_ralph_loop_for_issue(
     *,
     bot_name: str | None = None,
     bot_email: str | None = None,
+    bot_username: str | None = None,
     default_branch: str | None = None,
     max_iterations: int = DEFAULT_MAX_ITERATIONS,
     log: logging.Logger | None = None,
@@ -56,12 +58,9 @@ def run_ralph_loop_for_issue(
     result = agent.evaluate_sufficiency(issue, comments)
 
     if not result.sufficient:
-        logger.info("Issue #%s: data insufficient, posting clarification", issue.number)
-        try:
-            adapter.create_comment(repo, issue.number, result.clarification)
-            adapter.set_issue_labels(repo, issue.number, ["stuck"])
-        except GitPlatformError as e:
-            logger.warning("Failed to post clarification or set labels: %s", e)
+        logger.info("Issue #%s: data insufficient, writing clarification to issue YAML", issue.number)
+        bot_comment_name = f"@{bot_username}" if bot_username else "@bot"
+        set_agent_clarification(repo_dir, issue.number, result.clarification, bot_name=bot_comment_name)
         return "clarification"
 
     branch_name = branch_name_from_issue(issue.number, issue.title)
@@ -131,12 +130,9 @@ def run_ralph_loop_for_issue(
 
         clarification = read_agent_clarification(repo_dir, issue.number)
         if clarification:
-            logger.info("Issue #%s: agent asked for clarification, posting to issue", issue.number)
-            try:
-                adapter.create_comment(repo, issue.number, clarification)
-                adapter.set_issue_labels(repo, issue.number, ["stuck"])
-            except GitPlatformError as e:
-                logger.warning("Failed to post clarification or set labels: %s", e)
+            logger.info("Issue #%s: agent asked for clarification, writing to issue YAML", issue.number)
+            bot_comment_name = f"@{bot_username}" if bot_username else "@bot"
+            set_agent_clarification(repo_dir, issue.number, clarification, bot_name=bot_comment_name)
             try:
                 base = default_branch or adapter.get_default_branch(repo)
                 checkout_branch(base, repo_dir=repo_dir, log=logger)

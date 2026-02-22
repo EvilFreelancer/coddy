@@ -17,9 +17,9 @@ LOG = logging.getLogger("coddy.observer.planner")
 
 # Phrases that mean user confirms (EN + RU accepted)
 AFFIRMATIVE_PATTERNS = [
-    r"\b(да|yes|устраивает|ок|ok|okay|go ahead|бери в работу|начинай|"
+    r"\b(да|yes|устраивает|ок|ok|okay|go ahead|go|бери в работу|начинай|поехали|"
     r"подходит|согласен|согласна|looks good|good|принято)\b",
-    r"^(да|yes|устраивает|ок|ok|go ahead|бери в работу|начинай)\.?$",
+    r"^(да|yes|устраивает|ок|ok|go ahead|go|бери в работу|начинай|поехали)\.?$",
 ]
 AFFIRMATIVE_RE = re.compile("|".join(AFFIRMATIVE_PATTERNS), re.IGNORECASE)
 
@@ -31,6 +31,12 @@ TEMPLATE_PLAN_REQUEST = """## Plan
 Does this approach work for you? Reply with **yes** / **go ahead** / **looks good** to start implementation."""
 
 TEMPLATE_WORK_STARTED = "Work on this task has started. The implementation will appear in a pull request."
+
+# When worker re-evaluates after user reply and data is sufficient
+TEMPLATE_PROCEED_REQUEST = (
+    "Data is sufficient. Shall I proceed with implementation? "
+    "Reply with **yes** / **go ahead** / **поехали** to start."
+)
 
 
 def format_plan_request(plan: str) -> str:

@@ -202,6 +202,36 @@ def set_issue_status(repo_dir: Path, issue_id: int, status: str) -> None:
     LOG.info("Issue #%s status -> %s", issue_id, status)
 
 
+def set_agent_clarification(repo_dir: Path, issue_id: int, message: str, bot_name: str = "@bot") -> None:
+    """Add a bot comment with the clarification message and set status to
+    waiting_user_reply.
+
+    Observer will later post that comment to the platform and set status
+    to clarification_sent.
+    """
+    issue = load_issue(repo_dir, issue_id)
+    if not issue:
+        LOG.warning("Cannot set agent clarification: issue #%s not found", issue_id)
+        return
+    now_ts = int(datetime.now(UTC).timestamp())
+    add_comment(repo_dir, issue_id, bot_name, message, created_at=now_ts, updated_at=now_ts)
+    set_issue_status(repo_dir, issue_id, "waiting_user_reply")
+    LOG.info("Issue #%s: agent clarification comment added, status -> waiting_user_reply", issue_id)
+
+
+def mark_clarification_sent(repo_dir: Path, issue_id: int) -> None:
+    """Set issue status to clarification_sent (comment already posted by observer)."""
+    issue = load_issue(repo_dir, issue_id)
+    if not issue:
+        LOG.warning("Cannot mark clarification sent: issue #%s not found", issue_id)
+        return
+    now_ts = int(datetime.now(UTC).timestamp())
+    issue.status = "clarification_sent"
+    issue.updated_at = now_ts
+    save_issue(repo_dir, issue_id, issue)
+    LOG.info("Issue #%s: clarification marked sent, status -> clarification_sent", issue_id)
+
+
 def list_issues_by_status(repo_dir: Path, status: str) -> list[tuple[int, IssueFile]]:
     """List all issues with the given status.
 

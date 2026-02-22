@@ -71,7 +71,7 @@ This separation allows:
 
 ### Issue Processing Flow
 
-**From assignment to queue**: When the bot is assigned to an issue (webhook), it is stored in `.coddy/issues/{issue_number}.yaml` and the planner runs immediately (post plan, status **waiting_confirmation**). When the user replies affirmatively (e.g. "yes", "да"), the issue status is set to **queued** and the worker can pick it up from .coddy/issues/. See [issue-flow.md](issue-flow.md) for the full step-by-step and [dialog-template.md](dialog-template.md) for the plan/confirmation dialog.
+**From assignment to queue**: When the bot is assigned to an issue (webhook), it is stored in `.coddy/issues/{issue_number}.yaml` and the planner runs (post plan, status **waiting_confirmation**; optional stable delay). When the user replies affirmatively (e.g. "yes", "да"), the issue status is set to **queued** and the worker picks it up. The worker runs as a daemon watching `.coddy/issues/`; it can also handle **user_replied** (post "proceed?", set **waiting_go**) and **waiting_go** + user says go -> **queued**. When the agent needs clarification it writes to the issue YAML (**waiting_user_reply**); the observer posts that to the issue and sets **clarification_sent**; on user reply sets **user_replied**. See [issue-flow.md](issue-flow.md) and [code-agent-flow.md](code-agent-flow.md); [dialog-template.md](dialog-template.md) for the plan/confirmation dialog.
 
 1. **Trigger (Bot Assigned or MR/PR Referenced)**
    - **Option A**: User assigns the bot as assignee on an issue; a **webhook** delivers the event. The observer stores the issue and runs the planner (posts plan, waiting_confirmation); once the user confirms, the issue is **queued** for processing.

@@ -31,13 +31,13 @@ comments:
 ```
 
 - **author**, **created_at**, **updated_at**: meta from the issue (ISO or unix).
-- **status**: current state (pending_plan -> waiting_confirmation -> queued; worker may use in_progress, done, failed).
+- **status**: current state (pending_plan, waiting_confirmation, queued, in_progress, waiting_user_reply, clarification_sent, user_replied, waiting_go, done, failed, closed). See [code-agent-flow.md](code-agent-flow.md).
 - **title**, **description**: issue title and body.
-- **comments**: thread of comments; first entry is the issue content (title + description), then user comments and bot replies. Each has **name** (e.g. @user), **content**, **created_at** and **updated_at** (Unix timestamps).
+- **comments**: thread of comments; first entry is the issue content (title + description), then user comments and bot replies. Each has **name** (e.g. @user), **content**, **created_at**, **updated_at** (Unix timestamps). When the agent asks for clarification it adds a bot comment and sets status to `waiting_user_reply`; the observer posts the **last comment** to the platform and sets issue status to `clarification_sent` (comment + status identify what was sent).
 
 ## Pydantic models (store schemas)
 
-- `coddy.services.store.schemas.issue_comment.IssueComment`: name, content, created_at, updated_at (all required).
+- `coddy.services.store.schemas.issue_comment.IssueComment`: name, content, created_at, updated_at; optional deleted_at.
 - `coddy.services.store.schemas.issue_file.IssueFile`: author, created_at, updated_at, status, title, description, comments, repo, issue_id, assigned_at.
 
 Re-exported from `coddy.services.store`: `IssueComment`, `IssueFile`, `load_issue`, `save_issue`, `create_issue`, `add_comment`, `set_issue_status`, `list_queued`, `list_pending_plan`, `list_issues_by_status`.
@@ -71,10 +71,17 @@ Script: `scripts/issue_to_markdown.py`. Markdown rendering is covered in `tests/
 
 | status               | Meaning |
 |----------------------|--------|
-| pending_plan         | Bot assigned; planner will run (or failed to run). |
+| pending_plan         | Bot assigned; planner will run (or failed to run; optional stable delay). |
 | waiting_confirmation | Plan posted; wait for user to confirm (yes/da). |
 | queued               | User confirmed; worker will pick this task. |
-| in_progress / done / failed | Set by worker. |
+| in_progress          | Worker is running the agent. |
+| waiting_user_reply   | Agent wrote clarification to YAML; observer should post to platform. |
+| clarification_sent   | Clarification posted; waiting for user reply. |
+| user_replied         | User replied; worker should re-evaluate and maybe post "proceed?". |
+| waiting_go           | Worker posted "proceed?"; waiting for user to say go. |
+| done / failed        | Set by worker. |
 | closed               | Set when issue is closed (e.g. via webhook). |
+
+Full flow: [code-agent-flow.md](code-agent-flow.md).
 
 PRs are stored in `.coddy/prs/{pr_number}.yaml` with status **open**, **merged**, or **closed** (updated on PR merge/close webhook).

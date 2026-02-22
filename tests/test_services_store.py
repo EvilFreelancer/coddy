@@ -15,8 +15,10 @@ from coddy.services.store import (
     list_queued,
     load_issue,
     load_pr,
+    mark_clarification_sent,
     save_issue,
     save_pr,
+    set_agent_clarification,
     set_issue_status,
     set_pr_status,
     update_comment,
@@ -174,6 +176,40 @@ class TestIssueStore:
     def test_set_issue_status_when_issue_not_found_does_nothing(self, tmp_path: Path) -> None:
         """set_issue_status does not crash when issue file is missing."""
         set_issue_status(tmp_path, 999, "queued")
+
+    def test_set_agent_clarification_adds_comment_and_sets_waiting_user_reply(self, tmp_path: Path) -> None:
+        """set_agent_clarification adds a bot comment and sets status
+        waiting_user_reply."""
+        create_issue(tmp_path, 10, "o/r", "T", "D", "@u")
+        set_agent_clarification(tmp_path, 10, "What is the expected output?", bot_name="@bot")
+        issue = load_issue(tmp_path, 10)
+        assert issue is not None
+        assert issue.status == "waiting_user_reply"
+        assert len(issue.comments) == 1
+        assert issue.comments[0].name == "@bot"
+        assert issue.comments[0].content == "What is the expected output?"
+
+    def test_set_agent_clarification_when_issue_not_found_does_nothing(self, tmp_path: Path) -> None:
+        """set_agent_clarification does not crash when issue file is
+        missing."""
+        set_agent_clarification(tmp_path, 999, "Question?")
+        assert load_issue(tmp_path, 999) is None
+
+    def test_mark_clarification_sent_sets_status(self, tmp_path: Path) -> None:
+        """mark_clarification_sent sets status clarification_sent and
+        updated_at."""
+        create_issue(tmp_path, 11, "o/r", "T", "D", "@u")
+        set_agent_clarification(tmp_path, 11, "Question?", bot_name="@bot")
+        mark_clarification_sent(tmp_path, 11)
+        issue = load_issue(tmp_path, 11)
+        assert issue is not None
+        assert issue.status == "clarification_sent"
+
+    def test_mark_clarification_sent_when_issue_not_found_does_nothing(self, tmp_path: Path) -> None:
+        """mark_clarification_sent does not crash when issue file is
+        missing."""
+        mark_clarification_sent(tmp_path, 999)
+        assert load_issue(tmp_path, 999) is None
 
     def test_list_issues_by_status(self, tmp_path: Path) -> None:
         """list_issues_by_status returns only issues with that status."""

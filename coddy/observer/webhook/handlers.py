@@ -132,7 +132,10 @@ def _handle_issue_comment(
                 comment_id=int(comment_id) if comment_id is not None else None,
             )
             log.debug("Added comment to issue #%s from %s", issue_number, author)
-        if issue_file and issue_file.status == "waiting_confirmation" and is_affirmative_comment(body):
+            if issue_file.status == "clarification_sent":
+                set_issue_status(repo_dir, int(issue_number), "user_replied")
+                log.info("Issue #%s user replied after clarification, status -> user_replied", issue_number)
+        if issue_file and issue_file.status in ("waiting_confirmation", "waiting_go") and is_affirmative_comment(body):
             token = getattr(config, "github_token_resolved", None)
             if token:
                 adapter = GitHubAdapter(

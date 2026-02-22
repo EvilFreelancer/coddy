@@ -118,6 +118,22 @@ class WebhookConfig(BaseSettings):
     enabled: bool = Field(default=True, description="Enable webhook server")
 
 
+class ObserverConfig(BaseSettings):
+    """Observer-specific settings (clarification poll)."""
+
+    model_config = SettingsConfigDict(env_prefix="OBSERVER_", extra="ignore")
+
+    poll_clarifications: bool = Field(
+        default=True,
+        description="When True, poll .coddy/issues/ for waiting_user_reply and post to platform",
+    )
+    poll_interval_seconds: int = Field(
+        default=15,
+        ge=1,
+        description="Seconds between clarification poll runs",
+    )
+
+
 class LoggingConfig(BaseSettings):
     """Logging settings."""
 
@@ -141,6 +157,7 @@ class AppConfig(BaseSettings):
     bitbucket: BitbucketConfig = Field(default_factory=BitbucketConfig)
     ai_agents: dict[str, Any] = Field(default_factory=dict)
     webhook: WebhookConfig = Field(default_factory=WebhookConfig)
+    observer: ObserverConfig = Field(default_factory=ObserverConfig)
     logging: LoggingConfig = Field(default_factory=LoggingConfig)
 
     @property
@@ -219,6 +236,7 @@ def load_config(config_path: Path | None = None) -> AppConfig:
     gitlab = GitLabConfig(**(raw.get("gitlab") or {}))
     bitbucket = BitbucketConfig(**(raw.get("bitbucket") or {}))
     webhook = WebhookConfig(**(raw.get("webhook") or {}))
+    observer = ObserverConfig(**(raw.get("observer") or {}))
     logging = LoggingConfig(**(raw.get("logging") or {}))
 
     ai_agents_raw = raw.get("ai_agents") or {}
@@ -236,5 +254,6 @@ def load_config(config_path: Path | None = None) -> AppConfig:
         bitbucket=bitbucket,
         ai_agents=ai_agents,
         webhook=webhook,
+        observer=observer,
         logging=logging,
     )
