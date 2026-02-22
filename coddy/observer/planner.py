@@ -23,12 +23,16 @@ AFFIRMATIVE_PATTERNS = [
 ]
 AFFIRMATIVE_RE = re.compile("|".join(AFFIRMATIVE_PATTERNS), re.IGNORECASE)
 
-TEMPLATE_PLAN_REQUEST = """## Plan
+TEMPLATE_PLAN_REQUEST = """
 
 {plan}
 
 ---
-Does this approach work for you? Reply with **yes** / **go ahead** / **looks good** to start implementation."""
+
+Does this approach work for you?
+
+Reply with **yes** / **go ahead** / **looks good** to start implementation.
+"""
 
 # When plan generation fails (agent error, missing node, etc.)
 TEMPLATE_PLAN_ERROR = (
