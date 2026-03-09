@@ -1,6 +1,27 @@
-"""PR record as stored in .coddy/pull_requests/{status}/{pr_number}.yaml."""
+"""PR record as stored in .coddy/pull_requests/{status}/{pr_number}.yaml.
+
+Pending request: .coddy/pull_requests/pending/{issue_id}.yaml (worker writes,
+observer creates PR and moves to open/{pr_id}.yaml).
+"""
 
 from pydantic import BaseModel, Field
+
+
+class PendingPRRequest(BaseModel):
+    """PR creation request written by worker; observer creates the PR via API.
+
+    Stored in .coddy/pull_requests/pending/{issue_id}.yaml.
+    """
+
+    issue_id: int = Field(..., description="Linked issue number")
+    repo: str = Field(..., description="Repository full_name, e.g. owner/repo")
+    title: str = Field(..., description="PR title")
+    body: str = Field(..., description="PR body (markdown)")
+    head: str = Field(..., description="Head branch name")
+    base: str = Field(..., description="Base branch name")
+    created_at: str = Field(..., description="ISO timestamp when request was written")
+
+    model_config = {"extra": "forbid", "populate_by_name": True}
 
 
 class PRFile(BaseModel):
@@ -11,7 +32,7 @@ class PRFile(BaseModel):
     repo: str = Field(..., description="Repository full_name, e.g. owner/repo")
     status: str = Field(
         default="open",
-        description="PR state: open, merged, or rejected (closed without merge). Determines folder.",
+        description="PR state: open, merged, rejected (closed without merge), or draft. Determines folder.",
     )
     issue_id: int | None = Field(default=None, description="Linked issue ID if any")
     created_at: str = Field(..., description="ISO timestamp when record was created")

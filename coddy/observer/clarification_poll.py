@@ -1,18 +1,25 @@
-"""Poll .coddy/issues/ and post to platform.
+"""Poll .coddy/issues/ and .coddy/pull_requests/ and post to platform.
 
-- plan_ready: worker wrote the plan to the issue file; post last comment to GitHub, set waiting_confirmation.
+- plan_ready: worker wrote the plan; post last comment to GitHub, set waiting_confirmation.
 - waiting_user_reply: post last comment (clarification), set clarification_sent.
+- pull_requests/pending/: worker wrote PR request; create PR via API, move to open/, set label review.
 """
 
 import logging
+from datetime import UTC, datetime
 from pathlib import Path
 from typing import Any
 
+from coddy.observer.adapters.base import GitPlatformError
 from coddy.services.store import (
+    delete_pending_pr_request,
     list_issues_by_status,
+    list_pending_pr_requests,
     mark_clarification_sent,
+    save_pr,
     set_issue_status,
 )
+from coddy.services.store.schemas import PRFile
 
 LOG = logging.getLogger("coddy.observer.clarification_poll")
 
@@ -111,3 +118,63 @@ def run_plan_post_poll(
             logger.info("Posted plan for issue #%s, status -> waiting_confirmation", issue_number)
         except Exception as e:
             logger.warning("Failed to post plan for issue #%s: %s", issue_number, e)
+
+
+def run_create_pr_poll(
+    config: Any,
+    repo_dir: Path,
+    log: logging.Logger | None = None,
+) -> None:
+    """Process pending PR requests: create PR via API, save to open/, set label review."""
+    logger = log or LOG
+    pending = list_pending_pr_requests(repo_dir)
+    if not pending:
+        return
+    repo = getattr(config.bot, "repository", "") or ""
+    if not repo:
+        logger.debug("No bot.repository configured, skipping create PR poll")
+        return
+    if getattr(config.bot, "git_platform", "") != "github":
+        logger.debug("Create PR poll only supports GitHub, skipping")
+        return
+    token = getattr(config, "github_token_resolved", None)
+    if not token:
+        logger.debug("No GitHub token, skipping create PR poll")
+        return
+
+    from coddy.observer.adapters.github import GitHubAdapter
+
+    adapter = GitHubAdapter(
+        token=token,
+        api_url=getattr(config.github, "api_url", "https://api.github.com"),
+    )
+
+    for issue_id, req in pending:
+        req_repo = req.repo or repo
+        try:
+            pr = adapter.create_pr(
+                req_repo,
+                title=req.title,
+                body=req.body,
+                head=req.head,
+                base=req.base,
+            )
+            pr_number = getattr(pr, "number", 0)
+            pr_status = getattr(pr, "state", None)
+            if not isinstance(pr_status, str):
+                pr_status = "open"
+            now = datetime.now(UTC).isoformat()
+            pr_file = PRFile(
+                pr_id=pr_number,
+                repo=req_repo,
+                status=pr_status,
+                issue_id=issue_id,
+                created_at=now,
+                updated_at=now,
+            )
+            save_pr(repo_dir, pr_file)
+            delete_pending_pr_request(repo_dir, issue_id)
+            adapter.set_issue_labels(req_repo, issue_id, ["review"])
+            logger.info("Created PR #%s for issue #%s, label set to review", pr_number, issue_id)
+        except GitPlatformError as e:
+            logger.warning("Failed to create PR for issue #%s: %s", issue_id, e)

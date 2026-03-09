@@ -20,8 +20,8 @@ from coddy.services.git import (
     fetch_and_checkout_branch,
     set_commit_author,
 )
-from coddy.services.store import save_pr, set_agent_clarification
-from coddy.services.store.schemas import PRFile
+from coddy.services.store import save_pending_pr_request, set_agent_clarification
+from coddy.services.store.schemas import PendingPRRequest
 from coddy.worker.agents.base import AIAgent
 from coddy.worker.task_yaml import read_agent_clarification, read_pr_report
 
@@ -126,36 +126,29 @@ def run_ralph_loop_for_issue(
                     logger.warning("Issue #%s: failed to commit/push: %s", issue.number, e)
             try:
                 base = default_branch or adapter.get_default_branch(repo)
-                pr = adapter.create_pr(
-                    repo,
+                now = datetime.now(UTC).isoformat()
+                req = PendingPRRequest(
+                    issue_id=issue.number,
+                    repo=repo,
                     title=issue.title,
                     body=pr_body or issue.body or "",
                     head=branch_name,
                     base=base,
-                )
-                adapter.set_issue_labels(repo, issue.number, ["review"])
-                logger.info("Issue #%s: PR created, label set to review", issue.number)
-                now = datetime.now(UTC).isoformat()
-                pr_status = getattr(pr, "state", None)
-                if not isinstance(pr_status, str):
-                    pr_status = "open"
-                pr_file = PRFile(
-                    pr_id=getattr(pr, "number", 0),
-                    repo=repo,
-                    status=pr_status,
-                    issue_id=issue.number,
                     created_at=now,
-                    updated_at=now,
                 )
-                save_pr(repo_dir, pr_file)
+                save_pending_pr_request(repo_dir, req)
+                logger.info(
+                    "Issue #%s: PR request written to pull_requests/pending/, observer will create PR",
+                    issue.number,
+                )
                 try:
                     checkout_branch(base, repo_dir=repo_dir, log=logger)
                     logger.info("Issue #%s: switched back to default branch: %s", issue.number, base)
                 except Exception as e:
                     logger.warning("Issue #%s: failed to switch back to default branch: %s", issue.number, e)
                 return "success"
-            except GitPlatformError as e:
-                logger.warning("Issue #%s: failed to create PR or set labels: %s", issue.number, e)
+            except Exception as e:
+                logger.warning("Issue #%s: failed to write pending PR request: %s", issue.number, e)
                 try:
                     base = default_branch or adapter.get_default_branch(repo)
                     checkout_branch(base, repo_dir=repo_dir, log=logger)
@@ -191,32 +184,25 @@ def run_ralph_loop_for_issue(
                     logger.warning("Issue #%s: failed to commit/push: %s", issue.number, e)
             try:
                 base = default_branch or adapter.get_default_branch(repo)
-                pr = adapter.create_pr(
-                    repo,
+                now = datetime.now(UTC).isoformat()
+                req = PendingPRRequest(
+                    issue_id=issue.number,
+                    repo=repo,
                     title=issue.title,
                     body=report_body or issue.body or "",
                     head=branch_name,
                     base=base,
-                )
-                adapter.set_issue_labels(repo, issue.number, ["review"])
-                logger.info("Issue #%s: PR created from report, label set to review", issue.number)
-                now = datetime.now(UTC).isoformat()
-                pr_status = getattr(pr, "state", None)
-                if not isinstance(pr_status, str):
-                    pr_status = "open"
-                pr_file = PRFile(
-                    pr_id=getattr(pr, "number", 0),
-                    repo=repo,
-                    status=pr_status,
-                    issue_id=issue.number,
                     created_at=now,
-                    updated_at=now,
                 )
-                save_pr(repo_dir, pr_file)
+                save_pending_pr_request(repo_dir, req)
+                logger.info(
+                    "Issue #%s: PR request written to pull_requests/pending/ (from report), observer will create PR",
+                    issue.number,
+                )
                 checkout_branch(base, repo_dir=repo_dir, log=logger)
                 return "success"
-            except GitPlatformError as e:
-                logger.warning("Issue #%s: failed to create PR or set labels: %s", issue.number, e)
+            except Exception as e:
+                logger.warning("Issue #%s: failed to write pending PR request: %s", issue.number, e)
                 try:
                     base = default_branch or adapter.get_default_branch(repo)
                     checkout_branch(base, repo_dir=repo_dir, log=logger)

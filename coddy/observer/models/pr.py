@@ -16,3 +16,4 @@ class PR(BaseModel):
     state: str
     html_url: str | None = None
     merged_at: datetime | None = Field(default=None, description="When PR was merged; None if not merged")
+    draft: bool = Field(default=False, description="Whether the PR is in draft mode")

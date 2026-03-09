@@ -1,8 +1,8 @@
 """Sync issues and PRs from Git platform API into .coddy/ at observer startup.
 
-Fetches open/closed issues and open/merged/rejected PRs and writes YAML
+Fetches open/closed issues and open/merged/rejected/draft PRs and writes YAML
 files into .coddy/issues/{open|closed}/ and
-.coddy/pull_requests/{open|merged|rejected}/. Existing issue workflow
+.coddy/pull_requests/{open|merged|rejected|draft}/. Existing issue workflow
 status and comments are preserved when updating from API.
 """
 
@@ -20,9 +20,11 @@ from coddy.services.store import (
 
 
 def _pr_status_from_api(pr: Any) -> str:
-    """Map platform PR state and merged_at to store status (open, merged,
-    rejected)."""
+    """Map platform PR state, draft flag and merged_at to store status
+    (open, merged, rejected, draft)."""
     if getattr(pr, "state", "open") == "open":
+        if getattr(pr, "draft", False):
+            return "draft"
         return "open"
     if getattr(pr, "merged_at", None):
         return "merged"

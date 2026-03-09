@@ -6,17 +6,21 @@ from unittest.mock import patch
 from coddy.services.store import (
     IssueComment,
     IssueFile,
+    PendingPRRequest,
     PRFile,
     add_comment,
     create_issue,
     delete_comment,
+    delete_pending_pr_request,
     list_issues_by_status,
     list_pending_plan,
+    list_pending_pr_requests,
     list_queued,
     load_issue,
     load_pr,
     mark_clarification_sent,
     save_issue,
+    save_pending_pr_request,
     save_pr,
     set_agent_clarification,
     set_issue_status,
@@ -432,6 +436,52 @@ class TestPRStore:
         assert pr.repo == "other/repo"
         assert pr.issue_id == 99
         assert pr.status == "rejected"
+
+
+class TestPendingPRRequest:
+    """Tests for pending PR request (list, save, delete)."""
+
+    def test_list_pending_pr_requests_empty(self, tmp_path: Path) -> None:
+        """list_pending_pr_requests returns empty when no pending dir."""
+        assert list_pending_pr_requests(tmp_path) == []
+
+    def test_save_and_list_pending_pr_request(self, tmp_path: Path) -> None:
+        """save_pending_pr_request creates file; list_pending_pr_requests
+        returns it."""
+        req = PendingPRRequest(
+            issue_id=1,
+            repo="owner/repo",
+            title="Add feature",
+            body="Body",
+            head="1-feature",
+            base="main",
+            created_at="2024-01-01T00:00:00Z",
+        )
+        out = save_pending_pr_request(tmp_path, req)
+        assert out == tmp_path / ".coddy" / "pull_requests" / "pending" / "1.yaml"
+        assert out.exists()
+        pending = list_pending_pr_requests(tmp_path)
+        assert len(pending) == 1
+        assert pending[0][0] == 1
+        assert pending[0][1].repo == "owner/repo"
+        assert pending[0][1].body == "Body"
+
+    def test_delete_pending_pr_request(self, tmp_path: Path) -> None:
+        """delete_pending_pr_request removes the file."""
+        req = PendingPRRequest(
+            issue_id=2,
+            repo="o/r",
+            title="T",
+            body="B",
+            head="2-branch",
+            base="main",
+            created_at="2024-01-01T00:00:00Z",
+        )
+        save_pending_pr_request(tmp_path, req)
+        assert len(list_pending_pr_requests(tmp_path)) == 1
+        delete_pending_pr_request(tmp_path, 2)
+        assert list_pending_pr_requests(tmp_path) == []
+        assert not (tmp_path / ".coddy" / "pull_requests" / "pending" / "2.yaml").exists()
 
 
 class TestIssueFileSchema:

@@ -72,19 +72,21 @@ def test_ralph_loop_returns_clarification_when_insufficient(tmp_path: Path) -> N
 
 
 def test_ralph_loop_returns_success_when_pr_report_written(tmp_path: Path) -> None:
-    """When generate_code returns PR body, we create PR and return success."""
+    """When generate_code returns PR body, worker writes pending PR request
+    (observer creates PR)."""
+    import yaml
+
+    issue = _issue(number=1)
     adapter = MagicMock()
     adapter.get_issue_comments.return_value = []
+    adapter.get_issue.return_value = issue
     adapter.get_default_branch.return_value = "main"
     adapter.create_branch.side_effect = None
-    adapter.create_pr.side_effect = None
     adapter.set_issue_labels.side_effect = None
 
     agent = MagicMock()
     agent.evaluate_sufficiency.return_value = type("R", (), {"sufficient": True, "clarification": ""})()
     agent.generate_code.return_value = "PR body with Closes #1"
-
-    issue = _issue(number=1)
     with (
         patch(
             "coddy.worker.ralph_loop.fetch_and_checkout_branch",
@@ -106,25 +108,33 @@ def test_ralph_loop_returns_success_when_pr_report_written(tmp_path: Path) -> No
             max_iterations=2,
         )
     assert result == "success"
-    adapter.create_pr.assert_called_once()
-    assert adapter.create_pr.call_args[1]["body"] == "PR body with Closes #1"
+    adapter.create_pr.assert_not_called()
+    pending_path = tmp_path / ".coddy" / "pull_requests" / "pending" / "1.yaml"
+    assert pending_path.exists()
+    data = yaml.safe_load(pending_path.read_text())
+    assert data["issue_id"] == 1
+    assert data["repo"] == "owner/repo"
+    assert data["body"] == "PR body with Closes #1"
+    assert data["head"] == "1-add-login"
+    assert data["base"] == "main"
 
 
 def test_ralph_loop_calls_agent_each_iteration_until_pr_body(tmp_path: Path) -> None:
     """When generate_code returns None then PR body, loop runs agent twice then
-    succeeds."""
+    writes pending PR request."""
+    import yaml
+
+    issue = _issue(number=1)
     adapter = MagicMock()
     adapter.get_issue_comments.return_value = []
+    adapter.get_issue.return_value = issue
     adapter.get_default_branch.return_value = "main"
     adapter.create_branch.side_effect = None
-    adapter.create_pr.side_effect = None
     adapter.set_issue_labels.side_effect = None
 
     agent = MagicMock()
     agent.evaluate_sufficiency.return_value = type("R", (), {"sufficient": True, "clarification": ""})()
     agent.generate_code.side_effect = [None, "PR body from second run"]
-
-    issue = _issue(number=1)
     with (
         patch("coddy.worker.ralph_loop.fetch_and_checkout_branch"),
         patch("coddy.worker.ralph_loop.checkout_branch"),
@@ -141,8 +151,11 @@ def test_ralph_loop_calls_agent_each_iteration_until_pr_body(tmp_path: Path) -> 
         )
     assert result == "success"
     assert agent.generate_code.call_count == 2
-    adapter.create_pr.assert_called_once()
-    assert adapter.create_pr.call_args[1]["body"] == "PR body from second run"
+    adapter.create_pr.assert_not_called()
+    pending_path = tmp_path / ".coddy" / "pull_requests" / "pending" / "1.yaml"
+    assert pending_path.exists()
+    data = yaml.safe_load(pending_path.read_text())
+    assert data["body"] == "PR body from second run"
 
 
 def test_ralph_loop_returns_failed_after_max_iterations_without_pr(tmp_path: Path) -> None:
@@ -206,7 +219,6 @@ def test_ralph_loop_runs_real_cursor_cli_integration(tmp_path: Path) -> None:
     adapter.get_default_branch.return_value = "main"
     adapter.create_branch.side_effect = None
     adapter.set_issue_labels.side_effect = None
-    adapter.create_pr.side_effect = None
 
     agent = CursorCLIAgent(
         command="agent",

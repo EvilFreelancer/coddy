@@ -2,6 +2,6 @@
 
 from coddy.services.store.schemas.issue_comment import IssueComment
 from coddy.services.store.schemas.issue_file import IssueFile
-from coddy.services.store.schemas.pr_file import PRFile
+from coddy.services.store.schemas.pr_file import PendingPRRequest, PRFile
 
-__all__ = ["IssueComment", "IssueFile", "PRFile"]
+__all__ = ["IssueComment", "IssueFile", "PendingPRRequest", "PRFile"]

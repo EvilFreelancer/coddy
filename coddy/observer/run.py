@@ -17,7 +17,11 @@ from pathlib import Path
 
 from coddy.config import AppConfig, LoggingConfig, load_config
 from coddy.logging import CoddyLogging
-from coddy.observer.clarification_poll import run_clarification_poll, run_plan_post_poll
+from coddy.observer.clarification_poll import (
+    run_clarification_poll,
+    run_create_pr_poll,
+    run_plan_post_poll,
+)
 from coddy.observer.sync import run_sync
 from coddy.observer.webhook.handlers import _working_dir_from_config
 from coddy.observer.webhook.server import run_webhook_server
@@ -52,6 +56,7 @@ def _clarification_poll_loop(config: AppConfig, work_dir: Path, log: logging.Log
         try:
             run_plan_post_poll(config, work_dir, log=log)
             run_clarification_poll(config, work_dir, log=log)
+            run_create_pr_poll(config, work_dir, log=log)
         except Exception as e:
             log.warning("Poll error: %s", e)
 
