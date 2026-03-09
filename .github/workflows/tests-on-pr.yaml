@@ -5,6 +5,7 @@ name: Tests on PR
 on:
   pull_request:
     types: [opened, synchronize, reopened]
+  workflow_dispatch:
 
 defaults:
   run:
