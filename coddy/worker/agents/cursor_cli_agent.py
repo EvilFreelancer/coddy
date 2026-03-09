@@ -4,7 +4,7 @@ Cursor CLI agent: headless mode with task YAML and PR report YAML.
 Coddy writes .coddy/task-{n}.yaml. Agent runs and either: (1) implements and writes
 .coddy/pr-{n}.yaml for PR body, or (2) finds data insufficient and adds
 agent_clarification to the task YAML and stops; Coddy reads that
-and posts it to the issue. Run log is in .coddy/issues/{n}.log.
+and posts it to the issue. Run log is in .coddy/logs/{n}.log.
 """
 
 import json
@@ -212,7 +212,7 @@ class CursorCLIAgent(AIAgent):
         """Write task YAML, run Cursor CLI headless, read PR report.
 
         All run info and CLI stdout/stderr are written to
-        .coddy/issues/{issue}.log. Returns PR description string for
+        .coddy/logs/{issue}.log. Returns PR description string for
         create_pr, or None if report missing.
         """
         repo_dir = Path(self.working_directory).resolve()
@@ -275,13 +275,14 @@ class CursorCLIAgent(AIAgent):
         issue_number: int,
     ) -> subprocess.CompletedProcess[str] | None:
         """Run CLI with stdout/stderr redirected to log file."""
+        coddy_dir = log_path.parent.parent  # .coddy/logs/N.log -> .coddy
         with open(log_path, "w", encoding="utf-8") as log_file:
             log_file.write(
                 f"[{datetime.now(UTC).isoformat()}] Issue #{issue_number} | "
                 f"command={self.command} timeout={self.timeout}s\n"
             )
-            log_file.write(f"Task file: {log_path.parent / f'task-{issue_number}.yaml'}\n")
-            log_file.write(f"Report file: {log_path.parent / f'pr-{issue_number}.yaml'}\n")
+            log_file.write(f"Task file: {coddy_dir / f'task-{issue_number}.yaml'}\n")
+            log_file.write(f"Report file: {coddy_dir / f'pr-{issue_number}.yaml'}\n")
             log_file.write("-" * 60 + "\n")
             log_file.flush()
             return subprocess.run(
@@ -304,13 +305,14 @@ class CursorCLIAgent(AIAgent):
     ) -> subprocess.CompletedProcess[str] | None:
         """Run CLI and stream stdout/stderr to log file and to logger (real-
         time debug)."""
+        coddy_dir = log_path.parent.parent  # .coddy/logs/N.log -> .coddy
         with open(log_path, "w", encoding="utf-8") as log_file:
             log_file.write(
                 f"[{datetime.now(UTC).isoformat()}] Issue #{issue_number} | "
                 f"command={self.command} timeout={self.timeout}s\n"
             )
-            log_file.write(f"Task file: {log_path.parent / f'task-{issue_number}.yaml'}\n")
-            log_file.write(f"Report file: {log_path.parent / f'pr-{issue_number}.yaml'}\n")
+            log_file.write(f"Task file: {coddy_dir / f'task-{issue_number}.yaml'}\n")
+            log_file.write(f"Report file: {coddy_dir / f'pr-{issue_number}.yaml'}\n")
             log_file.write("-" * 60 + "\n")
             log_file.flush()
             try:

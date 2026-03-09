@@ -44,7 +44,7 @@ def _handle_pull_request_closed(
     repo_dir: Path | None = None,
     log: logging.Logger | None = None,
 ) -> None:
-    """On PR closed: set PR status (merged/closed) in .coddy/prs/, then if merged pull and exit."""
+    """On PR closed: set PR status (merged/closed) in .coddy/pull_requests/, then if merged pull and exit."""
     logger = log or logging.getLogger("coddy.observer.webhook.handlers")
     if payload.get("action") != "closed":
         return

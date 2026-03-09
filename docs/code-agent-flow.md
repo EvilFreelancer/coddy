@@ -1,11 +1,11 @@
 # Code agent flow: planning, clarification, and run
 
-This document describes how the code agent is started, how it can ask the user for clarification (via the issue YAML and observer), and how the worker runs as a daemon watching `.coddy/issues/` and `.coddy/prs/`.
+This document describes how the code agent is started, how it can ask the user for clarification (via the issue YAML and observer), and how the worker runs as a daemon watching `.coddy/issues/` and `.coddy/pull_requests/`.
 
 ## Roles
 
 - **Observer**: Webhook server + optional poll of `.coddy/issues/`. Receives platform events; when the agent writes a clarification question into an issue YAML, the observer posts it to the issue and marks it as sent. On user comments it updates the issue file and status.
-- **Worker**: Daemon that watches `.coddy/issues/` (and `.coddy/prs/`). Handles issues in status `user_replied` (evaluate sufficiency, post "proceed?" and set `waiting_go`), then picks `queued` issues and runs the ralph loop (code agent). When the agent needs clarification it writes to the issue YAML; the observer then posts that to the platform.
+- **Worker**: Daemon that watches `.coddy/issues/` (and `.coddy/pull_requests/`). Handles issues in status `user_replied` (evaluate sufficiency, post "proceed?" and set `waiting_go`), then picks `queued` issues and runs the ralph loop (code agent). When the agent needs clarification it writes to the issue YAML; the observer then posts that to the platform.
 
 ## Trigger: when the plan is built
 

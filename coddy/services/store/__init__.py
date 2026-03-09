@@ -1,4 +1,5 @@
-"""Root storage logic for issues and PRs (.coddy/issues/, .coddy/prs/)."""
+"""Root storage logic for issues and PRs (.coddy/issues/,
+.coddy/pull_requests/)."""
 
 from coddy.services.store.issue_store import (
     add_comment,

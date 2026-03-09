@@ -8,6 +8,7 @@ Issue and PR data is stored as **YAML files** under `.coddy/`. Status is represe
   - The folder reflects platform state (open vs closed). Workflow status (pending_plan, queued, etc.) is stored in the YAML `status` field.
 - **PRs**: `.coddy/pull_requests/open/{pr_number}.yaml`, `.coddy/pull_requests/merged/{pr_number}.yaml`, `.coddy/pull_requests/rejected/{pr_number}.yaml`
   - The folder reflects PR status: open, merged, or rejected (closed without merge). A `status` field may still be present in YAML for convenience.
+- **Agent run logs**: `.coddy/logs/{issue_number}.log` - one log file per issue run (written by the worker when running the code agent).
 
 When status changes (e.g. issue closed, PR merged), the file is **moved** to the correct folder. On **observer startup**, an optional sync fetches issues and PRs from the platform API and writes/updates these files.
 

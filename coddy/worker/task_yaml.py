@@ -4,7 +4,7 @@ Task: .coddy/task-{issue_number}.yaml - agent input (instructions, report_path, 
 snapshot). Separate from .coddy/issues/{n}.yaml which holds workflow state (status,
 comments). Agent reads the task file and writes .coddy/pr-{n}.yaml or adds
 agent_clarification to the task YAML.
-Log: .coddy/issues/{issue_number}.log - agent run log for that issue.
+Log: .coddy/logs/{issue_number}.log - agent run log for that issue.
 Review: .coddy/review-{pr}.yaml and .coddy/review-reply-{pr}-{comment_id}.yaml.
 """
 
@@ -31,9 +31,9 @@ def report_file_path(repo_dir: Path, issue_number: int) -> Path:
 def task_log_path(repo_dir: Path, issue_number: int) -> Path:
     """Path to agent run log file for the issue (headless mode).
 
-    Stored under .coddy/issues/ next to issue YAML.
+    Stored under .coddy/logs/.
     """
-    return repo_dir / CODDY_DIR / "issues" / f"{issue_number}.log"
+    return repo_dir / CODDY_DIR / "logs" / f"{issue_number}.log"
 
 
 def write_task_file(
