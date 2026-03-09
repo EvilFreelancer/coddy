@@ -118,3 +118,22 @@ class GitPlatformAdapter(ABC):
         Override if needed.
         """
         raise NotImplementedError("reply_to_review_comment")
+
+    def create_pr_comment(self, repo: str, pr_number: int, body: str) -> Comment:
+        """Post a general comment on a PR (issue-style comment, not line-level).
+
+        Override if needed.
+        """
+        return self.create_comment(repo, pr_number, body)
+
+    def get_pr_comments(
+        self,
+        repo: str,
+        pr_number: int,
+        since: datetime | None = None,
+    ) -> List[Comment]:
+        """Fetch general comments on a PR.
+
+        Override if needed.
+        """
+        return self.get_issue_comments(repo, pr_number, since)

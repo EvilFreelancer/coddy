@@ -3,9 +3,11 @@
 - plan_ready: worker wrote the plan; post last comment to GitHub, set waiting_confirmation.
 - waiting_user_reply: post last comment (clarification), set clarification_sent.
 - pull_requests/pending/: worker wrote PR request; create PR via API, move to open/, set label review.
+- review_received: idle timeout passed since last review; set pending_plan for worker to process.
 """
 
 import logging
+import time
 from datetime import UTC, datetime
 from pathlib import Path
 from typing import Any
@@ -15,9 +17,11 @@ from coddy.services.store import (
     delete_pending_pr_request,
     list_issues_by_status,
     list_pending_pr_requests,
+    list_prs_by_workflow_status,
     mark_clarification_sent,
     save_pr,
     set_issue_status,
+    set_pr_workflow_status,
 )
 from coddy.services.store.schemas import PRFile
 
@@ -178,3 +182,36 @@ def run_create_pr_poll(
             logger.info("Created PR #%s for issue #%s, label set to review", pr_number, issue_id)
         except GitPlatformError as e:
             logger.warning("Failed to create PR for issue #%s: %s", issue_id, e)
+
+
+DEFAULT_REVIEW_IDLE_TIMEOUT = 30
+
+
+def run_review_idle_poll(
+    config: Any,
+    repo_dir: Path,
+    log: logging.Logger | None = None,
+    idle_timeout: int | None = None,
+) -> None:
+    """Check PRs with workflow_status=review_received.
+
+    If idle timeout has passed since last_review_ts, transition to
+    pending_plan so the worker can generate a review response plan.
+    """
+    logger = log or LOG
+    received = list_prs_by_workflow_status(repo_dir, "review_received")
+    if not received:
+        return
+
+    timeout = idle_timeout if idle_timeout is not None else DEFAULT_REVIEW_IDLE_TIMEOUT
+    now = int(time.time())
+
+    for pr_id, pr_file in received:
+        last_ts = pr_file.last_review_ts or 0
+        if now - last_ts >= timeout:
+            set_pr_workflow_status(repo_dir, pr_id, "pending_plan")
+            logger.info(
+                "PR #%s: idle timeout reached (%ss since last review), workflow_status -> pending_plan",
+                pr_id,
+                now - last_ts,
+            )

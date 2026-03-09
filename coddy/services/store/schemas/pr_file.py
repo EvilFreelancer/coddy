@@ -4,7 +4,11 @@ Pending request: .coddy/pull_requests/pending/{issue_id}.yaml (worker writes,
 observer creates PR and moves to open/{pr_id}.yaml).
 """
 
+from typing import List
+
 from pydantic import BaseModel, Field
+
+from coddy.services.store.schemas.pr_review import PRReview
 
 
 class PendingPRRequest(BaseModel):
@@ -24,6 +28,15 @@ class PendingPRRequest(BaseModel):
     model_config = {"extra": "forbid", "populate_by_name": True}
 
 
+PR_WORKFLOW_STATUSES = (
+    "idle",
+    "review_received",
+    "pending_plan",
+    "waiting_confirmation",
+    "in_progress",
+)
+
+
 class PRFile(BaseModel):
     """PR record as stored in
     .coddy/pull_requests/{status}/{pr_number}.yaml."""
@@ -34,11 +47,20 @@ class PRFile(BaseModel):
         default="open",
         description="PR state: open, draft, merged, or rejected (closed without merge). Determines folder.",
     )
+    workflow_status: str = Field(
+        default="idle",
+        description="Review workflow: idle, review_received, pending_plan, waiting_confirmation, in_progress",
+    )
     issue_id: int | None = Field(default=None, description="Linked issue ID if any")
+    reviews: List[PRReview] = Field(default_factory=list, description="Submitted reviews with line-level comments")
+    last_review_ts: int | None = Field(
+        default=None,
+        description="Unix timestamp of last review/comment received (for idle timeout)",
+    )
     created_at: str = Field(..., description="ISO timestamp when record was created")
     updated_at: str = Field(..., description="ISO timestamp of last status update")
 
-    model_config = {"extra": "forbid", "populate_by_name": True}
+    model_config = {"extra": "ignore", "populate_by_name": True}
 
     def to_markdown(self) -> str:
         """Render PR record as markdown."""

@@ -14,7 +14,7 @@ from pathlib import Path
 
 import yaml
 
-from coddy.services.store.schemas import PendingPRRequest, PRFile
+from coddy.services.store.schemas import PendingPRRequest, PRFile, PRReview, PRReviewComment
 
 PRS_DIR = ".coddy/pull_requests"
 PR_STATUSES = ("open", "merged", "rejected", "draft")
@@ -178,3 +178,148 @@ def delete_pending_pr_request(repo_dir: Path, issue_id: int) -> None:
     if path.is_file():
         path.unlink()
         LOG.debug("Deleted pending PR request for issue #%s", issue_id)
+
+
+def add_review(
+    repo_dir: Path,
+    pr_id: int,
+    review_id: int,
+    author: str,
+    state: str,
+    body: str,
+    created_at: int,
+) -> None:
+    """Add or update a review entry in the PR file.
+
+    If review with the same review_id already exists, update it.
+    Sets workflow_status to review_received and updates last_review_ts.
+    """
+    pr = load_pr(repo_dir, pr_id)
+    if not pr:
+        LOG.warning("Cannot add review: PR #%s not found", pr_id)
+        return
+
+    existing = {r.review_id: r for r in pr.reviews}
+    if review_id in existing:
+        rev = existing[review_id]
+        rev.state = state
+        rev.body = body
+    else:
+        rev = PRReview(
+            review_id=review_id,
+            author=author,
+            state=state,
+            body=body,
+            created_at=created_at,
+        )
+        pr.reviews.append(rev)
+
+    pr.last_review_ts = created_at
+    pr.workflow_status = "review_received"
+    pr.updated_at = datetime.now(UTC).isoformat()
+    save_pr(repo_dir, pr)
+    LOG.info("PR #%s: added review %s by %s (state=%s)", pr_id, review_id, author, state)
+
+
+def add_review_comment(
+    repo_dir: Path,
+    pr_id: int,
+    review_id: int | None,
+    comment_id: int,
+    author: str,
+    content: str,
+    path: str,
+    line: int | None,
+    created_at: int,
+    in_reply_to_id: int | None = None,
+) -> None:
+    """Add a line-level review comment to the PR file.
+
+    If review_id is given and a matching review exists, the comment is
+    appended to that review; otherwise a new ad-hoc review is created.
+    Sets workflow_status to review_received and updates last_review_ts.
+    """
+    pr = load_pr(repo_dir, pr_id)
+    if not pr:
+        LOG.warning("Cannot add review comment: PR #%s not found", pr_id)
+        return
+
+    comment = PRReviewComment(
+        comment_id=comment_id,
+        name=author,
+        content=content,
+        path=path,
+        line=line,
+        created_at=created_at,
+        updated_at=created_at,
+        in_reply_to_id=in_reply_to_id,
+    )
+
+    target_review: PRReview | None = None
+    if review_id is not None:
+        for rev in pr.reviews:
+            if rev.review_id == review_id:
+                target_review = rev
+                break
+
+    if target_review is None:
+        target_review = PRReview(
+            review_id=review_id,
+            author=author,
+            state="commented",
+            body="",
+            created_at=created_at,
+        )
+        pr.reviews.append(target_review)
+
+    for existing in target_review.comments:
+        if existing.comment_id == comment_id:
+            existing.content = content
+            existing.updated_at = created_at
+            existing.path = path
+            existing.line = line
+            break
+    else:
+        target_review.comments.append(comment)
+
+    pr.last_review_ts = created_at
+    pr.workflow_status = "review_received"
+    pr.updated_at = datetime.now(UTC).isoformat()
+    save_pr(repo_dir, pr)
+    LOG.info("PR #%s: added review comment %s on %s:%s", pr_id, comment_id, path, line)
+
+
+def set_pr_workflow_status(repo_dir: Path, pr_id: int, workflow_status: str) -> None:
+    """Update PR workflow_status field."""
+    pr = load_pr(repo_dir, pr_id)
+    if not pr:
+        LOG.warning("Cannot set workflow_status: PR #%s not found", pr_id)
+        return
+    pr.workflow_status = workflow_status
+    pr.updated_at = datetime.now(UTC).isoformat()
+    save_pr(repo_dir, pr)
+    LOG.info("PR #%s workflow_status -> %s", pr_id, workflow_status)
+
+
+def list_prs_by_workflow_status(repo_dir: Path, workflow_status: str) -> list[tuple[int, PRFile]]:
+    """List all PRs with the given workflow_status.
+
+    Scans all status folders. Returns list of (pr_id, PRFile).
+    """
+    base = _prs_dir(repo_dir)
+    out: list[tuple[int, PRFile]] = []
+    for status in PR_STATUSES:
+        subdir = base / status
+        if not subdir.is_dir():
+            continue
+        for f in sorted(subdir.glob("*.yaml")):
+            if not f.stem.isdigit():
+                continue
+            try:
+                pr_id = int(f.stem)
+                pr = load_pr(repo_dir, pr_id)
+                if pr and pr.workflow_status == workflow_status:
+                    out.append((pr_id, pr))
+            except (ValueError, Exception):
+                continue
+    return out
