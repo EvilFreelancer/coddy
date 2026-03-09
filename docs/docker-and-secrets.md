@@ -138,6 +138,21 @@ The `config.yaml` file is mounted from the host via bind mount in `docker-compos
 
 **Important**: Never commit `config.yaml` to the repository (it's in `.gitignore`). The `config.example.yaml` stays in the repo as a template with all options documented.
 
+## Publishing image to Docker Hub (CI)
+
+The repository has a GitHub Actions workflow that builds the Docker image and pushes it to Docker Hub **only when a version tag is pushed** (e.g. `v1.0.0`). Before building, the workflow runs the test suite; if tests fail, the image is not built.
+
+To enable publishing:
+
+1. In the GitHub repo go to **Settings → Secrets and variables → Actions**.
+2. Add repository secrets:
+   - **DOCKERHUB_USERNAME** – your Docker Hub username.
+   - **DOCKERHUB_TOKEN** – Docker Hub access token (or your password; token is recommended).
+
+After that, when you push a tag like `v1.0.0`, the workflow will run tests, then build and push `DOCKERHUB_USERNAME/coddybot:v1.0.0` and `DOCKERHUB_USERNAME/coddybot:latest` to Docker Hub.
+
+Tests also run on every pull request (workflow "Tests on PR"); no secrets are required for that.
+
 ## CLI in container
 
 ```bash
