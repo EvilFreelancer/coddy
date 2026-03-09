@@ -16,9 +16,12 @@ from coddy.observer.planner import is_affirmative_comment, on_user_confirmed
 from coddy.services.git import GitRunnerError, run_git_pull
 from coddy.services.store import (
     add_comment,
+    add_review,
+    add_review_comment,
     create_issue,
     delete_comment,
     load_issue,
+    load_pr,
     save_issue,
     set_issue_state,
     set_issue_status,
@@ -324,6 +327,155 @@ def _handle_issues_assigned(
     log.info("Issue #%s assigned, status -> pending_plan (worker will build plan)", issue_number)
 
 
+def _handle_pull_request_review(
+    config: Any,
+    payload: Dict[str, Any],
+    repo_dir: Path,
+    log: logging.Logger,
+) -> None:
+    """On pull_request_review submitted: store review in PR file."""
+    action = payload.get("action")
+    if action != "submitted":
+        return
+    review_payload = payload.get("review") or {}
+    pr_payload = payload.get("pull_request") or {}
+    pr_number = pr_payload.get("number")
+    repo_payload = payload.get("repository") or {}
+    repo = repo_payload.get("full_name") or getattr(config.bot, "repository", "")
+    if not repo or repo != getattr(config.bot, "repository", ""):
+        return
+    if pr_number is None:
+        return
+
+    bot_username = getattr(config.bot, "username", None)
+    user = review_payload.get("user") or {}
+    author = user.get("login", "")
+    if bot_username and author == bot_username:
+        return
+
+    review_id = review_payload.get("id")
+    state = review_payload.get("state", "commented")
+    body = review_payload.get("body") or ""
+    ts = _parse_comment_timestamp(review_payload.get("submitted_at")) or int(datetime.now(UTC).timestamp())
+
+    pr = load_pr(repo_dir, int(pr_number))
+    if not pr:
+        set_pr_status(repo_dir, int(pr_number), "open", repo=repo)
+
+    add_review(
+        repo_dir,
+        int(pr_number),
+        review_id=int(review_id) if review_id is not None else 0,
+        author=author,
+        state=state,
+        body=body,
+        created_at=ts,
+    )
+    log.info("PR #%s: review %s submitted by %s (state=%s)", pr_number, review_id, author, state)
+
+
+def _handle_pull_request_review_comment(
+    config: Any,
+    payload: Dict[str, Any],
+    repo_dir: Path,
+    log: logging.Logger,
+) -> None:
+    """On pull_request_review_comment created/edited: store comment in PR file."""
+    action = payload.get("action")
+    if action not in ("created", "edited"):
+        return
+    comment_payload = payload.get("comment") or {}
+    pr_payload = payload.get("pull_request") or {}
+    pr_number = pr_payload.get("number")
+    repo_payload = payload.get("repository") or {}
+    repo = repo_payload.get("full_name") or getattr(config.bot, "repository", "")
+    if not repo or repo != getattr(config.bot, "repository", ""):
+        return
+    if pr_number is None:
+        return
+
+    bot_username = getattr(config.bot, "username", None)
+    user = comment_payload.get("user") or {}
+    author = user.get("login", "")
+    if bot_username and author == bot_username:
+        return
+
+    comment_id = comment_payload.get("id")
+    if comment_id is None:
+        return
+
+    review_id = comment_payload.get("pull_request_review_id")
+    content = comment_payload.get("body") or ""
+    path = comment_payload.get("path") or ""
+    line = comment_payload.get("line")
+    in_reply_to_id = comment_payload.get("in_reply_to_id")
+    ts = _parse_comment_timestamp(comment_payload.get("created_at")) or int(datetime.now(UTC).timestamp())
+
+    pr = load_pr(repo_dir, int(pr_number))
+    if not pr:
+        set_pr_status(repo_dir, int(pr_number), "open", repo=repo)
+
+    add_review_comment(
+        repo_dir,
+        int(pr_number),
+        review_id=int(review_id) if review_id is not None else None,
+        comment_id=int(comment_id),
+        author=author,
+        content=content,
+        path=path,
+        line=line,
+        created_at=ts,
+        in_reply_to_id=int(in_reply_to_id) if in_reply_to_id is not None else None,
+    )
+    log.info("PR #%s: review comment %s on %s:%s by %s", pr_number, comment_id, path, line, author)
+
+
+def _handle_pr_issue_comment(
+    config: Any,
+    payload: Dict[str, Any],
+    repo_dir: Path,
+    log: logging.Logger,
+) -> None:
+    """Handle issue_comment on a PR (general PR comment, not line-level).
+
+    If PR has workflow_status=waiting_confirmation and comment is affirmative,
+    set workflow_status to in_progress.
+    """
+    action = payload.get("action")
+    if action != "created":
+        return
+    comment_payload = payload.get("comment") or {}
+    body = comment_payload.get("body") or ""
+    user = comment_payload.get("user") or {}
+    author = user.get("login", "")
+    bot_username = getattr(config.bot, "username", None)
+    if bot_username and author == bot_username:
+        return
+
+    issue_payload = payload.get("issue") or {}
+    pr_number = issue_payload.get("number")
+    if pr_number is None:
+        return
+
+    if not issue_payload.get("pull_request"):
+        return
+
+    repo_payload = payload.get("repository") or {}
+    repo = repo_payload.get("full_name") or getattr(config.bot, "repository", "")
+    if not repo or repo != getattr(config.bot, "repository", ""):
+        return
+
+    pr = load_pr(repo_dir, int(pr_number))
+    if not pr:
+        return
+
+    if pr.workflow_status == "waiting_confirmation" and is_affirmative_comment(body):
+        from coddy.services.store import set_pr_workflow_status
+
+        set_pr_workflow_status(repo_dir, int(pr_number), "in_progress")
+        log.info("PR #%s: user confirmed review plan, workflow_status -> in_progress", pr_number)
+
+
 def handle_github_event(
     config: Any,
     event: str,
@@ -337,8 +489,10 @@ def handle_github_event(
     - pull_request (action=closed, merged=true): git pull from default branch, then exit 0 to allow restart.
     - pull_request (action=converted_to_draft): set PR status to draft.
     - pull_request (action=ready_for_review): set PR status to open.
+    - pull_request_review (action=submitted): store review in PR file.
+    - pull_request_review_comment (action=created/edited): store line comment in PR file.
     - issues (action=assigned): if bot is in assignees, set status pending_plan (worker builds plan).
-    - issue_comment: on user confirmation set issue status to queued.
+    - issue_comment: on user confirmation set issue status to queued; on PR comment check review confirmation.
     """
     logger = log or logging.getLogger("coddy.observer.webhook.handlers")
     work_dir = Path(repo_dir) if repo_dir is not None else _working_dir_from_config(config)
@@ -353,10 +507,19 @@ def handle_github_event(
             _handle_pull_request_draft_or_ready(config, payload, "open", repo_dir=work_dir, log=logger)
         return
 
+    if event == "pull_request_review":
+        _handle_pull_request_review(config, payload, work_dir, logger)
+        return
+
+    if event == "pull_request_review_comment":
+        _handle_pull_request_review_comment(config, payload, work_dir, logger)
+        return
+
     if event == "issues":
         _handle_issues(config, payload, work_dir, logger)
         return
 
     if event == "issue_comment":
+        _handle_pr_issue_comment(config, payload, work_dir, logger)
         _handle_issue_comment(config, payload, work_dir, logger)
         return

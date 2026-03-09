@@ -20,14 +20,18 @@ from coddy.logging import CoddyLogging
 from coddy.observer.models import Comment, Issue
 from coddy.services.store import (
     IssueFile,
+    PRFile,
     add_comment,
     list_issues_by_status,
     list_pending_plan,
+    list_prs_by_workflow_status,
     list_queued,
     set_agent_clarification,
     set_issue_status,
+    set_pr_workflow_status,
 )
 from coddy.worker.ralph_loop import run_ralph_loop_for_issue
+from coddy.worker.review_loop import run_review_loop_for_pr
 from coddy.worker.task_yaml import report_file_path
 
 
@@ -209,7 +213,111 @@ def run_worker_poll(
             log.info("Dry run: wrote empty PR YAML for issue #%s", issue_number)
         did_work = True
 
+    if not did_work:
+        did_work = _process_pr_reviews(config, repo_dir, adapter, agent, log)
+
     return did_work
+
+
+def _process_pr_reviews(
+    config: AppConfig,
+    repo_dir: Path,
+    adapter: Any,
+    agent: Any,
+    log: logging.Logger,
+) -> bool:
+    """Process PRs with workflow_status=pending_plan or in_progress.
+
+    pending_plan: generate review response plan, post as PR comment, set waiting_confirmation.
+    in_progress: run review loop (apply fixes via agent), set idle.
+    """
+    repo = config.bot.repository
+    bot_username = getattr(config.bot, "username", None)
+    did_work = False
+
+    pending = list_prs_by_workflow_status(repo_dir, "pending_plan")
+    for pr_id, pr_file in pending:
+        if not adapter or not agent:
+            break
+        try:
+            review_comments = _collect_review_comments(pr_file)
+            if not review_comments:
+                set_pr_workflow_status(repo_dir, pr_id, "idle")
+                continue
+            plan = _build_review_plan(review_comments)
+            confirmation_msg = (
+                f"## Review response plan\n\n{plan}\n\n---\n\n"
+                "Does this look good? Reply with **yes** / **go ahead** to start applying fixes."
+            )
+            try:
+                adapter.create_pr_comment(repo, pr_id, confirmation_msg)
+            except Exception as e:
+                log.warning("PR #%s: failed to post review plan: %s", pr_id, e)
+            set_pr_workflow_status(repo_dir, pr_id, "waiting_confirmation")
+            log.info("PR #%s: posted review response plan, workflow_status -> waiting_confirmation", pr_id)
+            did_work = True
+        except Exception as e:
+            log.warning("PR #%s: review plan failed: %s", pr_id, e)
+
+    in_progress = list_prs_by_workflow_status(repo_dir, "in_progress")
+    for pr_id, pr_file in in_progress:
+        if not adapter or not agent:
+            break
+        try:
+            result = run_review_loop_for_pr(
+                adapter=adapter,
+                agent=agent,
+                pr_file=pr_file,
+                repo=repo,
+                repo_dir=repo_dir,
+                bot_username=bot_username,
+                bot_name=getattr(config.bot, "name", None),
+                bot_email=getattr(config.bot, "email", None),
+                default_branch=getattr(config.bot, "default_branch", "main"),
+                log=log,
+            )
+            if result == "success":
+                set_pr_workflow_status(repo_dir, pr_id, "idle")
+                log.info("PR #%s: review fixes applied, workflow_status -> idle", pr_id)
+            else:
+                set_pr_workflow_status(repo_dir, pr_id, "idle")
+                log.warning("PR #%s: review loop result=%s, workflow_status -> idle", pr_id, result)
+            did_work = True
+        except Exception as e:
+            log.exception("PR #%s: review loop failed: %s", pr_id, e)
+            set_pr_workflow_status(repo_dir, pr_id, "idle")
+
+    return did_work
+
+
+def _collect_review_comments(pr_file: PRFile) -> list[dict[str, Any]]:
+    """Extract all review comments with file/line info from a PR file."""
+    items: list[dict[str, Any]] = []
+    for review in pr_file.reviews:
+        for comment in review.comments:
+            if comment.in_reply_to_id is not None:
+                continue
+            items.append(
+                {
+                    "comment_id": comment.comment_id,
+                    "author": comment.name,
+                    "body": comment.content,
+                    "path": comment.path,
+                    "line": comment.line,
+                    "review_id": review.review_id,
+                }
+            )
+    return items
+
+
+def _build_review_plan(review_comments: list[dict[str, Any]]) -> str:
+    """Build a markdown plan summarizing review comments to address."""
+    lines = []
+    for i, item in enumerate(review_comments, 1):
+        line_display = str(item["line"]) if item.get("line") is not None else "file-level"
+        body_preview = item["body"][:80] + ("..." if len(item["body"]) > 80 else "")
+        lines.append(f"{i}. `{item['path']}` line {line_display} (@{item['author']}): {body_preview}")
+    return "\n".join(lines)
 
 
 def run_worker(config: AppConfig, once: bool = False, poll_interval: int = 15) -> None:

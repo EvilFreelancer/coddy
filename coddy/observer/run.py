@@ -21,6 +21,7 @@ from coddy.observer.clarification_poll import (
     run_clarification_poll,
     run_create_pr_poll,
     run_plan_post_poll,
+    run_review_idle_poll,
 )
 from coddy.observer.sync import run_sync
 from coddy.observer.webhook.handlers import _working_dir_from_config
@@ -57,6 +58,7 @@ def _clarification_poll_loop(config: AppConfig, work_dir: Path, log: logging.Log
             run_plan_post_poll(config, work_dir, log=log)
             run_clarification_poll(config, work_dir, log=log)
             run_create_pr_poll(config, work_dir, log=log)
+            run_review_idle_poll(config, work_dir, log=log)
         except Exception as e:
             log.warning("Poll error: %s", e)
 
