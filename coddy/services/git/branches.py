@@ -5,6 +5,8 @@ import logging
 import re
 from pathlib import Path
 
+from slugify import slugify
+
 from coddy.services.git._run import GitRunnerError, _run_git
 
 # Git ref name rules: no "..", no space, no ~ ^ : ? * [ \ ; output uses only a-z, 0-9, dash
@@ -15,12 +17,13 @@ _DOUBLE_DASH_RE = re.compile(r"-+")
 def sanitize_branch_name(text: str, max_length: int = 100) -> str:
     """Sanitize a string for use as (part of) a branch name.
 
-    Replaces spaces with dashes, removes invalid characters, lowercases,
-    collapses and strips dashes, and truncates to max_length without
-    leaving a trailing dash.
+    Transliterates UTF characters to ASCII (e.g. Cyrillic to Latin), replaces
+    spaces and punctuation with dashes, removes invalid characters, lowercases,
+    collapses and strips dashes, and truncates to max_length without leaving
+    a trailing dash.
 
     Args:
-        text: Raw string (e.g. issue title fragment).
+        text: Raw string (e.g. issue title fragment, may be non-ASCII).
         max_length: Maximum length of the result (default 100).
 
     Returns:
@@ -29,9 +32,9 @@ def sanitize_branch_name(text: str, max_length: int = 100) -> str:
     """
     if not text or not text.strip():
         return ""
-    s = text.lower().strip()
-    for char in " ._":
-        s = s.replace(char, "-")
+    s = slugify(text, separator="-", lowercase=True)
+    if not s:
+        return ""
     s = _INVALID_BRANCH_CHARS_RE.sub("", s)
     s = _DOUBLE_DASH_RE.sub("-", s).strip("-")
     if len(s) > max_length:
