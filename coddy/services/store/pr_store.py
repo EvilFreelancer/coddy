@@ -1,4 +1,4 @@
-"""PR storage in .coddy/pull_requests/open/, merged/, rejected/ as YAML files.
+"""PR storage in .coddy/pull_requests/open/, merged/, rejected/, draft/ as YAML files.
 
 One file per PR: {status}/{pr_id}.yaml. Status is reflected by the folder.
 When status changes, the file is moved to the correct folder.
@@ -13,7 +13,7 @@ import yaml
 from coddy.services.store.schemas import PRFile
 
 PRS_DIR = ".coddy/pull_requests"
-PR_STATUSES = ("open", "merged", "rejected")
+PR_STATUSES = ("open", "merged", "rejected", "draft")
 
 LOG = logging.getLogger("coddy.services.store.pr_store")
 
@@ -29,10 +29,9 @@ def _pr_path(repo_dir: Path, pr_id: int, status: str = "open") -> Path:
 
 
 def load_pr(repo_dir: Path, pr_id: int) -> PRFile | None:
-    """Load PR from .coddy/pull_requests/{open|merged|rejected}/{pr_id}.yaml.
+    """Load PR from .coddy/pull_requests/{open|merged|rejected|draft}/{pr_id}.yaml.
 
-    Searches in open, merged, rejected. Returns None if missing or
-    invalid.
+    Searches all status folders. Returns None if missing or invalid.
     """
     for status in PR_STATUSES:
         path = _pr_path(repo_dir, pr_id, status)
@@ -79,7 +78,7 @@ def set_pr_status(
     repo: str | None = None,
     issue_number: int | None = None,
 ) -> None:
-    """Create or update PR file with given status (open, merged, rejected).
+    """Create or update PR file with given status (open, merged, rejected, draft).
 
     If status changes, the file is written to the new folder; the old
     file is removed if it existed in another folder. Accepts "closed" as

@@ -56,6 +56,7 @@ def _pr_from_api(data: Dict[str, Any]) -> PR:
         state=data.get("state", "open"),
         html_url=data.get("html_url"),
         merged_at=merged_at,
+        draft=bool(data.get("draft", False)),
     )
 
 

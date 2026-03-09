@@ -20,9 +20,11 @@ from coddy.services.store import (
 
 
 def _pr_status_from_api(pr: Any) -> str:
-    """Map platform PR state and merged_at to store status (open, merged,
-    rejected)."""
+    """Map platform PR state, draft flag and merged_at to store status
+    (open, merged, rejected, draft)."""
     if getattr(pr, "state", "open") == "open":
+        if getattr(pr, "draft", False):
+            return "draft"
         return "open"
     if getattr(pr, "merged_at", None):
         return "merged"
