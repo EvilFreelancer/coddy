@@ -132,7 +132,15 @@ def run_ralph_loop_for_issue(
                 pr_status = getattr(pr, "state", None)
                 if not isinstance(pr_status, str):
                     pr_status = "open"
-                save_pr(repo_dir, PRFile(pr_id=getattr(pr, "number", 0), repo=repo, status=pr_status, issue_id=issue.number, created_at=now, updated_at=now))
+                pr_file = PRFile(
+                    pr_id=getattr(pr, "number", 0),
+                    repo=repo,
+                    status=pr_status,
+                    issue_id=issue.number,
+                    created_at=now,
+                    updated_at=now,
+                )
+                save_pr(repo_dir, pr_file)
                 try:
                     checkout_branch(base, repo_dir=repo_dir, log=logger)
                     logger.info("Switched back to default branch: %s", base)
@@ -189,7 +197,15 @@ def run_ralph_loop_for_issue(
                 pr_status = getattr(pr, "state", None)
                 if not isinstance(pr_status, str):
                     pr_status = "open"
-                save_pr(repo_dir, PRFile(pr_id=getattr(pr, "number", 0), repo=repo, status=pr_status, issue_id=issue.number, created_at=now, updated_at=now))
+                pr_file = PRFile(
+                    pr_id=getattr(pr, "number", 0),
+                    repo=repo,
+                    status=pr_status,
+                    issue_id=issue.number,
+                    created_at=now,
+                    updated_at=now,
+                )
+                save_pr(repo_dir, pr_file)
                 checkout_branch(base, repo_dir=repo_dir, log=logger)
                 return "success"
             except GitPlatformError as e:

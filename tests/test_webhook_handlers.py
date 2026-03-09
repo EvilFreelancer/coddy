@@ -480,7 +480,7 @@ def test_webhook_issues_assigned_creates_issue_file(tmp_path: Path) -> None:
     }
     handle_github_event(config, "issues", payload, repo_dir=tmp_path)
 
-    issue_path = tmp_path / ".coddy" / "issues" / "42.yaml"
+    issue_path = tmp_path / ".coddy" / "issues" / "open" / "42.yaml"
     assert issue_path.exists(), "Issue file should be created"
     content = issue_path.read_text(encoding="utf-8")
     assert "pending_plan" in content
@@ -517,7 +517,7 @@ def test_webhook_issues_unassigned_clears_assignment_in_file(tmp_path: Path) -> 
         assigned_at=1704067200,
         assigned_to="coddybot",
     )
-    content_before = (tmp_path / ".coddy" / "issues" / "19.yaml").read_text(encoding="utf-8")
+    content_before = (tmp_path / ".coddy" / "issues" / "open" / "19.yaml").read_text(encoding="utf-8")
     assert "assigned_at" in content_before
     assert "assigned_to" in content_before
 
@@ -528,7 +528,7 @@ def test_webhook_issues_unassigned_clears_assignment_in_file(tmp_path: Path) -> 
     }
     handle_github_event(config, "issues", payload, repo_dir=tmp_path)
 
-    content_after = (tmp_path / ".coddy" / "issues" / "19.yaml").read_text(encoding="utf-8")
+    content_after = (tmp_path / ".coddy" / "issues" / "open" / "19.yaml").read_text(encoding="utf-8")
     assert "assigned_at" not in content_after
     assert "assigned_to" not in content_after
     issue = load_issue(tmp_path, 19)
@@ -571,7 +571,7 @@ def test_webhook_issue_comment_affirmative_sets_queued(tmp_path: Path) -> None:
 
     create_issue(tmp_path, 7, "owner/repo", "Fix bug", "Description", "user1")
     set_issue_status(tmp_path, 7, "waiting_confirmation")
-    assert (tmp_path / ".coddy" / "issues" / "7.yaml").exists()
+    assert (tmp_path / ".coddy" / "issues" / "open" / "7.yaml").exists()
 
     config = _issues_assigned_config(tmp_path)
     config.github = type("GitHub", (), {"api_url": "https://api.github.com"})()

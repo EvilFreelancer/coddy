@@ -131,6 +131,10 @@ class ObserverConfig(BaseSettings):
         ge=1,
         description="Seconds between clarification poll runs",
     )
+    sync_on_startup: bool = Field(
+        default=False,
+        description="When True, on start fetch issues and PRs from API into .coddy/issues/ and .coddy/pull_requests/",
+    )
 
 
 class WorkerConfig(BaseSettings):

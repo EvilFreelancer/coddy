@@ -29,7 +29,10 @@ def report_file_path(repo_dir: Path, issue_number: int) -> Path:
 
 
 def task_log_path(repo_dir: Path, issue_number: int) -> Path:
-    """Path to agent run log file for the issue (headless mode). Stored under .coddy/issues/ next to issue YAML."""
+    """Path to agent run log file for the issue (headless mode).
+
+    Stored under .coddy/issues/ next to issue YAML.
+    """
     return repo_dir / CODDY_DIR / "issues" / f"{issue_number}.log"
 
 

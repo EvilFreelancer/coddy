@@ -1,4 +1,5 @@
-"""Full issue record as stored in .coddy/issues/{issue_number}.yaml."""
+"""Full issue record as stored in
+.coddy/issues/{open|closed}/{issue_number}.yaml."""
 
 from datetime import UTC, datetime
 from typing import Annotated, List
@@ -24,7 +25,8 @@ def _ensure_unix_ts(value: int | str | None) -> int | None:
 
 
 class IssueFile(BaseModel):
-    """Full issue record as stored in .coddy/issues/{issue_number}.yaml."""
+    """Full issue record as stored in
+    .coddy/issues/{open|closed}/{issue_number}.yaml."""
 
     repo: str | None = Field(default=None, description="Repository full_name, e.g. owner/repo")
     issue_id: int | None = Field(default=None, description="Issue ID")
@@ -48,6 +50,10 @@ class IssueFile(BaseModel):
         description="Unix timestamp of last update",
     )
 
+    state: str = Field(
+        default="open",
+        description="Platform state: open or closed; determines folder (.coddy/issues/open/ or closed/).",
+    )
     status: str = Field(
         default="pending_plan",
         description="Current state: pending_plan, waiting_confirmation, queued, in_progress, "

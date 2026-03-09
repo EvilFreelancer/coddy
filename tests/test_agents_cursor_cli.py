@@ -24,13 +24,13 @@ def _issue(number: int = 42, body: str = "Enough body for sufficiency check.") -
 
 def test_extract_plan_from_cli_output_returns_last_assistant_text() -> None:
     """Stream-json output: only the last assistant message text is extracted."""
-    raw = '''{"type":"system","subtype":"init"}
+    raw = """{"type":"system","subtype":"init"}
 {"type":"user","message":{}}
 {"type":"thinking","subtype":"delta","text":"x"}
 {"type":"assistant","message":{"role":"assistant","content":[{"type":"text","text":"## Plan\\n\\n- Step 1"}]}}
 {"type":"assistant","message":{"role":"assistant","content":[{"type":"text","text":"## Final plan\\n\\n- A\\n- B"}]}}
 {"type":"result","subtype":"success"}
-'''
+"""
     assert _extract_plan_from_cli_output(raw) == "## Final plan\n\n- A\n- B"
 
 

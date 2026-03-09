@@ -17,12 +17,14 @@ from datetime import UTC, datetime
 from pathlib import Path
 from typing import Any, List
 
-def _extract_plan_from_cli_output(raw: str) -> str | None:
-    """Extract final plan text from Cursor CLI output (JSON lines or stream-json).
 
-    Looks for type 'assistant' with message.content[].type 'text', or type 'result'
-    with a string result. Returns the last such text so the issue comment shows
-    only the plan, not raw JSON.
+def _extract_plan_from_cli_output(raw: str) -> str | None:
+    """Extract final plan text from Cursor CLI output (JSON lines or stream-
+    json).
+
+    Looks for type 'assistant' with message.content[].type 'text', or
+    type 'result' with a string result. Returns the last such text so
+    the issue comment shows only the plan, not raw JSON.
     """
     last_plan: str | None = None
     for line in (raw or "").strip().splitlines():

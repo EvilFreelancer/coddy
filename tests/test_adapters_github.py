@@ -122,6 +122,75 @@ def test_list_open_issues_empty(adapter: GitHubAdapter) -> None:
     assert issues == []
 
 
+def test_list_issues_with_state(adapter: GitHubAdapter) -> None:
+    """list_issues(state) calls API with given state and excludes PRs."""
+    response_data = [
+        {
+            "number": 5,
+            "title": "Closed issue",
+            "body": "Body",
+            "state": "closed",
+            "labels": [],
+            "created_at": "2024-01-15T10:00:00Z",
+            "updated_at": "2024-01-16T12:00:00Z",
+            "user": {"login": "user"},
+        },
+    ]
+    mock_resp = Mock()
+    mock_resp.status_code = 200
+    mock_resp.json.return_value = response_data
+
+    with patch.object(adapter._session, "request", return_value=mock_resp) as req:
+        issues = adapter.list_issues("owner/repo", state="closed")
+
+    assert len(issues) == 1
+    assert issues[0].number == 5
+    assert issues[0].state == "closed"
+    assert req.call_args[1].get("params", {}).get("state") == "closed"
+
+
+def test_list_pulls_returns_prs_with_merged_at(adapter: GitHubAdapter) -> None:
+    """list_pulls returns PRs; closed PRs include merged_at when merged."""
+    response_data = [
+        {
+            "number": 10,
+            "title": "Open PR",
+            "body": "",
+            "state": "open",
+            "head": {"ref": "feature"},
+            "base": {"ref": "main"},
+            "created_at": "2024-01-15T10:00:00Z",
+            "updated_at": "2024-01-16T12:00:00Z",
+            "merged_at": None,
+        },
+        {
+            "number": 11,
+            "title": "Merged PR",
+            "body": "",
+            "state": "closed",
+            "head": {"ref": "fix"},
+            "base": {"ref": "main"},
+            "merged_at": "2024-01-17T14:00:00Z",
+        },
+    ]
+    mock_resp = Mock()
+    mock_resp.status_code = 200
+    mock_resp.json.return_value = response_data
+
+    with patch.object(adapter._session, "request", return_value=mock_resp) as req:
+        pulls = adapter.list_pulls("owner/repo", state="all")
+
+    assert len(pulls) == 2
+    assert pulls[0].number == 10
+    assert pulls[0].state == "open"
+    assert pulls[0].merged_at is None
+    assert pulls[1].number == 11
+    assert pulls[1].state == "closed"
+    assert pulls[1].merged_at is not None
+    assert "/repos/owner/repo/pulls" in req.call_args[0][1]
+    assert req.call_args[1].get("params", {}).get("state") == "all"
+
+
 def test_set_issue_labels_success(adapter: GitHubAdapter) -> None:
     """set_issue_labels sends PUT with labels."""
     mock_resp = Mock()

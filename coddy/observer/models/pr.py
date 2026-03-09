@@ -1,6 +1,8 @@
 """Pull request (or merge request) model."""
 
-from pydantic import BaseModel
+from datetime import datetime
+
+from pydantic import BaseModel, Field
 
 
 class PR(BaseModel):
@@ -13,3 +15,4 @@ class PR(BaseModel):
     base_branch: str
     state: str
     html_url: str | None = None
+    merged_at: datetime | None = Field(default=None, description="When PR was merged; None if not merged")

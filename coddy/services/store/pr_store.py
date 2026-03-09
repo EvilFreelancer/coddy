@@ -1,6 +1,7 @@
-"""PR storage in .coddy/prs/ as YAML files.
+"""PR storage in .coddy/pull_requests/open/, merged/, rejected/ as YAML files.
 
-One file per PR: {pr_id}.yaml. Status is updated in place (open, merged, closed).
+One file per PR: {status}/{pr_id}.yaml. Status is reflected by the folder.
+When status changes, the file is moved to the correct folder.
 """
 
 import logging
@@ -11,7 +12,8 @@ import yaml
 
 from coddy.services.store.schemas import PRFile
 
-PRS_DIR = ".coddy/prs"
+PRS_DIR = ".coddy/pull_requests"
+PR_STATUSES = ("open", "merged", "rejected")
 
 LOG = logging.getLogger("coddy.services.store.pr_store")
 
@@ -20,36 +22,44 @@ def _prs_dir(repo_dir: Path) -> Path:
     return Path(repo_dir) / PRS_DIR
 
 
-def _pr_path(repo_dir: Path, pr_id: int) -> Path:
-    return _prs_dir(repo_dir) / f"{pr_id}.yaml"
+def _pr_path(repo_dir: Path, pr_id: int, status: str = "open") -> Path:
+    if status not in PR_STATUSES:
+        status = "open"
+    return _prs_dir(repo_dir) / status / f"{pr_id}.yaml"
 
 
 def load_pr(repo_dir: Path, pr_id: int) -> PRFile | None:
-    """Load PR from .coddy/prs/{pr_id}.yaml.
+    """Load PR from .coddy/pull_requests/{open|merged|rejected}/{pr_id}.yaml.
 
-    Returns None if missing or invalid.
+    Searches in open, merged, rejected. Returns None if missing or
+    invalid.
     """
-    path = _pr_path(repo_dir, pr_id)
-    if not path.is_file():
-        return None
-    try:
-        data = yaml.safe_load(path.read_text(encoding="utf-8"))
-        if not data:
+    for status in PR_STATUSES:
+        path = _pr_path(repo_dir, pr_id, status)
+        if not path.is_file():
+            continue
+        try:
+            data = yaml.safe_load(path.read_text(encoding="utf-8"))
+            if not data:
+                return None
+            data.setdefault("status", status)
+            return PRFile.model_validate(data)
+        except (OSError, yaml.YAMLError, Exception) as e:
+            LOG.warning("Failed to load PR %s: %s", pr_id, e)
             return None
-        return PRFile.model_validate(data)
-    except (OSError, yaml.YAMLError, Exception) as e:
-        LOG.warning("Failed to load PR %s: %s", pr_id, e)
-        return None
+    return None
 
 
 def save_pr(repo_dir: Path, pr: PRFile) -> Path:
-    """Write PR to .coddy/prs/{pr_id}.yaml.
+    """Write PR to .coddy/pull_requests/{status}/{pr_id}.yaml.
 
-    Creates dir if needed.
+    Uses pr.status for folder. Creates dir if needed.
     """
-    path = _pr_path(repo_dir, pr.pr_id)
+    status = pr.status if pr.status in PR_STATUSES else "open"
+    path = _pr_path(repo_dir, pr.pr_id, status)
     path.parent.mkdir(parents=True, exist_ok=True)
     payload = pr.model_dump(mode="json", exclude_none=True)
+    payload.setdefault("status", status)
     raw = yaml.dump(
         payload,
         default_flow_style=False,
@@ -69,9 +79,19 @@ def set_pr_status(
     repo: str | None = None,
     issue_number: int | None = None,
 ) -> None:
-    """Create or update PR file with given status (open, merged, closed)."""
+    """Create or update PR file with given status (open, merged, rejected).
+
+    If status changes, the file is written to the new folder; the old
+    file is removed if it existed in another folder. Accepts "closed" as
+    alias for "rejected" for backward compatibility.
+    """
+    if status == "closed":
+        status = "rejected"
+    if status not in PR_STATUSES:
+        status = "open"
     now = datetime.now(UTC).isoformat()
     pr = load_pr(repo_dir, pr_id)
+    old_status = pr.status if pr else None
     if pr:
         pr.status = status
         pr.updated_at = now
@@ -89,4 +109,8 @@ def set_pr_status(
     if issue_number is not None:
         pr.issue_id = issue_number
     save_pr(repo_dir, pr)
+    if old_status and old_status != status:
+        old_path = _pr_path(repo_dir, pr_id, old_status)
+        if old_path.is_file():
+            old_path.unlink()
     LOG.info("PR #%s status -> %s", pr_id, status)

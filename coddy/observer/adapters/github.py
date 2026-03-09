@@ -44,6 +44,9 @@ def _comment_from_api(data: Dict[str, Any]) -> Comment:
 def _pr_from_api(data: Dict[str, Any]) -> PR:
     head = data.get("head") or {}
     base = data.get("base") or {}
+    merged_at = None
+    if data.get("merged_at"):
+        merged_at = _parse_iso(data["merged_at"])
     return PR(
         number=data["number"],
         title=data.get("title") or "",
@@ -52,6 +55,7 @@ def _pr_from_api(data: Dict[str, Any]) -> PR:
         base_branch=base.get("ref", ""),
         state=data.get("state", "open"),
         html_url=data.get("html_url"),
+        merged_at=merged_at,
     )
 
 
@@ -183,6 +187,20 @@ class GitHubAdapter(GitPlatformAdapter):
         resp = self._request("GET", f"/repos/{repo}/issues", params={"state": "open"})
         data = resp.json() or []
         return [_issue_from_api(d) for d in data if "pull_request" not in d]
+
+    def list_issues(self, repo: str, state: str = "open") -> List[Issue]:
+        if state not in ("open", "closed", "all"):
+            state = "open"
+        resp = self._request("GET", f"/repos/{repo}/issues", params={"state": state})
+        data = resp.json() or []
+        return [_issue_from_api(d) for d in data if "pull_request" not in d]
+
+    def list_pulls(self, repo: str, state: str = "all") -> List[PR]:
+        if state not in ("open", "closed", "all"):
+            state = "all"
+        resp = self._request("GET", f"/repos/{repo}/pulls", params={"state": state})
+        data = resp.json() or []
+        return [_pr_from_api(d) for d in data]
 
     def list_pr_review_comments(self, repo: str, pr_number: int) -> List[ReviewComment]:
         resp = self._request("GET", f"/repos/{repo}/pulls/{pr_number}/comments")

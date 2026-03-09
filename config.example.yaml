@@ -56,6 +56,7 @@ webhook:
 observer:
   poll_clarifications: true
   poll_interval_seconds: 15
+  sync_on_startup: false  # When true, fetch issues and PRs from API into .coddy/issues/ and .coddy/pull_requests/ on start
 
 # Worker: poll of .coddy/issues/ for pending_plan, user_replied, queued (env WORKER_POLL_INTERVAL_SECONDS)
 worker:

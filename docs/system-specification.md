@@ -32,8 +32,9 @@ Coddy is split into two runnable applications that work together:
 
 1. **Observer (coddy observer)** - Task intake and webhooks
    - Listens for webhook events from Git platforms (e.g. GitHub: issue assigned, issue comment, PR review comment).
-   - When the bot is assigned to an issue, the observer creates/updates the issue in `.coddy/issues/{n}.yaml` and sets status **pending_plan** (worker builds the plan). Observer poll loop posts worker's plan when status=plan_ready and posts clarification when status=waiting_user_reply. When the user confirms via a comment, the observer sets issue status to **queued**. See [issue-flow.md](issue-flow.md).
-   - Tasks are issues with status=queued in `.coddy/issues/`. Worker polls `.coddy/issues/` every `worker.poll_interval_seconds` (default 10) and picks pending_plan, user_replied, then queued. PRs are tracked in `.coddy/prs/{pr_number}.yaml` with status open/merged/closed. On PR merge or close (webhook), PR status is updated; on issue close, issue status is set to closed.
+   - **On startup**, the observer can optionally **sync** issues and pull requests from the platform API into `.coddy/`: issues are stored under `.coddy/issues/open/` or `.coddy/issues/closed/`, PRs under `.coddy/pull_requests/open/`, `.coddy/pull_requests/merged/`, or `.coddy/pull_requests/rejected/`. Each entity is a YAML file; the folder denotes the status (no separate status field needed for PRs; for issues the folder is platform state open/closed, workflow status remains in YAML).
+   - When the bot is assigned to an issue, the observer creates/updates the issue in `.coddy/issues/open/{n}.yaml` (or `closed/` if the issue is closed) and sets status **pending_plan** (worker builds the plan). Observer poll loop posts worker's plan when status=plan_ready and posts clarification when status=waiting_user_reply. When the user confirms via a comment, the observer sets issue status to **queued**. See [issue-flow.md](issue-flow.md).
+   - Tasks are issues with status=queued in `.coddy/issues/` (files live under `open/` or `closed/`). Worker polls `.coddy/issues/` every `worker.poll_interval_seconds` (default 10) and picks pending_plan, user_replied, then queued. PRs are tracked in `.coddy/pull_requests/{open|merged|rejected}/{pr_number}.yaml`. On PR merge or close (webhook), PR file is moved to the correct folder; on issue close, issue file is moved to `closed/`.
    - The observer is long-running: HTTP server for webhooks and a poll loop over `.coddy/issues/`. It does not execute the development loop or the planner.
 
 2. **Worker (coddy worker)** - Development and commit loop (Ralph-style)
@@ -55,8 +56,8 @@ This separation allows:
 ### High-Level Components (refined)
 
 1. **Git Platform Adapter Layer** (`coddy.observer.adapters`) - Abstract interface for GitHub/GitLab/BitBucket.
-2. **Observer** (`coddy.observer.run`): Webhook server and poll of .coddy/issues/ (post plan when plan_ready, post clarification when waiting_user_reply); on assignment sets status pending_plan; does not run the development loop or planner.
-3. **Tasks** - Issues in `.coddy/issues/` with status=queued; worker picks by issue number and sets status done/failed. PRs in `.coddy/prs/` with status merged/closed updated from webhooks.
+2. **Observer** (`coddy.observer.run`): Webhook server and poll of .coddy/issues/ (post plan when plan_ready, post clarification when waiting_user_reply); on assignment sets status pending_plan; optional **sync on startup** (fetch issues and PRs from API into .coddy/issues/open|closed/ and .coddy/pull_requests/open|merged|rejected/); does not run the development loop or planner.
+3. **Tasks** - Issues in `.coddy/issues/` (files in `open/` or `closed/`) with status=queued; worker picks by issue number and sets status done/failed. PRs in `.coddy/pull_requests/{open|merged|rejected}/` updated from webhooks (file moved to the right folder).
 4. **Worker** (`coddy.worker.run`) - Reads queue; for each task runs sufficiency check, branch creation, ralph loop (repeated agent runs until PR report YAML or agent_clarification), then PR creation and labels.
 5. **AI Agent Interface** (`coddy.worker.agents`) - Pluggable interface; Cursor CLI agent runs one iteration per call (read task YAML, implement, optionally write PR report YAML or add agent_clarification to task YAML).
 
@@ -321,6 +322,7 @@ ai_agents:
 observer:
   poll_clarifications: true   # Poll .coddy/issues/ for plan_ready and waiting_user_reply
   poll_interval_seconds: 15  # Interval in seconds (env OBSERVER_POLL_INTERVAL_SECONDS)
+  sync_on_startup: true      # On start, fetch issues and PRs from API into .coddy/issues/ and .coddy/pull_requests/
 
 worker:
   poll_interval_seconds: 10  # Interval for .coddy/issues/ poll (env WORKER_POLL_INTERVAL_SECONDS; CLI --poll-interval overrides)

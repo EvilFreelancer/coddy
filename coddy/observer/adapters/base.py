@@ -76,10 +76,26 @@ class GitPlatformAdapter(ABC):
         """
         raise NotImplementedError("get_pr")
 
+    def list_issues(self, repo: str, state: str = "open") -> List[Issue]:
+        """List issues (exclude PRs). state: open, closed, or all.
+
+        Override if needed.
+        """
+        return []
+
+    def list_pulls(self, repo: str, state: str = "all") -> List[PR]:
+        """List pull requests. state: open, closed, or all. PRs must include
+        merged_at when closed so caller can distinguish merged vs rejected.
+
+        Override if needed.
+        """
+        return []
+
     def list_open_issues(self, repo: str) -> List[Issue]:
         """List open issues (exclude PRs).
 
-        Override if needed.
+        Override if needed. Prefer list_issues(repo, state='open') for
+        new code.
         """
         return []
 

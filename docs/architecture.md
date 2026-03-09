@@ -12,7 +12,7 @@ Coddy Bot follows a **two-module** design: an **observer** that receives webhook
 
 - **Entry point**: `coddy observer` (or `python -m coddy.observer`)
 - **Implementation**: `coddy.observer.run`
-- **Responsibilities**: Run HTTP server for webhooks; verify signatures; on issue assigned to bot, create issue file and set status pending_plan (worker builds plan). Poll of `.coddy/issues/`: status=plan_ready -> post worker's plan to platform, set waiting_confirmation; status=waiting_user_reply -> post clarification, set clarification_sent. On issue comment: add to YAML; if status=clarification_sent set user_replied; if status=waiting_go and comment affirmative set queued. Does **not** run the development loop or the planner - that is done by the worker.
+- **Responsibilities**: Run HTTP server for webhooks; verify signatures; optional **sync on startup** (fetch issues and PRs from platform API into `.coddy/issues/open/`, `.coddy/issues/closed/`, and `.coddy/pull_requests/open/`, `.coddy/pull_requests/merged/`, `.coddy/pull_requests/rejected/`). On issue assigned to bot, create issue file in `.coddy/issues/open/` or `closed/` and set status pending_plan (worker builds plan). Poll of `.coddy/issues/`: status=plan_ready -> post worker's plan to platform, set waiting_confirmation; status=waiting_user_reply -> post clarification, set clarification_sent. On issue comment: add to YAML; if status=clarification_sent set user_replied; if status=waiting_go and comment affirmative set queued. Does **not** run the development loop or the planner - that is done by the worker.
 
 ### Worker
 
@@ -22,8 +22,8 @@ Coddy Bot follows a **two-module** design: an **observer** that receives webhook
 
 ### Task source and status
 
-- **Issues**: `.coddy/issues/{issue_number}.yaml` - one YAML per issue. Status: pending_plan, plan_ready, waiting_confirmation, queued, in_progress, waiting_user_reply, clarification_sent, user_replied, waiting_go, done, failed, closed. Worker polls this folder every `worker.poll_interval_seconds`; observer polls for plan_ready and waiting_user_reply to post to platform. See [code-agent-flow.md](code-agent-flow.md).
-- **PRs**: `.coddy/prs/{pr_number}.yaml` - one YAML per PR. Status: open, merged, closed. On PR closed (webhook), status is set to merged or closed.
+- **Issues**: `.coddy/issues/open/{issue_number}.yaml` and `.coddy/issues/closed/{issue_number}.yaml` - one YAML per issue; folder reflects platform state (open/closed). Workflow status in YAML: pending_plan, plan_ready, waiting_confirmation, queued, in_progress, waiting_user_reply, clarification_sent, user_replied, waiting_go, done, failed, closed. Worker polls these folders every `worker.poll_interval_seconds`; observer polls for plan_ready and waiting_user_reply to post to platform. See [code-agent-flow.md](code-agent-flow.md).
+- **PRs**: `.coddy/pull_requests/open/{pr_number}.yaml`, `.coddy/pull_requests/merged/{pr_number}.yaml`, `.coddy/pull_requests/rejected/{pr_number}.yaml` - one YAML per PR; folder reflects status (open, merged, or closed-without-merge = rejected). On PR closed (webhook), file is moved to merged/ or rejected/.
 - **Legacy**: `.coddy/queue/` (pending/done/failed) is no longer used; queue logic uses issue status only.
 
 ## Package Layout
@@ -36,7 +36,7 @@ Shared layer used by both observer and worker.
 
 | Path | Description |
 |------|-------------|
-| `services/store/` | Issue and PR storage (`.coddy/issues/*.yaml`, `.coddy/prs/*.yaml`). Schemas: IssueFile, IssueComment, PRFile. Functions: create_issue, load_issue, save_issue, set_issue_status, list_queued, list_pending_plan, add_comment; load_pr, save_pr, set_pr_status. |
+| `services/store/` | Issue and PR storage. Issues: `.coddy/issues/open/*.yaml`, `.coddy/issues/closed/*.yaml`. PRs: `.coddy/pull_requests/open/*.yaml`, `.coddy/pull_requests/merged/*.yaml`, `.coddy/pull_requests/rejected/*.yaml`. Schemas: IssueFile, IssueComment, PRFile. Functions: create_issue, load_issue, save_issue, set_issue_status, set_issue_state (move open/closed), list_queued, list_pending_plan, add_comment; load_pr, save_pr, set_pr_status (writes to the correct folder). |
 | `services/git/` | Git operations: `branches.py` (branch name sanitization, checkout, fetch); `commits.py` (stage and commit); `push_pull.py` (pull, push, commit_all_and_push). Used by observer (webhook, review) and worker (ralph loop). |
 
 **Dependencies**: Standard lib, third-party (pydantic, yaml). No observer or worker imports.

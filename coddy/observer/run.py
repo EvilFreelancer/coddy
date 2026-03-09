@@ -18,6 +18,7 @@ from pathlib import Path
 from coddy.config import AppConfig, LoggingConfig, load_config
 from coddy.logging import CoddyLogging
 from coddy.observer.clarification_poll import run_clarification_poll, run_plan_post_poll
+from coddy.observer.sync import run_sync
 from coddy.observer.webhook.handlers import _working_dir_from_config
 from coddy.observer.webhook.server import run_webhook_server
 
@@ -69,6 +70,13 @@ def run_observer(config: AppConfig) -> None:
             "bot.workspace_path not set; .coddy (issues, prs) will be under cwd. "
             "Set BOT_WORKSPACE_PATH or bot.workspace_path to the repo root for a predictable path.",
         )
+
+    sync_on_startup = getattr(config.observer, "sync_on_startup", False)
+    if sync_on_startup:
+        try:
+            run_sync(config, work_dir, log=log)
+        except Exception as e:
+            log.warning("Startup sync failed: %s", e)
 
     poll_clarifications = getattr(config.observer, "poll_clarifications", True)
     if poll_clarifications:

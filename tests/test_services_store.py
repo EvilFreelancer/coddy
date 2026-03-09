@@ -40,7 +40,7 @@ class TestIssueStore:
             description="Add a login form.",
             author="@user",
         )
-        path = tmp_path / ".coddy" / "issues" / "7.yaml"
+        path = tmp_path / ".coddy" / "issues" / "open" / "7.yaml"
         assert path.exists()
         content = path.read_text(encoding="utf-8")
         assert "pending_plan" in content
@@ -74,14 +74,14 @@ class TestIssueStore:
 
     def test_load_issue_invalid_yaml_returns_none(self, tmp_path: Path) -> None:
         """load_issue returns None when YAML is invalid and logs warning."""
-        path = tmp_path / ".coddy" / "issues"
+        path = tmp_path / ".coddy" / "issues" / "open"
         path.mkdir(parents=True)
         (path / "11.yaml").write_text("not: valid: yaml: [[[", encoding="utf-8")
         assert load_issue(tmp_path, 11) is None
 
     def test_load_issue_empty_file_returns_none(self, tmp_path: Path) -> None:
         """load_issue returns None when file is empty or null YAML."""
-        path = tmp_path / ".coddy" / "issues"
+        path = tmp_path / ".coddy" / "issues" / "open"
         path.mkdir(parents=True)
         (path / "12.yaml").write_text("", encoding="utf-8")
         assert load_issue(tmp_path, 12) is None
@@ -91,7 +91,7 @@ class TestIssueStore:
     def test_load_issue_invalid_schema_returns_none(self, tmp_path: Path) -> None:
         """load_issue returns None when YAML does not match IssueFile schema
         (missing required)."""
-        path = tmp_path / ".coddy" / "issues"
+        path = tmp_path / ".coddy" / "issues" / "open"
         path.mkdir(parents=True)
         (path / "14.yaml").write_text(
             "created_at: '2024'\nupdated_at: '2024'\nstatus: pending_plan",
@@ -231,7 +231,7 @@ class TestIssueStore:
 
     def test_list_issues_by_status_skips_non_digit_stem(self, tmp_path: Path) -> None:
         """list_issues_by_status skips files whose stem is not all digits."""
-        path = tmp_path / ".coddy" / "issues"
+        path = tmp_path / ".coddy" / "issues" / "open"
         path.mkdir(parents=True)
         (path / "1a.yaml").write_text(
             "author: x\ncreated_at: '2024'\nupdated_at: '2024'\nstatus: pending_plan",
@@ -245,7 +245,7 @@ class TestIssueStore:
     def test_list_issues_by_status_skips_file_when_int_stem_raises(self, tmp_path: Path) -> None:
         """list_issues_by_status skips file when int(f.stem) raises (e.g.
         unicode digit)."""
-        path = tmp_path / ".coddy" / "issues"
+        path = tmp_path / ".coddy" / "issues" / "open"
         path.mkdir(parents=True)
         (path / "\u0661.yaml").write_text(
             "author: x\ncreated_at: '2024'\nupdated_at: '2024'\nstatus: pending_plan",
@@ -335,7 +335,7 @@ class TestIssueStore:
         """When no assignee is passed, assigned_at and assigned_to are omitted
         from YAML."""
         create_issue(tmp_path, 25, "o/r", "T", "D", "@u")
-        content = (tmp_path / ".coddy" / "issues" / "25.yaml").read_text(encoding="utf-8")
+        content = (tmp_path / ".coddy" / "issues" / "open" / "25.yaml").read_text(encoding="utf-8")
         assert "assigned_at" not in content
         assert "assigned_to" not in content
 
@@ -352,7 +352,7 @@ class TestIssueStore:
             assigned_at=1704067200,
             assigned_to="coddybot",
         )
-        content = (tmp_path / ".coddy" / "issues" / "26.yaml").read_text(encoding="utf-8")
+        content = (tmp_path / ".coddy" / "issues" / "open" / "26.yaml").read_text(encoding="utf-8")
         assert "assigned_at" in content
         assert "assigned_to" in content
         assert "coddybot" in content
@@ -371,7 +371,7 @@ class TestPRStore:
 
     def test_load_pr_empty_returns_none(self, tmp_path: Path) -> None:
         """load_pr returns None when file is empty or null."""
-        path = tmp_path / ".coddy" / "prs"
+        path = tmp_path / ".coddy" / "pull_requests" / "open"
         path.mkdir(parents=True)
         (path / "1.yaml").write_text("", encoding="utf-8")
         assert load_pr(tmp_path, 1) is None
@@ -380,7 +380,7 @@ class TestPRStore:
 
     def test_load_pr_invalid_yaml_returns_none(self, tmp_path: Path) -> None:
         """load_pr returns None when YAML is invalid."""
-        path = tmp_path / ".coddy" / "prs"
+        path = tmp_path / ".coddy" / "pull_requests" / "open"
         path.mkdir(parents=True)
         (path / "3.yaml").write_text("not: valid: yaml", encoding="utf-8")
         assert load_pr(tmp_path, 3) is None
@@ -396,7 +396,7 @@ class TestPRStore:
             updated_at="2024-01-02T00:00:00Z",
         )
         out = save_pr(tmp_path, pr)
-        assert out == tmp_path / ".coddy" / "prs" / "5.yaml"
+        assert out == tmp_path / ".coddy" / "pull_requests" / "open" / "5.yaml"
         assert out.exists()
         content = out.read_text(encoding="utf-8")
         assert "open" in content
@@ -421,15 +421,17 @@ class TestPRStore:
         assert pr.status == "merged"
 
     def test_set_pr_status_updates_repo_and_issue_id(self, tmp_path: Path) -> None:
-        """set_pr_status updates repo and issue_id when passed on existing
-        PR."""
+        """set_pr_status updates repo and issue_id when passed on existing PR.
+
+        Closed is stored as rejected.
+        """
         set_pr_status(tmp_path, 12, "open", repo="o/r", issue_number=2)
-        set_pr_status(tmp_path, 12, "closed", repo="other/repo", issue_number=99)
+        set_pr_status(tmp_path, 12, "rejected", repo="other/repo", issue_number=99)
         pr = load_pr(tmp_path, 12)
         assert pr is not None
         assert pr.repo == "other/repo"
         assert pr.issue_id == 99
-        assert pr.status == "closed"
+        assert pr.status == "rejected"
 
 
 class TestIssueFileSchema:

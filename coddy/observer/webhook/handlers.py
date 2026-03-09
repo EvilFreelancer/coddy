@@ -20,6 +20,7 @@ from coddy.services.store import (
     delete_comment,
     load_issue,
     save_issue,
+    set_issue_state,
     set_issue_status,
     set_pr_status,
     update_comment,
@@ -56,7 +57,7 @@ def _handle_pull_request_closed(
         return
     working_dir = Path(repo_dir) if repo_dir is not None else _working_dir_from_config(config)
     if pr_number is not None and repo_full_name:
-        status = "merged" if pull.get("merged") else "closed"
+        status = "merged" if pull.get("merged") else "rejected"
         set_pr_status(working_dir, int(pr_number), status, repo=repo_full_name)
 
     if not pull.get("merged"):
@@ -223,9 +224,18 @@ def _handle_issues(config: Any, payload: Dict[str, Any], repo_dir: Path, log: lo
                 body = issue_payload.get("body") or ""
                 user_payload = issue_payload.get("user") or {}
                 author = user_payload.get("login") or "unknown"
-                create_issue(repo_dir, int(issue_number), repo, title, body, author)
+                create_issue(
+                    repo_dir,
+                    int(issue_number),
+                    repo,
+                    title,
+                    body,
+                    author,
+                    state="closed",
+                )
+            set_issue_state(repo_dir, int(issue_number), "closed")
             set_issue_status(repo_dir, int(issue_number), "closed")
-            log.info("Issue #%s closed, status -> closed", issue_number)
+            log.info("Issue #%s closed, state -> closed", issue_number)
         return
     if action == "edited":
         if issue_number is not None and repo and repo == getattr(config.bot, "repository", ""):

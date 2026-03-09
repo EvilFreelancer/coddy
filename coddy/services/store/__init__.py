@@ -11,6 +11,7 @@ from coddy.services.store.issue_store import (
     mark_clarification_sent,
     save_issue,
     set_agent_clarification,
+    set_issue_state,
     set_issue_status,
     update_comment,
 )
@@ -33,6 +34,7 @@ __all__ = [
     "save_issue",
     "save_pr",
     "set_agent_clarification",
+    "set_issue_state",
     "set_issue_status",
     "set_pr_status",
     "update_comment",
