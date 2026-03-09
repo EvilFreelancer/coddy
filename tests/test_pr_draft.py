@@ -1,4 +1,5 @@
-"""Tests for draft PR status support (open->draft, draft->open, draft->merged, etc.)."""
+"""Tests for draft PR status support (open->draft, draft->open, draft->merged,
+etc.)."""
 
 from pathlib import Path
 from unittest.mock import MagicMock, patch

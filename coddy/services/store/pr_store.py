@@ -1,4 +1,5 @@
-"""PR storage in .coddy/pull_requests/open/, merged/, rejected/, draft/ as YAML files.
+"""PR storage in .coddy/pull_requests/open/, merged/, rejected/, draft/ as YAML
+files.
 
 One file per PR: {status}/{pr_id}.yaml. Status is reflected by the folder.
 When status changes, the file is moved to the correct folder.
@@ -41,7 +42,8 @@ def _pending_path(repo_dir: Path, issue_id: int) -> Path:
 
 
 def load_pr(repo_dir: Path, pr_id: int) -> PRFile | None:
-    """Load PR from .coddy/pull_requests/{open|merged|rejected|draft}/{pr_id}.yaml.
+    """Load PR from
+    .coddy/pull_requests/{open|merged|rejected|draft}/{pr_id}.yaml.
 
     Searches all status folders. Returns None if missing or invalid.
     """
@@ -90,7 +92,8 @@ def set_pr_status(
     repo: str | None = None,
     issue_number: int | None = None,
 ) -> None:
-    """Create or update PR file with given status (open, merged, rejected, draft).
+    """Create or update PR file with given status (open, merged, rejected,
+    draft).
 
     If status changes, the file is written to the new folder; the old
     file is removed if it existed in another folder. Accepts "closed" as

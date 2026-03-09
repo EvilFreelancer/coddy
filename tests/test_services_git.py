@@ -47,11 +47,12 @@ class TestBranches:
         assert sanitize_branch_name("  a  b  ") == "a-b"
 
     def test_sanitize_branch_name_removes_invalid_characters(self) -> None:
-        """Invalid characters (e.g. special chars) are removed."""
-        assert sanitize_branch_name("add~feature") == "addfeature"
+        """Invalid characters (e.g. special chars) are removed or become
+        separators."""
+        assert sanitize_branch_name("add~feature") == "add-feature"
         assert sanitize_branch_name("fix: bug") == "fix-bug"
-        assert sanitize_branch_name("test?me") == "testme"
-        assert sanitize_branch_name("foo*bar") == "foobar"
+        assert sanitize_branch_name("test?me") == "test-me"
+        assert sanitize_branch_name("foo*bar") == "foo-bar"
         assert sanitize_branch_name("a.b.c") == "a-b-c"
 
     def test_sanitize_branch_name_lowercase(self) -> None:
@@ -82,6 +83,15 @@ class TestBranches:
         """If only invalid chars, return empty string."""
         assert sanitize_branch_name("???***") == ""
         assert sanitize_branch_name("   ") == ""
+
+    def test_sanitize_branch_name_transliterates_cyrillic(self) -> None:
+        """Cyrillic and other UTF characters are transliterated to ASCII."""
+        slug = sanitize_branch_name("Добавь возможнность проводить ревью PR")
+        assert slug == "dobav-vozmozhnnost-provodit-reviu-pr"
+        assert is_valid_branch_name(slug)
+        name = branch_name_from_issue(25, "Добавь возможнность проводить ревью PR")
+        assert name == "25-dobav-vozmozhnnost-provodit-reviu-pr"
+        assert is_valid_branch_name(name)
 
     def test_is_valid_branch_name_accepts_valid_names(self) -> None:
         """Valid branch names (digits, lowercase letters, dashes) are
