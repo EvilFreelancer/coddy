@@ -20,6 +20,7 @@ services:
       WEBHOOK_SECRET_FILE: /run/secrets/webhook_secret
       BOT_REPOSITORY: "EvilFreelancer/coddy"
       BOT_WORKSPACE_PATH: "/app/workspace"
+      OBSERVER_SYNC_ON_STARTUP: "${OBSERVER_SYNC_ON_STARTUP:-false}"
     volumes:
       - ./config.yaml:/app/config.yaml:ro
       - ${REPO_PATH:-.}:/app/workspace:rw
