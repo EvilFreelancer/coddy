@@ -63,16 +63,26 @@ jobs:
           else
             TAG="${GITHUB_REF#refs/tags/}"
           fi
-          echo "tag=${TAG}" >> "$GITHUB_OUTPUT"
-          echo "version=${TAG#v}" >> "$GITHUB_OUTPUT"
+          VERSION="${TAG#v}"
+          IMAGE="${{ secrets.DOCKERHUB_USERNAME }}/coddybot"
+          {
+            echo "tags<<EOF"
+            echo "${IMAGE}:${TAG}"
+            echo "${IMAGE}:latest"
+            if [[ "$VERSION" =~ ^[0-9]+\.[0-9]+\.[0-9]+$ ]]; then
+              MAJOR="${VERSION%%.*}"
+              MINOR="${VERSION%.*}"
+              echo "${IMAGE}:${MAJOR}"
+              echo "${IMAGE}:${MINOR}"
+            fi
+            echo "EOF"
+          } >> "$GITHUB_OUTPUT"
 
       - name: Build and push
         uses: docker/build-push-action@v6
         with:
           context: .
           push: true
-          tags: |
-            ${{ secrets.DOCKERHUB_USERNAME }}/coddybot:${{ steps.meta.outputs.tag }}
-            ${{ github.event_name != 'workflow_dispatch' && format('{0}/coddybot:latest', secrets.DOCKERHUB_USERNAME) || '' }}
+          tags: ${{ steps.meta.outputs.tags }}
           cache-from: type=gha
           cache-to: type=gha,mode=max
