@@ -75,6 +75,27 @@ def _handle_pull_request_closed(
     sys.exit(0)
 
 
+def _handle_pull_request_draft_or_ready(
+    config: Any,
+    payload: Dict[str, Any],
+    status: str,
+    repo_dir: Path | None = None,
+    log: logging.Logger | None = None,
+) -> None:
+    """On pull_request converted_to_draft or ready_for_review: set PR status in store."""
+    logger = log or logging.getLogger("coddy.observer.webhook.handlers")
+    pull = payload.get("pull_request") or {}
+    pr_number = pull.get("number")
+    repo_payload = payload.get("repository") or {}
+    repo_full_name = repo_payload.get("full_name") or ""
+    if not repo_full_name or repo_full_name != getattr(config.bot, "repository", ""):
+        return
+    working_dir = Path(repo_dir) if repo_dir is not None else _working_dir_from_config(config)
+    if pr_number is not None:
+        set_pr_status(working_dir, int(pr_number), status, repo=repo_full_name)
+        logger.info("PR #%s status -> %s", pr_number, status)
+
+
 def _parse_comment_timestamp(iso_str: str | None) -> int | None:
     """Parse GitHub ISO date to Unix timestamp, or None if missing/invalid."""
     if not iso_str:
@@ -314,6 +335,8 @@ def handle_github_event(
 
     Supported events:
     - pull_request (action=closed, merged=true): git pull from default branch, then exit 0 to allow restart.
+    - pull_request (action=converted_to_draft): set PR status to draft.
+    - pull_request (action=ready_for_review): set PR status to open.
     - issues (action=assigned): if bot is in assignees, set status pending_plan (worker builds plan).
     - issue_comment: on user confirmation set issue status to queued.
     """
@@ -321,7 +344,13 @@ def handle_github_event(
     work_dir = Path(repo_dir) if repo_dir is not None else _working_dir_from_config(config)
 
     if event == "pull_request":
-        _handle_pull_request_closed(config, payload, repo_dir=work_dir, log=logger)
+        action = payload.get("action")
+        if action == "closed":
+            _handle_pull_request_closed(config, payload, repo_dir=work_dir, log=logger)
+        elif action == "converted_to_draft":
+            _handle_pull_request_draft_or_ready(config, payload, "draft", repo_dir=work_dir, log=logger)
+        elif action == "ready_for_review":
+            _handle_pull_request_draft_or_ready(config, payload, "open", repo_dir=work_dir, log=logger)
         return
 
     if event == "issues":

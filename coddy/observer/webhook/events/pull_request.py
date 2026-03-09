@@ -30,6 +30,22 @@ class PRMerged(BaseModel):
     pr_number: int
 
 
+class PRConvertedToDraft(BaseModel):
+    """PR converted to draft (pull_request webhook,
+    action=converted_to_draft)."""
+
+    repo: str
+    pr_number: int
+
+
+class PRReadyForReview(BaseModel):
+    """PR marked ready for review (pull_request webhook,
+    action=ready_for_review)."""
+
+    repo: str
+    pr_number: int
+
+
 class PRCommentCreated(BaseModel):
     """New comment on PR (issue_comment on PR, action=created)."""
 

@@ -32,7 +32,7 @@ class PRFile(BaseModel):
     repo: str = Field(..., description="Repository full_name, e.g. owner/repo")
     status: str = Field(
         default="open",
-        description="PR state: open, merged, rejected (closed without merge), or draft. Determines folder.",
+        description="PR state: open, draft, merged, or rejected (closed without merge). Determines folder.",
     )
     issue_id: int | None = Field(default=None, description="Linked issue ID if any")
     created_at: str = Field(..., description="ISO timestamp when record was created")
