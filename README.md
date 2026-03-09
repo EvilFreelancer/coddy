@@ -6,13 +6,17 @@ Coddy Bot is an autonomous development assistant that integrates with Git hostin
 
 ## Features
 
-- **Trigger by Assignment or MR/PR**: Bot starts work when a human assigns it to an issue, or when given a merge/pull request number (no auto-pick of all new issues in the first version)
-- **Issue Labels (Tags)**: Bot sets and updates issue labels (e.g. `in progress`, `stuck`, `review`, `done`)
-- **Code Generation**: Uses AI agents (Cursor CLI, etc.) to generate code
-- **Pull Request Management**: Creates PRs with generated code and documentation
-- **Review Handling**: Responds to code reviews and implements requested changes
-- **Multi-Platform Support**: GitHub (primary), GitLab and BitBucket (planned)
-- **Extensible Agents**: Pluggable AI agent interface for different code generators
+- **Trigger by Assignment or MR/PR** - bot starts work when a human assigns it to an issue, or when given a merge/pull request number (no auto-pick of all new issues in the first version)
+- **Issue Labels (Tags)** - bot sets and updates issue labels (e.g. `in progress`, `stuck`, `review`, `done`)
+- **Code Generation** - uses AI agents (Cursor CLI, etc.) to generate code
+- **Pull Request Management** - creates PRs with generated code and documentation
+- **Review Loop** - responds to PR reviews and line comments, implements requested changes via AI agent, replies in review threads
+- **Draft PR Support** - handles `converted_to_draft` / `ready_for_review` webhook events, tracks draft status in store
+- **Sync on Startup** - syncs issues and PRs from the platform API into `.coddy/` when the observer starts
+- **Review Idle Timeout** - automatically triggers re-planning when a PR sits in `review_received` state past the idle timeout
+- **Multi-Platform Support** - GitHub (primary), GitLab and BitBucket (planned)
+- **Extensible Agents** - pluggable AI agent interface for different code generators
+- **Russian Confirmation Support** - planner recognizes Russian affirmative phrases ("da", "ustroit", "poekhali", etc.) for plan approval
 
 ## Architecture
 
@@ -29,8 +33,9 @@ See [Architecture Documentation](docs/architecture.md) for details.
 
 ### Prerequisites
 
-- Python 3.11+
-- Docker (optional)
+- Python 3.14+ (3.14-slim in Docker)
+- Node.js 24 (required by Cursor CLI agent, needs Node 23.8+ for `--use-system-ca`)
+- Docker (optional, recommended)
 - GitHub token with appropriate permissions
 - Cursor CLI (or other AI agent)
 
@@ -76,10 +81,23 @@ export REPOSITORY=owner/repo
 ```bash
 python -m coddy              # observer (default) or worker subcommand
 python -m coddy observer     # webhook server (plan on assignment)
-python -m coddy worker       # dry-run stub (read issues, write empty PR YAML)
+python -m coddy worker       # development loop (pick queued issues, run agent, create PRs)
 python -m coddy --config /path/to/config.yaml
 python -m coddy --check      # validate config and exit
 ```
+
+Key CLI flags
+
+- `--config`, `-c` - path to YAML config file (default `config.yaml`)
+- `--check` - validate config and exit (both observer and worker)
+- `--once` - process at most one task and exit (worker only)
+- `--poll-interval` - polling interval for `.coddy/issues/` in seconds (worker only)
+
+Key configuration options
+
+- `observer.sync_on_startup` - sync issues/PRs from API on observer start (env `OBSERVER_SYNC_ON_STARTUP`, default `false`)
+- `observer.assignment_only` - only trigger planner when bot is assigned to an issue
+- `logging` - logging level and format (CoddyLogging)
 
 ### Docker (recommended)
 
@@ -109,8 +127,21 @@ docker compose up -d
 
 ```bash
 curl http://localhost:8000/health
-docker compose logs -f coddy
+docker compose logs -f coddy-observer
+docker compose logs -f coddy-worker
 ```
+
+Key environment variables (see `docker-compose.yml` for defaults)
+
+- `REPO_PATH` - host path to the repository (default `.`)
+- `OBSERVER_SYNC_ON_STARTUP` - sync issues/PRs from API on start (default `false`)
+- `CURSOR_CLI_TIMEOUT` - Cursor agent timeout in seconds (default `600`)
+- `CODDY_PORT` - observer HTTP port (default `8000`)
+- `SSH_DIR` - path to SSH keys for git push (default `~/.ssh`)
+- `BOT_WORKSPACE_PATH` - workspace path inside container (default `/app/workspace`)
+- `BOT_REPOSITORY` - repository in `owner/repo` format
+
+The observer container includes a health check at `/health` (HTTP, port 8000, 30s interval).
 
 See [Docker and Secrets](docs/docker-and-secrets.md) for details (Cursor Agent token, config mount, CLI in container). To run the worker without exposing secrets, use a workspace path that does not contain `.secrets/` (same doc).
 
@@ -149,23 +180,35 @@ When a pull request is merged (GitHub `pull_request` event with `action: closed`
 coddy/
 ├── coddy/                  # Main application code
 │   ├── services/           # Shared services (observer + worker)
-│   │   ├── store/          # Issue and PR storage (.coddy/issues/, .coddy/prs/)
+│   │   ├── store/          # Issue and PR storage (.coddy/issues/, .coddy/pull_requests/)
+│   │   │   └── schemas/    # Pydantic schemas (IssueFile, PRFile, PRReview, PendingPRRequest)
 │   │   └── git/            # Git operations (branches, commits, push_pull)
-│   ├── observer/           # Observer: adapters, planner, webhook
+│   ├── observer/           # Observer: adapters, planner, webhook, sync
 │   │   ├── adapters/       # Git platform adapters (GitHub, etc.)
 │   │   ├── models/         # Pydantic models (Issue, PR, Comment, ReviewComment)
 │   │   ├── webhook/        # Webhook server and handlers
-│   │   ├── planner.py      # Plan and user confirmation
+│   │   ├── planner.py      # Plan and user confirmation (supports Russian)
+│   │   ├── sync.py         # Sync issues/PRs from API on startup
+│   │   ├── clarification_poll.py  # Polls for plan posting, PR creation, review idle
 │   │   └── run.py          # Observer entry point
-│   ├── worker/             # Worker: ralph loop, agents
+│   ├── worker/             # Worker: ralph loop, agents, review loop
 │   │   ├── agents/         # AI agents (base, cursor_cli)
 │   │   ├── task_yaml.py    # Task/PR report YAML paths and helpers
 │   │   ├── ralph_loop.py   # Development loop
-│   │   └── run.py         # Worker entry point
+│   │   ├── review_loop.py  # Review comment handling via AI agent
+│   │   └── run.py          # Worker entry point
 │   ├── config.py           # Configuration
+│   ├── logging.py          # Logging from config and env (CoddyLogging)
 │   ├── main.py             # CLI (observer | worker)
 │   ├── daemon.py           # Thin wrapper (legacy): python -m coddy.daemon -> observer.run
 │   └── worker.py           # Thin wrapper for python -m coddy.worker
+├── .coddy/                 # Runtime data (managed by bot)
+│   ├── issues/             # open/, closed/ - one YAML per issue
+│   ├── pull_requests/      # open/, merged/, rejected/, draft/, pending/
+│   ├── logs/               # Agent logs per issue
+│   ├── task-{N}.yaml       # Task file for agent
+│   ├── pr-{N}.yaml         # PR report from agent
+│   └── review-{N}.yaml     # Review task for agent
 ├── docs/                   # Documentation
 ├── tests/                  # Test suite
 ├── scripts/                # Setup scripts
@@ -216,50 +259,55 @@ Runs as a daemon: receives webhooks, stores events, runs planner when the bot is
 
 - [x] Webhook server (HTTP, signature verification, JSON and form-urlencoded body)
 - [x] **Adapters** (Git platform API)
-  - [x] GitHub (partially: issues, issue comments, PR merged)
+  - [x] GitHub (issues, comments, PR creation, review comments, reply_to_review_comment)
   - [ ] GitLab
   - [ ] Bitbucket
-- [x] **Issues** – stored for all events; planner runs only when assignee is the bot
-  - [x] `opened` – create issue in store
-  - [x] `assigned` – create or update issue, set `assigned_at` / `assigned_to`; run planner if assignee is bot
-  - [x] `unassigned` – clear `assigned_at` / `assigned_to` in store
-  - [x] `edited` – update title/description, `updated_at`
-  - [x] `closed` – set status to closed
-- [x] **Issue comments** – stored; used for confirmation flow
-  - [x] Created – append comment
-  - [x] Edited – update comment by `comment_id`
-  - [x] Deleted – soft delete (set `deleted_at`)
+- [x] **Issues** - stored for all events; planner runs only when assignee is the bot
+  - [x] `opened` - create issue in store
+  - [x] `assigned` - create or update issue, set `assigned_at` / `assigned_to`; run planner if assignee is bot
+  - [x] `unassigned` - clear `assigned_at` / `assigned_to` in store
+  - [x] `edited` - update title/description, `updated_at`
+  - [x] `closed` - set status to closed
+- [x] **Issue comments** - stored; used for confirmation flow
+  - [x] Created - append comment
+  - [x] Edited - update comment by `comment_id`
+  - [x] Deleted - soft delete (set `deleted_at`)
 - [x] **Pull request**
-  - [x] Merged – `git pull` in workspace and exit (for restart)
-  - [ ] Reacting to PR reviews – not implemented
-  - [ ] Reacting to PR comments – not implemented
+  - [x] Merged - `git pull` in workspace and exit (for restart)
+  - [x] Reacting to PR reviews - `pull_request_review` webhook, saves review to PR store
+  - [x] Reacting to PR comments - `pull_request_review_comment` and `issue_comment` on PR
+  - [x] Draft PR support - `converted_to_draft` / `ready_for_review` events, draft status in store
 - [x] Planner (post plan, wait for user confirmation, set status to queued)
+  - [x] Russian confirmation support ("da", "ustroit", "poekhali", etc.)
+- [x] Sync on startup - sync issues/PRs from API into `.coddy/` (`observer.sync_on_startup`)
+- [x] Clarification poll - plan posting, PR creation via API, review idle timeout
 
 ### Worker (development loop, AI agent)
 
 Picks queued issues, runs agent, creates branches/commits/PRs.
 
 - [x] Task/PR YAML paths and workspace under `bot.workspace_path`
-- [x] Ralph loop (sufficiency, branch, agent loop) – structure in place
+- [x] Ralph loop (sufficiency, branch, agent loop) - structure in place
 - [x] **Agents**
   - [x] Cursor CLI agent (partial integration)
   - [ ] Other agents / multiple agents
-- [ ] Full PR creation and push from worker – not ready
-- [ ] Review handling – not implemented
-- [ ] PR comment handling – not implemented
+- [x] Full PR creation and push from worker - worker writes `PendingPRRequest`, observer creates PR via API
+- [x] Review handling - review_loop.py processes review comments via AI agent, replies in threads
+- [x] PR comment handling - stored comments, workflow status transitions
 
 ### Services (shared by observer and worker)
 
-- [x] **Store** – meta for issues and PRs
-  - [x] Issue store (`.coddy/issues/` – one YAML per issue, status, comments, `assigned_at` / `assigned_to`)
-  - [x] PR store (`.coddy/prs/`)
-- [x] **Git** – branches, commits, push/pull (used by observer on PR merged and by worker)
-- [x] **Workspace** – single working directory per bot (`BOT_WORKSPACE_PATH`), repo cloned there
+- [x] **Store** - meta for issues and PRs
+  - [x] Issue store (`.coddy/issues/` - one YAML per issue, status, comments, `assigned_at` / `assigned_to`)
+  - [x] PR store (`.coddy/pull_requests/` - open, merged, rejected, draft, pending)
+  - [x] PR review schemas (PRReview, PRReviewComment)
+- [x] **Git** - branches, commits, push/pull (used by observer on PR merged and by worker)
+- [x] **Workspace** - single working directory per bot (`BOT_WORKSPACE_PATH`), repo cloned there
 
 ### Other
 
 - [x] System specification and config (env + YAML)
+- [x] Review idle timeout - auto-transitions `review_received` to `pending_plan` after timeout
+- [x] PR workflow statuses - `idle`, `review_received`, `pending_plan`, `waiting_confirmation`, `in_progress`
 - [ ] User attribution in commits
 - [ ] GitLab / Bitbucket adapters and webhook events
-
-Hello.
