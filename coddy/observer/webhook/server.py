@@ -53,13 +53,24 @@ class WebhookHandler(BaseHTTPRequestHandler):
             return json.loads(raw)
         return json.loads(body.decode())
 
+    @staticmethod
+    def _extract_number_from_payload(payload: dict) -> str:
+        """Extract issue or PR number from webhook payload as '#N' string."""
+        issue = payload.get("issue") or {}
+        pr = payload.get("pull_request") or {}
+        number = issue.get("number") or pr.get("number")
+        if number is not None:
+            return f"#{number}"
+        return ""
+
     def _handle_github_webhook(self) -> None:
         length = int(self.headers.get("Content-Length", 0))
         body = self.rfile.read(length) if length else b""
         try:
             payload = self._parse_webhook_body(body)
             event = self.headers.get("X-GitHub-Event", "")
-            LOG.info("Webhook event: %s (payload keys: %s)", event, list(payload.keys()) if payload else [])
+            ref = self._extract_number_from_payload(payload)
+            LOG.info("Webhook event: %s %s (action=%s)", event, ref, payload.get("action", ""))
             from coddy.observer.webhook.handlers import handle_github_event
 
             handle_github_event(self.config, event, payload)

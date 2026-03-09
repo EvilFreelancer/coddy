@@ -168,7 +168,8 @@ class CursorCLIAgent(AIAgent):
                 )
                 if is_transient and attempt < max_attempts:
                     self._log.warning(
-                        "Plan generation attempt %s/%s failed (exit %s, transient): %s; retrying in %ss",
+                        "Issue #%s: plan generation attempt %s/%s failed (exit %s, transient): %s; retrying in %ss",
+                        issue.number,
                         attempt,
                         max_attempts,
                         result.returncode,
@@ -179,17 +180,19 @@ class CursorCLIAgent(AIAgent):
                     continue
 
                 self._log.error(
-                    "Plan generation failed (exit %s): %s",
+                    "Issue #%s: plan generation failed (exit %s): %s",
+                    issue.number,
                     result.returncode,
                     last_out,
                 )
                 return None
             except (subprocess.TimeoutExpired, FileNotFoundError) as e:
-                self._log.exception("Plan generation failed: %s", e)
+                self._log.exception("Issue #%s: plan generation failed: %s", issue.number, e)
                 return None
 
         self._log.error(
-            "Plan generation failed after %s attempts (exit %s): %s",
+            "Issue #%s: plan generation failed after %s attempts (exit %s): %s",
+            issue.number,
             max_attempts,
             last_code,
             last_out,
@@ -238,7 +241,9 @@ class CursorCLIAgent(AIAgent):
         if self.token:
             env["CURSOR_API_KEY"] = self.token
 
-        self._log.info("Running Cursor CLI (headless): %s (timeout=%ss)", self.command, self.timeout)
+        self._log.info(
+            "Issue #%s: running Cursor CLI (headless): %s (timeout=%ss)", issue.number, self.command, self.timeout
+        )
         try:
             if self.stream_output_to_log:
                 result = self._run_with_streaming_log(cmd, env, log_path, issue.number)
@@ -252,12 +257,12 @@ class CursorCLIAgent(AIAgent):
             with open(log_path, "a", encoding="utf-8") as log_file:
                 log_file.write("-" * 60 + "\n")
                 log_file.write(f"Timed out after {self.timeout}s\n")
-            self._log.warning("Cursor CLI timed out after %s seconds", self.timeout)
+            self._log.warning("Issue #%s: Cursor CLI timed out after %s seconds", issue.number, self.timeout)
         except FileNotFoundError as e:
             with open(log_path, "a", encoding="utf-8") as log_file:
                 log_file.write("-" * 60 + "\n")
                 log_file.write(f"Error: CLI not found: {e}\n")
-            self._log.warning("Cursor CLI not found: %s", e)
+            self._log.warning("Issue #%s: Cursor CLI not found: %s", issue.number, e)
             return None
 
         return read_pr_report(repo_dir, issue.number) or None
@@ -381,7 +386,9 @@ class CursorCLIAgent(AIAgent):
             env["CURSOR_API_KEY"] = self.token
 
         self._log.info(
-            "Running Cursor CLI for review item %s/%s (timeout=%ss)",
+            "PR #%s (issue #%s): running Cursor CLI for review item %s/%s (timeout=%ss)",
+            pr_number,
+            issue_number,
             current_index,
             len(comments),
             self.timeout,
@@ -407,10 +414,12 @@ class CursorCLIAgent(AIAgent):
         except subprocess.TimeoutExpired:
             with open(log_path, "a", encoding="utf-8") as log_file:
                 log_file.write(f"Timed out after {self.timeout}s\n")
-            self._log.warning("Cursor CLI timed out after %s seconds", self.timeout)
+            self._log.warning(
+                "PR #%s (issue #%s): Cursor CLI timed out after %s seconds", pr_number, issue_number, self.timeout
+            )
             return None
         except FileNotFoundError as e:
-            self._log.warning("Cursor CLI not found: %s", e)
+            self._log.warning("PR #%s (issue #%s): Cursor CLI not found: %s", pr_number, issue_number, e)
             return None
 
         return read_review_reply(Path(repo_dir), pr_number, current.id) or None

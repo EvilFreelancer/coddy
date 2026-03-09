@@ -1,10 +1,19 @@
 """Pull from and push to remote (origin)."""
 
 import logging
+import re
 from pathlib import Path
 
 from coddy.services.git._run import _run_git
 from coddy.services.git.commits import add_all_and_commit
+
+_ISSUE_RE = re.compile(r"#(\d+)")
+
+
+def _extract_issue_tag(commit_message: str) -> str:
+    """Extract first #N from commit_message, or return empty string."""
+    m = _ISSUE_RE.search(commit_message)
+    return m.group(0) if m else ""
 
 
 def run_git_pull(
@@ -44,5 +53,8 @@ def commit_all_and_push(
     Pass bot_name and bot_email from config (config.bot.name,
     config.bot.email).
     """
+    tag = _extract_issue_tag(commit_message)
     if add_all_and_commit(commit_message, bot_name, bot_email, repo_dir=repo_dir, log=log):
+        if log and tag:
+            log.info("%s: committing and pushing to %s", tag, branch_name)
         push_branch(branch_name, repo_dir=repo_dir, log=log)
