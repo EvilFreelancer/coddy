@@ -1,15 +1,14 @@
-# Tag a new SemVer version when a PR is merged into the default branch.
+# Tag a new SemVer version when a PR is merged into the default branch (not on direct push to main).
 # Starts from v0.1.0 if no tags exist; bumps patch (e.g. v0.1.0 -> v0.1.1) on each merge.
-# If your default branch is master, change "main" under on.push.branches to "master".
 
 name: Tag release on merge
 
 on:
-  push:
+  pull_request:
+    types: [closed]
     branches:
       - main
-    tags-ignore:
-      - "**"
+  workflow_dispatch:
   workflow_dispatch:
 
 defaults:
@@ -20,6 +19,7 @@ jobs:
   tag-version:
     name: Bump and push version tag
     runs-on: ubuntu-latest
+    if: github.event_name == 'workflow_dispatch' || github.event.pull_request.merged == true
     permissions:
       contents: write
 
