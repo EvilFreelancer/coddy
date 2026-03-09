@@ -271,6 +271,97 @@ class TestPushPullLogging:
         assert issue_logs, "Expected log message with #42"
 
 
+class TestCursorCLIAgentLogging:
+    """CursorCLIAgent includes #<issue> and #<pr> in log messages."""
+
+    def test_generate_code_log_includes_issue_number(self, tmp_path: Path, caplog: pytest.LogCaptureFixture) -> None:
+        """generate_code logs Issue #<N> when starting CLI."""
+        from coddy.worker.agents.cursor_cli_agent import CursorCLIAgent
+
+        agent = CursorCLIAgent(command="agent", timeout=60, working_directory=str(tmp_path))
+        with (
+            patch("coddy.worker.agents.cursor_cli_agent.subprocess.run") as mock_run,
+            patch("coddy.worker.agents.cursor_cli_agent.read_pr_report", return_value="PR body"),
+            caplog.at_level(logging.DEBUG),
+        ):
+            mock_run.return_value = MagicMock(returncode=0)
+            agent.generate_code(_issue(7), [])
+
+        issue_logs = [r.message for r in caplog.records if "#7" in r.message]
+        assert issue_logs, "Expected log message with #7"
+
+    def test_generate_code_timeout_log_includes_issue_number(
+        self, tmp_path: Path, caplog: pytest.LogCaptureFixture
+    ) -> None:
+        """generate_code timeout log includes Issue #<N>."""
+        import subprocess
+
+        from coddy.worker.agents.cursor_cli_agent import CursorCLIAgent
+
+        agent = CursorCLIAgent(command="agent", timeout=60, working_directory=str(tmp_path))
+        with (
+            patch(
+                "coddy.worker.agents.cursor_cli_agent.subprocess.run",
+                side_effect=subprocess.TimeoutExpired("agent", 60),
+            ),
+            caplog.at_level(logging.DEBUG),
+        ):
+            agent.generate_code(_issue(12), [])
+
+        timeout_logs = [r.message for r in caplog.records if "#12" in r.message and "timed out" in r.message.lower()]
+        assert timeout_logs, "Expected timeout log with #12"
+
+    def test_generate_plan_error_log_includes_issue_number(self, caplog: pytest.LogCaptureFixture) -> None:
+        """generate_plan error log includes Issue #<N>."""
+        import subprocess
+
+        from coddy.worker.agents.cursor_cli_agent import CursorCLIAgent
+
+        agent = CursorCLIAgent(command="agent", timeout=60, working_directory=".")
+        with (
+            patch(
+                "coddy.worker.agents.cursor_cli_agent.subprocess.run",
+                side_effect=subprocess.TimeoutExpired("agent", 60),
+            ),
+            caplog.at_level(logging.DEBUG),
+        ):
+            agent.generate_plan(_issue(15), [])
+
+        issue_logs = [r.message for r in caplog.records if "#15" in r.message]
+        assert issue_logs, "Expected log message with #15"
+
+    def test_process_review_item_log_includes_pr_and_issue_number(
+        self, tmp_path: Path, caplog: pytest.LogCaptureFixture
+    ) -> None:
+        """process_review_item log includes PR #<N> and issue #<N>."""
+        from coddy.observer.models import ReviewComment
+        from coddy.worker.agents.cursor_cli_agent import CursorCLIAgent
+
+        agent = CursorCLIAgent(command="agent", timeout=60, working_directory=str(tmp_path))
+        rc = ReviewComment(
+            id=100,
+            body="Fix this",
+            author="reviewer",
+            path="foo.py",
+            line=10,
+            side="RIGHT",
+            created_at=datetime.now(UTC),
+            updated_at=datetime.now(UTC),
+        )
+        with (
+            patch("coddy.worker.agents.cursor_cli_agent.subprocess.run") as mock_run,
+            patch("coddy.worker.agents.cursor_cli_agent.read_review_reply", return_value="Done"),
+            caplog.at_level(logging.DEBUG),
+        ):
+            mock_run.return_value = MagicMock(returncode=0)
+            agent.process_review_item(pr_number=25, issue_number=8, comments=[rc], current_index=1, repo_dir=tmp_path)
+
+        pr_logs = [r.message for r in caplog.records if "#25" in r.message]
+        assert pr_logs, "Expected log message with PR #25"
+        issue_logs = [r.message for r in caplog.records if "#8" in r.message]
+        assert issue_logs, "Expected log message with issue #8"
+
+
 class TestWebhookServerLogging:
     """Webhook server extracts #<issue/pr> from payload."""
 
