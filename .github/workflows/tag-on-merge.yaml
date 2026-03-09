@@ -31,8 +31,19 @@ jobs:
       - name: Fetch all tags
         run: git fetch --tags
 
+      - name: Check if commit already has a tag
+        id: check
+        run: |
+          if [ -n "$(git tag --points-at HEAD)" ]; then
+            echo "skip=true" >> "$GITHUB_OUTPUT"
+            echo "Commit already has a tag, skipping."
+          else
+            echo "skip=false" >> "$GITHUB_OUTPUT"
+          fi
+
       - name: Get latest SemVer tag and bump patch
         id: version
+        if: steps.check.outputs.skip != 'true'
         run: |
           set -e
           # Latest tag matching v* (SemVer), version-sorted; default v0.1.0
@@ -49,6 +60,7 @@ jobs:
           echo "Bumping $LATEST -> v${NEW_VERSION}"
 
       - name: Create and push tag
+        if: steps.check.outputs.skip != 'true'
         run: |
           git config user.name "github-actions[bot]"
           git config user.email "github-actions[bot]@users.noreply.github.com"
