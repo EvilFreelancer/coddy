@@ -12,6 +12,7 @@ from coddy.services.git import (
     is_valid_branch_name,
     run_git_pull,
     sanitize_branch_name,
+    set_commit_author,
 )
 
 
@@ -157,3 +158,17 @@ class TestPushPull:
         with patch("coddy.services.git.push_pull._run_git", side_effect=GitRunnerError("pull failed")):
             with pytest.raises(GitRunnerError, match="pull failed"):
                 run_git_pull("main", repo_dir=Path("/tmp/repo"))
+
+
+class TestSetCommitAuthor:
+    """coddy.services.git.commits: set_commit_author."""
+
+    def test_set_commit_author_calls_git_config(self) -> None:
+        """set_commit_author runs git config user.name and user.email."""
+        with patch("coddy.services.git.commits._run_git") as mock_run:
+            set_commit_author("Coddy Bot", "bot@coddy.dev", repo_dir=Path("/tmp/repo"), log=None)
+        assert mock_run.call_count == 2
+        assert mock_run.call_args_list[0][0][0] == ["config", "user.name", "Coddy Bot"]
+        assert mock_run.call_args_list[1][0][0] == ["config", "user.email", "bot@coddy.dev"]
+        assert mock_run.call_args_list[0][1]["cwd"] == Path("/tmp/repo")
+

@@ -18,6 +18,7 @@ from coddy.services.git import (
     checkout_branch,
     commit_all_and_push,
     fetch_and_checkout_branch,
+    set_commit_author,
 )
 from coddy.services.store import save_pr, set_agent_clarification
 from coddy.services.store.schemas import PRFile
@@ -83,6 +84,12 @@ def run_ralph_loop_for_issue(
     except Exception as e:
         logger.warning("Failed to checkout branch %s: %s", branch_name, e)
         return "failed"
+
+    if bot_name and bot_email:
+        try:
+            set_commit_author(bot_name, bot_email, repo_dir=repo_dir, log=logger)
+        except Exception as e:
+            logger.warning("Failed to set commit author: %s", e)
 
     try:
         adapter.set_issue_labels(repo, issue.number, ["in progress"])
