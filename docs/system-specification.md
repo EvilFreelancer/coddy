@@ -317,7 +317,7 @@ ai_agents:
   cursor_cli:
     command: "cursor"
     args: ["generate"]
-    timeout: 300
+    timeout: 600
 
 observer:
   poll_clarifications: true   # Poll .coddy/issues/ for plan_ready and waiting_user_reply

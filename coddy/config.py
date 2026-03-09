@@ -91,7 +91,7 @@ class CursorCLIAgentConfig(BaseSettings):
 
     command: str = Field(default="agent", description="CLI command name (agent from Cursor install)")
     args: list[str] = Field(default_factory=lambda: ["generate"], description="CLI args")
-    timeout: int = Field(default=300, ge=1, description="Timeout in seconds")
+    timeout: int = Field(default=600, ge=1, description="Timeout in seconds")
     token: str | None = Field(default=None, description="Agent token; prefer env or secret file")
     # Headless CLI options (docs: cursor.com/docs/cli/reference/parameters, output-format)
     output_format: str | None = Field(
@@ -262,7 +262,10 @@ def load_config(config_path: Path | None = None) -> AppConfig:
     ai_agents: dict[str, Any] = {}
     for key, val in ai_agents_raw.items():
         if key == "cursor_cli":
-            ai_agents[key] = CursorCLIAgentConfig(**(val or {}))
+            cursor_raw = dict(val or {})
+            if _current_env.get("CURSOR_CLI_TIMEOUT"):
+                cursor_raw["timeout"] = int(_current_env["CURSOR_CLI_TIMEOUT"])
+            ai_agents[key] = CursorCLIAgentConfig(**cursor_raw)
         else:
             ai_agents[key] = val
 

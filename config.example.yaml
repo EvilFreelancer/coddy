@@ -38,7 +38,7 @@ ai_agents:
   cursor_cli:
     command: "agent"
     args: ["generate"]
-    timeout: 300
+    timeout: 600
     model: "auto"
     mode: "agent"   # agent (default), plan, or ask
     # token: CURSOR_AGENT_TOKEN or CURSOR_AGENT_TOKEN_FILE; or CURSOR_API_KEY for headless CLI

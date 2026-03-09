@@ -44,6 +44,7 @@ services:
       CURSOR_AGENT_TOKEN_FILE: /run/secrets/cursor_agent_token
       BOT_REPOSITORY: "EvilFreelancer/coddy"
       BOT_WORKSPACE_PATH: "/app/workspace"
+      CURSOR_CLI_TIMEOUT: "${CURSOR_CLI_TIMEOUT:-600}"
     volumes:
       - ./config.yaml:/app/config.yaml:ro
       - ${REPO_PATH:-.}:/app/workspace:rw
