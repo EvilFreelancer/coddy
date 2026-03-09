@@ -95,7 +95,7 @@ coddy/
 │   └── ...
 ├── coddy/                   # Main application code
 │   ├── services/            # Shared by observer and worker
-│   │   ├── store/           # Issue and PR storage (.coddy/issues/, .coddy/prs/)
+│   │   ├── store/           # Issue and PR storage (.coddy/issues/, .coddy/pull_requests/)
 │   │   └── git/             # Git operations (branches, commits, push_pull)
 │   ├── observer/            # Daemon: adapters, planner, webhook
 │   │   ├── adapters/       # Git platform adapters

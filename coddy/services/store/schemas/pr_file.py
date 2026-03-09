@@ -1,10 +1,11 @@
-"""PR record as stored in .coddy/prs/{pr_number}.yaml."""
+"""PR record as stored in .coddy/pull_requests/{status}/{pr_number}.yaml."""
 
 from pydantic import BaseModel, Field
 
 
 class PRFile(BaseModel):
-    """PR record as stored in .coddy/prs/{pr_number}.yaml."""
+    """PR record as stored in
+    .coddy/pull_requests/{status}/{pr_number}.yaml."""
 
     pr_id: int = Field(..., description="Pull request ID")
     repo: str = Field(..., description="Repository full_name, e.g. owner/repo")

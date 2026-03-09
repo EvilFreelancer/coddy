@@ -1,5 +1,5 @@
 """
-Coddy worker: daemon watching .coddy/issues/ and .coddy/prs/.
+Coddy worker: daemon watching .coddy/issues/ and .coddy/pull_requests/.
 
 Processes user_replied (evaluate sufficiency, post "proceed?" or write clarification),
 then queued (run ralph loop with agent). Uses adapter and agent when configured.

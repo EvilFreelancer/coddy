@@ -67,7 +67,7 @@ def run_observer(config: AppConfig) -> None:
     work_dir = _working_dir_from_config(config)
     if (getattr(config.bot, "workspace_path", ".") or ".") == ".":
         log.warning(
-            "bot.workspace_path not set; .coddy (issues, prs) will be under cwd. "
+            "bot.workspace_path not set; .coddy (issues, pull_requests) will be under cwd. "
             "Set BOT_WORKSPACE_PATH or bot.workspace_path to the repo root for a predictable path.",
         )
 

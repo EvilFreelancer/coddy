@@ -386,7 +386,7 @@ class TestPRStore:
         assert load_pr(tmp_path, 3) is None
 
     def test_save_pr_creates_file(self, tmp_path: Path) -> None:
-        """save_pr writes .coddy/prs/{pr_id}.yaml."""
+        """save_pr writes .coddy/pull_requests/{status}/{pr_id}.yaml."""
         pr = PRFile(
             pr_id=5,
             repo="owner/repo",

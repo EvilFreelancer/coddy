@@ -171,4 +171,3 @@ class TestSetCommitAuthor:
         assert mock_run.call_args_list[0][0][0] == ["config", "user.name", "Coddy Bot"]
         assert mock_run.call_args_list[1][0][0] == ["config", "user.email", "bot@coddy.dev"]
         assert mock_run.call_args_list[0][1]["cwd"] == Path("/tmp/repo")
-
