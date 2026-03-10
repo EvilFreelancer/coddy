@@ -83,7 +83,12 @@ python -m coddy --check      # validate config and exit
 
 ### Docker (recommended)
 
-The easiest way to run the bot is with Docker Compose. Tokens are passed via **Docker secrets** (files in `.secrets/`), not in the image or compose file.
+Coddy consists of **two modules** that can run in one or two processes:
+
+- **Observer** – webhook server; receives GitHub events, runs the planner on assignment, writes issue/PR metadata to `.coddy/`. Command: `python -m coddy observer --config /app/config.yaml`.
+- **Worker** – development loop; picks queued issues, runs the AI agent, creates branches and PRs. Command: `python -m coddy worker --config /app/config.yaml`.
+
+The easiest way to run both is with Docker Compose. Tokens are passed via **Docker secrets** (files in `.secrets/`), not in the image or compose file.
 
 1. **Create secrets and config** (creates `.secrets/` and `config.yaml` from templates):
 
@@ -116,12 +121,36 @@ See [Docker and Secrets](docs/docker-and-secrets.md) for details (Cursor Agent t
 
 ### Docker (single run)
 
+One container runs only one module. Use the same image and volumes; only the command differs.
+
+**Observer** (webhook server, port 8000):
+
 ```bash
 docker build -t coddybot .
-docker run -e GITHUB_TOKEN=... -e WEBHOOK_SECRET=... -v $(pwd)/config.yaml:/app/config.yaml:ro coddybot
+docker run --rm -p 8000:8000 \
+  -e GITHUB_TOKEN=your_github_token \
+  -e WEBHOOK_SECRET=your_webhook_secret \
+  -e BOT_WORKSPACE_PATH=/app/workspace \
+  -v $(pwd)/config.yaml:/app/config.yaml:ro \
+  -v /path/to/your/target-repo:/app/workspace:rw \
+  coddybot \
+  python -m coddy observer --config /app/config.yaml
 ```
 
-Or mount secret files and pass `*_FILE` env vars; see `docker-compose.yml` for the exact variable names.
+**Worker** (development loop, no port):
+
+```bash
+docker run --rm \
+  -e GITHUB_TOKEN=your_github_token \
+  -e CURSOR_AGENT_TOKEN=your_cursor_agent_token \
+  -e BOT_WORKSPACE_PATH=/app/workspace \
+  -v $(pwd)/config.yaml:/app/config.yaml:ro \
+  -v /path/to/your/target-repo:/app/workspace:rw \
+  coddybot \
+  python -m coddy worker --config /app/config.yaml
+```
+
+Use the same `/path/to/your/target-repo` for both so they share the workspace and `.coddy/`. Or use Docker secrets and `*_FILE` env vars; see `docker-compose.dist.yaml` for variable names.
 
 ## Configuration
 

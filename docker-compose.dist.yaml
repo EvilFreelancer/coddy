@@ -18,8 +18,8 @@ services:
     environment:
       GITHUB_TOKEN_FILE: /run/secrets/github_token
       WEBHOOK_SECRET_FILE: /run/secrets/webhook_secret
-      BOT_REPOSITORY: "EvilFreelancer/coddy"
-      BOT_WORKSPACE_PATH: "/app/workspace"
+      BOT_REPOSITORY: "${BOT_REPOSITORY:-EvilFreelancer/coddy}"
+      BOT_WORKSPACE_PATH: "${BOT_WORKSPACE_PATH:-/app/workspace}"
       OBSERVER_SYNC_ON_STARTUP: "${OBSERVER_SYNC_ON_STARTUP:-false}"
     volumes:
       - ./config.yaml:/app/config.yaml:ro
@@ -42,8 +42,8 @@ services:
     environment:
       GITHUB_TOKEN_FILE: /run/secrets/github_token
       CURSOR_AGENT_TOKEN_FILE: /run/secrets/cursor_agent_token
-      BOT_REPOSITORY: "EvilFreelancer/coddy"
-      BOT_WORKSPACE_PATH: "/app/workspace"
+      BOT_REPOSITORY: "${BOT_REPOSITORY:-EvilFreelancer/coddy}"
+      BOT_WORKSPACE_PATH: "${BOT_WORKSPACE_PATH:-/app/workspace}"
       CURSOR_CLI_TIMEOUT: "${CURSOR_CLI_TIMEOUT:-600}"
     volumes:
       - ./config.yaml:/app/config.yaml:ro

@@ -1,6 +1,11 @@
 # Docker Compose and Secrets
 
-Coddy runs as two services: **observer** (webhook server, sets issue status in `.coddy/issues/`) and **worker** (dry-run stub: reads queued issues, writes empty PR YAML). They share a **workspace** volume (sources and `.coddy/` with issues and PRs).
+Coddy consists of **two modules**:
+
+- **Observer** – webhook server; receives events, runs the planner when the bot is assigned, writes issue/PR metadata to `.coddy/issues/` and `.coddy/prs/`.
+- **Worker** – development loop; reads queued issues, runs the AI agent, creates branches, commits, and PRs.
+
+They run as two services in Docker Compose and share a **workspace** volume (sources and `.coddy/`).
 
 ## First run
 
@@ -27,7 +32,7 @@ Coddy runs as two services: **observer** (webhook server, sets issue status in `
 
 4. **Workspace (repo)**
    The worker needs the target repo on disk to run git and the Cursor CLI. Either:
-   - Copy `docker-compose.dist.yaml` to `docker-compose.yaml` and add a bind mount for your repo, e.g. under `coddy-worker` and `coddy-daemon` (observer service):
+   - Copy `docker-compose.dist.yaml` to `docker-compose.yaml` and add a bind mount for your repo, e.g. under `worker` and `observer` services:
      ```yaml
      volumes:
        - ./config.yaml:/app/config.yaml:ro
@@ -50,9 +55,41 @@ Coddy runs as two services: **observer** (webhook server, sets issue status in `
 
    ```bash
    curl http://localhost:8000/health
-   docker compose logs -f coddy-daemon
-   docker compose logs -f coddy-worker
+   docker compose logs -f observer
+   docker compose logs -f worker
    ```
+
+## Running two containers without Compose
+
+You can run observer and worker as two separate `docker run` containers. Use the same image and the same workspace path; only the command and env vars differ.
+
+**Observer** (webhook server, exposes port 8000):
+
+```bash
+docker run --rm -p 8000:8000 \
+  -e GITHUB_TOKEN=your_github_token \
+  -e WEBHOOK_SECRET=your_webhook_secret \
+  -e BOT_WORKSPACE_PATH=/app/workspace \
+  -v $(pwd)/config.yaml:/app/config.yaml:ro \
+  -v /path/to/your/target-repo:/app/workspace:rw \
+  evilfreelancer/coddybot:latest \
+  python -m coddy observer --config /app/config.yaml
+```
+
+**Worker** (no port; shares workspace with observer):
+
+```bash
+docker run --rm \
+  -e GITHUB_TOKEN=your_github_token \
+  -e CURSOR_AGENT_TOKEN=your_cursor_agent_token \
+  -e BOT_WORKSPACE_PATH=/app/workspace \
+  -v $(pwd)/config.yaml:/app/config.yaml:ro \
+  -v /path/to/your/target-repo:/app/workspace:rw \
+  evilfreelancer/coddybot:latest \
+  python -m coddy worker --config /app/config.yaml
+```
+
+Use the same `/path/to/your/target-repo` for both so they see the same repo and `.coddy/`. For secrets, you can use Docker secrets and `*_FILE` (e.g. `-e GITHUB_TOKEN_FILE=/run/secrets/github_token` and mount secret files with `-v`).
 
 ## GitHub token (push access)
 
@@ -157,11 +194,11 @@ Tests also run on every pull request (workflow "Tests on PR"); no secrets are re
 
 ```bash
 # Validate config
-docker compose run --rm coddy-daemon python -m coddy.main --check
+docker compose run --rm observer python -m coddy --check
 
-# Run observer (default; subcommand "daemon" is accepted as alias)
-docker compose run --rm coddy-daemon python -m coddy.main observer --config /app/config.yaml
+# Run observer (webhook server)
+docker compose run --rm observer python -m coddy observer --config /app/config.yaml
 
 # Run worker (one task then exit)
-docker compose run --rm coddy-worker python -m coddy.main worker --config /app/config.yaml --once
+docker compose run --rm worker python -m coddy worker --config /app/config.yaml --once
 ```
