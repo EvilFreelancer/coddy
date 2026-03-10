@@ -73,6 +73,7 @@ cp config.example.yaml config.yaml
 ```bash
 export GITHUB_TOKEN=your_github_token
 export WEBHOOK_SECRET=your_webhook_secret
+export CURSOR_AGENT_TOKEN=your_cursor_agent_token
 export REPOSITORY=owner/repo
 ```
 
