@@ -191,8 +191,8 @@ def add_review(
 ) -> None:
     """Add or update a review entry in the PR file.
 
-    If review with the same review_id already exists, update it.
-    Sets workflow_status to review_received and updates last_review_ts.
+    If review with the same review_id already exists, update it. Sets
+    workflow_status to review_received and updates last_review_ts.
     """
     pr = load_pr(repo_dir, pr_id)
     if not pr:

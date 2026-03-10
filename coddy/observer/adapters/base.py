@@ -120,7 +120,8 @@ class GitPlatformAdapter(ABC):
         raise NotImplementedError("reply_to_review_comment")
 
     def create_pr_comment(self, repo: str, pr_number: int, body: str) -> Comment:
-        """Post a general comment on a PR (issue-style comment, not line-level).
+        """Post a general comment on a PR (issue-style comment, not line-
+        level).
 
         Override if needed.
         """

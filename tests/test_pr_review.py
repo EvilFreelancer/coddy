@@ -383,7 +383,7 @@ class TestWebhookPullRequestReview:
         assert pr.reviews[0].author == "reviewer1"
         assert pr.reviews[0].state == "changes_requested"
         assert pr.reviews[0].body == "Fix these issues"
-        assert pr.workflow_status == "review_received"
+        assert pr.workflow_status == "pending_plan"
 
     def test_review_submitted_ignores_bot_review(self, tmp_path: Path) -> None:
         config = _make_review_config(tmp_path)
@@ -475,7 +475,7 @@ class TestWebhookPullRequestReviewComment:
         handle_github_event(config, "pull_request_review_comment", payload, repo_dir=tmp_path)
         pr = load_pr(tmp_path, 10)
         assert pr is not None
-        assert pr.workflow_status == "review_received"
+        assert pr.workflow_status == "pending_plan"
         all_comments = [c for r in pr.reviews for c in r.comments]
         assert len(all_comments) == 1
         assert all_comments[0].comment_id == 500
@@ -665,7 +665,8 @@ class TestWebhookPRIssueComment:
         assert pr.workflow_status == "waiting_confirmation"
 
     def test_pr_comment_ignores_non_pr_issue(self, tmp_path: Path) -> None:
-        """issue_comment on a regular issue (not a PR) does not affect PR workflow."""
+        """issue_comment on a regular issue (not a PR) does not affect PR
+        workflow."""
         config = _make_review_config(tmp_path)
         set_pr_status(tmp_path, 19, "open", repo="owner/repo")
         set_pr_workflow_status(tmp_path, 19, "waiting_confirmation")
@@ -818,7 +819,8 @@ class TestWorkerReviewProcessing:
         assert "@user2" in plan
 
     def test_process_pr_reviews_pending_plan(self, tmp_path: Path) -> None:
-        """Worker generates plan for PR with pending_plan and posts as PR comment."""
+        """Worker generates plan for PR with pending_plan and posts as PR
+        comment."""
         from coddy.config import AppConfig, BotConfig, LoggingConfig
         from coddy.worker.run import _process_pr_reviews
 
@@ -972,7 +974,8 @@ class TestReviewLoop:
         mock_adapter.reply_to_review_comment.assert_called_once_with("o/r", 71, 200, "Fixed the logic issue.")
 
     def test_review_loop_skips_reply_comments(self, tmp_path: Path) -> None:
-        """Comments with in_reply_to_id are skipped (they are replies, not top-level)."""
+        """Comments with in_reply_to_id are skipped (they are replies, not top-
+        level)."""
         from coddy.worker.review_loop import run_review_loop_for_pr
 
         pr_file = PRFile(

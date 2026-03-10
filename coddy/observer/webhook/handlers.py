@@ -26,6 +26,7 @@ from coddy.services.store import (
     set_issue_state,
     set_issue_status,
     set_pr_status,
+    set_pr_workflow_status,
     update_comment,
 )
 
@@ -371,7 +372,14 @@ def _handle_pull_request_review(
         body=body,
         created_at=ts,
     )
-    log.info("PR #%s: review %s submitted by %s (state=%s)", pr_number, review_id, author, state)
+    set_pr_workflow_status(repo_dir, int(pr_number), "pending_plan")
+    log.info(
+        "PR #%s: review %s submitted by %s (state=%s), workflow_status -> pending_plan",
+        pr_number,
+        review_id,
+        author,
+        state,
+    )
 
 
 def _handle_pull_request_review_comment(
@@ -380,7 +388,8 @@ def _handle_pull_request_review_comment(
     repo_dir: Path,
     log: logging.Logger,
 ) -> None:
-    """On pull_request_review_comment created/edited: store comment in PR file."""
+    """On pull_request_review_comment created/edited: store comment in PR
+    file."""
     action = payload.get("action")
     if action not in ("created", "edited"):
         return
@@ -427,7 +436,15 @@ def _handle_pull_request_review_comment(
         created_at=ts,
         in_reply_to_id=int(in_reply_to_id) if in_reply_to_id is not None else None,
     )
-    log.info("PR #%s: review comment %s on %s:%s by %s", pr_number, comment_id, path, line, author)
+    set_pr_workflow_status(repo_dir, int(pr_number), "pending_plan")
+    log.info(
+        "PR #%s: review comment %s on %s:%s by %s, workflow_status -> pending_plan",
+        pr_number,
+        comment_id,
+        path,
+        line,
+        author,
+    )
 
 
 def _handle_pr_issue_comment(
@@ -438,8 +455,8 @@ def _handle_pr_issue_comment(
 ) -> None:
     """Handle issue_comment on a PR (general PR comment, not line-level).
 
-    If PR has workflow_status=waiting_confirmation and comment is affirmative,
-    set workflow_status to in_progress.
+    If PR has workflow_status=waiting_confirmation and comment is
+    affirmative, set workflow_status to in_progress.
     """
     action = payload.get("action")
     if action != "created":
