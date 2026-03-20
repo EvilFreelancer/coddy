@@ -8,7 +8,7 @@ Coddy Bot is an autonomous development assistant that integrates with Git hostin
 
 - **Trigger by Assignment or MR/PR** - bot starts work when a human assigns it to an issue, or when given a merge/pull request number (no auto-pick of all new issues in the first version)
 - **Issue Labels (Tags)** - bot sets and updates issue labels (e.g. `in progress`, `stuck`, `review`, `done`)
-- **Code Generation** - uses AI agents (Cursor CLI, etc.) to generate code
+- **Code Generation** - uses AI agents via ACP (Agent Client Protocol), including Cursor Agent, OpenCode, and others
 - **Pull Request Management** - creates PRs with generated code and documentation
 - **Review Loop** - responds to PR reviews and line comments, implements requested changes via AI agent, replies in review threads
 - **Draft PR Support** - handles `converted_to_draft` / `ready_for_review` webhook events, tracks draft status in store
@@ -34,10 +34,10 @@ See [Architecture Documentation](docs/architecture.md) for details.
 ### Prerequisites
 
 - Python 3.14+ (3.14-slim in Docker)
-- Node.js 24 (required by Cursor CLI agent, needs Node 23.8+ for `--use-system-ca`)
+- Node.js 24 (recommended for common ACP agents including Cursor Agent/OpenCode)
 - Docker (optional, recommended)
 - GitHub token with appropriate permissions
-- Cursor CLI (or other AI agent)
+- ACP-compatible AI agent binary (for example `agent acp` or `opencode acp`)
 
 ### Installation
 
@@ -222,7 +222,7 @@ coddy/
 │   │   ├── clarification_poll.py  # Polls for plan posting, PR creation, review idle
 │   │   └── run.py          # Observer entry point
 │   ├── worker/             # Worker: ralph loop, agents, review loop
-│   │   ├── agents/         # AI agents (base, cursor_cli)
+│   │   ├── agents/         # AI agents (base, ACP)
 │   │   ├── task_yaml.py    # Task/PR report YAML paths and helpers
 │   │   ├── ralph_loop.py   # Development loop
 │   │   ├── review_loop.py  # Review comment handling via AI agent
@@ -319,8 +319,7 @@ Picks queued issues, runs agent, creates branches/commits/PRs.
 - [x] Task/PR YAML paths and workspace under `bot.workspace_path`
 - [x] Ralph loop (sufficiency, branch, agent loop) - structure in place
 - [x] **Agents**
-  - [x] Cursor CLI agent (partial integration)
-  - [ ] Other agents / multiple agents
+  - [x] ACP agent abstraction (Cursor Agent, OpenCode, other ACP backends)
 - [x] Full PR creation and push from worker - worker writes `PendingPRRequest`, observer creates PR via API
 - [x] Review handling - review_loop.py processes review comments via AI agent, replies in threads
 - [x] PR comment handling - stored comments, workflow status transitions

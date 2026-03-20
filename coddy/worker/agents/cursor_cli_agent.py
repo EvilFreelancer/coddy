@@ -17,6 +17,18 @@ from datetime import UTC, datetime
 from pathlib import Path
 from typing import Any, List
 
+from coddy.observer.models import Comment, Issue, ReviewComment
+from coddy.worker.agents.base import AIAgent, SufficiencyResult
+from coddy.worker.task_yaml import (
+    read_pr_report,
+    read_review_reply,
+    report_file_path,
+    review_reply_file_path,
+    task_log_path,
+    write_review_task_file,
+    write_task_file,
+)
+
 
 def _extract_plan_from_cli_output(raw: str) -> str | None:
     """Extract final plan text from Cursor CLI output (JSON lines or stream-
@@ -66,18 +78,6 @@ _TRANSIENT_PLAN_ERRORS = (
     "Connection reset",
     "timeout",
     "T: Connection stalled",
-)
-
-from coddy.observer.models import Comment, Issue, ReviewComment
-from coddy.worker.agents.base import AIAgent, SufficiencyResult
-from coddy.worker.task_yaml import (
-    read_pr_report,
-    read_review_reply,
-    report_file_path,
-    review_reply_file_path,
-    task_log_path,
-    write_review_task_file,
-    write_task_file,
 )
 
 

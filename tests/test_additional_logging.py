@@ -229,7 +229,7 @@ class TestWorkerRunLogging:
             assignment_only=True,
             username="coddybot",
         )
-        config.ai_agents = {}
+        config.bot.ai_agent = "acp"
 
         log = logging.getLogger("coddy.worker.test_dry_run")
         with caplog.at_level(logging.DEBUG):
