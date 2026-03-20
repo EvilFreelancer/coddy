@@ -337,7 +337,6 @@ Picks queued issues, runs agent, creates branches/commits/PRs.
 - [ ] User attribution in commits
 - [ ] GitLab / Bitbucket adapters and webhook events
 
-
 ## License
 
 This project is licensed under the MIT License, see the [LICENSE](LICENSE) file in the repository root for details.
