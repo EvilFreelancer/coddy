@@ -89,6 +89,7 @@ coddy/
 ├── docs/                    # Documentation
 │   ├── system-specification.md
 │   ├── architecture.md
+│   ├── agent-client-protocol.md  # ACP in Coddy (links to official spec)
 │   ├── development-guide.md
 │   ├── issue-storage.md
 │   ├── issue-flow.md

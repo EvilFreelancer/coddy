@@ -51,7 +51,7 @@ This document describes how the code agent is started, how it can ask the user f
 
 ## Worker as daemon (poll)
 
-- The worker runs a **poll loop** over `.coddy/issues/` every N seconds (config: `worker.poll_interval_seconds`, default 10; CLI: `--poll-interval` overrides).
+- The worker runs a **poll loop** over `.coddy/issues/` every N seconds (config: `worker.poll_interval_seconds`, default 15; CLI: `--poll-interval` overrides).
 - In each poll pass it:
   1. Drains all `status=pending_plan` (build plan, write to YAML, set `plan_ready`; observer then posts to platform).
   2. Drains all `status=user_replied` (sufficiency, post "proceed?" and set `waiting_go`, or write clarification).
@@ -69,10 +69,11 @@ This document describes how the code agent is started, how it can ask the user f
 
 - `observer.poll_interval_seconds`: Interval for observer poll (plan_ready and clarification), e.g. 15.
 - `observer.poll_clarifications`: Whether to run the observer poll loop (default true).
-- `worker.poll_interval_seconds`: Interval for worker poll of `.coddy/issues/` (pending_plan, user_replied, queued), e.g. 10. Env: `WORKER_POLL_INTERVAL_SECONDS`. CLI `--poll-interval` overrides.
+- `worker.poll_interval_seconds`: Interval for worker poll of `.coddy/issues/` (pending_plan, user_replied, queued), e.g. 15. Env: `WORKER_POLL_INTERVAL_SECONDS`. CLI `--poll-interval` overrides.
 
 ## References
 
 - [issue-flow.md](issue-flow.md) – Assignment to queue.
 - [issue-storage.md](issue-storage.md) – Issue YAML format and status list.
 - [system-specification.md](system-specification.md) – Overall architecture.
+- [agent-client-protocol.md](agent-client-protocol.md) – ACP in Coddy (worker agent subprocess and configuration).

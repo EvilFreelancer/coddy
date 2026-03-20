@@ -8,7 +8,7 @@ Coddy Bot is an autonomous development assistant that integrates with Git hostin
 
 - **Trigger by Assignment or MR/PR** - bot starts work when a human assigns it to an issue, or when given a merge/pull request number (no auto-pick of all new issues in the first version)
 - **Issue Labels (Tags)** - bot sets and updates issue labels (e.g. `in progress`, `stuck`, `review`, `done`)
-- **Code Generation** - uses AI agents via ACP (Agent Client Protocol), including Cursor Agent, OpenCode, and others
+- **Code Generation** - uses AI agents via [Agent Client Protocol](https://agentclientprotocol.com/) (ACP), including Cursor Agent, OpenCode, and others; see [docs/agent-client-protocol.md](docs/agent-client-protocol.md) for how Coddy implements the client and configures backends
 - **Pull Request Management** - creates PRs with generated code and documentation
 - **Review Loop** - responds to PR reviews and line comments, implements requested changes via AI agent, replies in review threads
 - **Draft PR Support** - handles `converted_to_draft` / `ready_for_review` webhook events, tracks draft status in store
@@ -27,7 +27,7 @@ The system follows a modular architecture with clear separation of concerns:
 - **Core Services**: Business logic and orchestration
 - **Webhook Server**: Receives and processes Git platform events
 
-See [Architecture Documentation](docs/architecture.md) for details.
+See [Architecture Documentation](docs/architecture.md) for details. For ACP (Agent Client Protocol), the official introduction and schema are at [agentclientprotocol.com](https://agentclientprotocol.com/) and [protocol/schema](https://agentclientprotocol.com/protocol/schema); this repository adds [docs/agent-client-protocol.md](docs/agent-client-protocol.md) for Coddy-specific wiring.
 
 ## Quick Start
 

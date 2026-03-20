@@ -34,11 +34,11 @@ Coddy is split into two runnable applications that work together:
    - Listens for webhook events from Git platforms (e.g. GitHub: issue assigned, issue comment, PR review comment).
    - **On startup**, the observer can optionally **sync** issues and pull requests from the platform API into `.coddy/`: issues are stored under `.coddy/issues/open/` or `.coddy/issues/closed/`, PRs under `.coddy/pull_requests/open/`, `.coddy/pull_requests/merged/`, or `.coddy/pull_requests/rejected/`. Each entity is a YAML file; the folder denotes the status (no separate status field needed for PRs; for issues the folder is platform state open/closed, workflow status remains in YAML).
    - When the bot is assigned to an issue, the observer creates/updates the issue in `.coddy/issues/open/{n}.yaml` (or `closed/` if the issue is closed) and sets status **pending_plan** (worker builds the plan). Observer poll loop posts worker's plan when status=plan_ready and posts clarification when status=waiting_user_reply. When the user confirms via a comment, the observer sets issue status to **queued**. See [issue-flow.md](issue-flow.md).
-   - Tasks are issues with status=queued in `.coddy/issues/` (files live under `open/` or `closed/`). Worker polls `.coddy/issues/` every `worker.poll_interval_seconds` (default 10) and picks pending_plan, user_replied, then queued. PRs are tracked in `.coddy/pull_requests/{open|merged|rejected}/{pr_number}.yaml`. On PR merge or close (webhook), PR file is moved to the correct folder; on issue close, issue file is moved to `closed/`.
+   - Tasks are issues with status=queued in `.coddy/issues/` (files live under `open/` or `closed/`). Worker polls `.coddy/issues/` every `worker.poll_interval_seconds` (default 15) and picks pending_plan, user_replied, then queued. PRs are tracked in `.coddy/pull_requests/{open|merged|rejected}/{pr_number}.yaml`. On PR merge or close (webhook), PR file is moved to the correct folder; on issue close, issue file is moved to `closed/`.
    - The observer is long-running: HTTP server for webhooks and a poll loop over `.coddy/issues/`. It does not execute the development loop or the planner.
 
 2. **Worker (coddy worker)** - Development and commit loop (Ralph-style)
-   - Polls `.coddy/issues/` every `worker.poll_interval_seconds` (config or env WORKER_POLL_INTERVAL_SECONDS; CLI `--poll-interval` overrides). Drains pending_plan (build plan), user_replied (proceed? or clarification), then picks one queued task and runs the **ralph loop** for that issue.
+   - Polls `.coddy/issues/` every `worker.poll_interval_seconds` (default 15; env `WORKER_POLL_INTERVAL_SECONDS`; CLI `--poll-interval` overrides). Drains pending_plan (build plan), user_replied (proceed? or clarification), then picks one queued task and runs the **ralph loop** for that issue.
    - **Ralph loop** (per issue):
      - Load issue and comments from the platform adapter; evaluate data sufficiency. If insufficient: post clarification comment, set label `stuck`, and exit (task can be re-queued when user comments).
      - Create branch from default (e.g. `42-add-user-login`), checkout, and set label `in progress`.
@@ -66,7 +66,7 @@ This separation allows:
 - **Language**: Python 3.11+
 - **Containerization**: Docker
 - **Git Platforms**: GitHub (primary), GitLab, BitBucket (planned)
-- **AI Agents**: ACP-compatible agents (e.g. Cursor Agent, OpenCode), extensible to other agents
+- **AI Agents**: [Agent Client Protocol](https://agentclientprotocol.com/) (ACP) compatible backends (e.g. Cursor Agent, OpenCode). Coddy implements the ACP client; the agent binary is user-configured. See [agent-client-protocol.md](agent-client-protocol.md) in this repo for how Coddy wires ACP, links to the official schema, and configuration.
 
 ## Core Workflow
 
@@ -183,33 +183,50 @@ class GitPlatformAdapter(ABC):
 - New comment or review on PR/MR the bot is working on → pass to Review Handler
 - User references MR/PR number in a comment → queue that MR/PR for work
 
+### Agent Client Protocol (ACP)
+
+**Purpose**: Standard wire protocol between an automation client (Coddy worker) and a coding agent subprocess.
+
+**References**:
+- Introduction: [agentclientprotocol.com](https://agentclientprotocol.com/)
+- Schema: [agentclientprotocol.com/protocol/schema](https://agentclientprotocol.com/protocol/schema)
+- Coddy-specific notes: [agent-client-protocol.md](agent-client-protocol.md)
+
+**In Coddy**: The worker uses the PyPI package `agent-client-protocol` to run `ACPAgent`, which spawns `acp.command`, implements the ACP **client** (local file and terminal operations), and drives planning, implementation, and review prompts. The agent implementation is not fixed; any ACP-speaking backend matching the installed SDK can be configured.
+
 ### AI Agent Interface
 
-**Purpose**: Pluggable interface for code generation agents
+**Purpose**: Pluggable interface for planning, implementation, and PR review follow-up.
 
-**Interface**:
+**Interface** (see `coddy/worker/agents/base.py`):
 ```python
-class AIAgent(ABC):
-    def generate_code(self, task: Task, context: CodebaseContext) -> CodeChanges
-    def improve_code(self, code: str, feedback: str, context: CodebaseContext) -> CodeChanges
-    def write_tests(self, code: str, context: CodebaseContext) -> CodeChanges
+class AIAgent:
+    def evaluate_sufficiency(self, issue: Issue, comments: List[Comment]) -> SufficiencyResult
+    def generate_plan(self, issue: Issue, comments: List[Comment]) -> str | None
+    def generate_code(self, issue: Issue, comments: List[Comment]) -> str | None
+    def process_review_item(
+        self,
+        pr_number: int,
+        issue_number: int,
+        comments: List[ReviewComment],
+        current_index: int,
+        repo_dir: Path,
+    ) -> str | None
 ```
 
 **Implementations**:
-- `ACPAgent` - Uses ACP to connect to configured agent backend
-- Future agents can be added by implementing the interface
+- `ACPAgent` - Connects to a configured ACP agent binary via stdio (`make_acp_agent` from config)
+- Additional agents would implement the same interface
 
-### Code Generator
+### Code generation orchestration (worker)
 
-**Purpose**: Orchestrate code generation workflow (invoked only when issue data is sufficient).
+**Purpose**: The worker combines the **ralph loop** (`coddy/worker/ralph_loop.py`), task YAML (`.coddy/task-{n}.yaml`), PR report YAML (`.coddy/pr-{n}.yaml`), and `AIAgent.generate_code` / `process_review_item`. There is no separate "Code Generator" class; responsibilities below map to worker + agent behavior.
 
 **Responsibilities**:
-- Prepare context for AI agent (codebase, issue description, comments)
-- Create branch with format `{issue_number}-short-description-2-3-words` (English, lowercase, dashes; derived from issue title) and switch to it
-- Call AI agent with task; handle agent responses and clarifications
-- Manage code changes and commits; push branch to remote
-- Create commit messages with format `#{issue_number} Description of what was done`
-- Support multiple commits per issue (one per edit session); after edits are done, run final linter and tests, fix and commit if needed until all pass
+- After data sufficiency passes, create branch with format `{issue_number}-short-description-2-3-words` (English, lowercase, dashes; derived from issue title) and switch to it
+- Write task YAML and call the agent; detect PR report file, `agent_clarification` in task YAML, or max iterations (default 10 in `ralph_loop`)
+- Manage commits and push; commit messages use format `#{issue_number} Description of what was done`
+- Support multiple commits per issue as produced by the agent; the agent is instructed to run tests and linter before finishing
 
 ### PR Manager
 
@@ -315,7 +332,7 @@ bitbucket:
 
 acp:
   command: ["opencode", "acp"]
-  timeout: 600
+  timeout: 600  # Per-prompt timeout; env ACP_TIMEOUT overrides
   env: {}
 
 observer:
@@ -324,7 +341,7 @@ observer:
   sync_on_startup: true      # On start, fetch issues and PRs from API into .coddy/issues/ and .coddy/pull_requests/
 
 worker:
-  poll_interval_seconds: 10  # Interval for .coddy/issues/ poll (env WORKER_POLL_INTERVAL_SECONDS; CLI --poll-interval overrides)
+  poll_interval_seconds: 15  # Interval for .coddy/issues/ poll (env WORKER_POLL_INTERVAL_SECONDS; CLI --poll-interval overrides)
 ```
 
 ## API Tokens and Platform APIs
@@ -397,9 +414,9 @@ For the initial prototype, focus on:
 3. **Issue Tags (Labels)**
    - Bot must set and update issue labels: e.g. `in progress`, `stuck`, `review`, `done` as the workflow progresses.
 
-4. **ACP Agent**
-   - Single protocol-level integration via ACP
-   - Backend is user-configurable via `acp.command`
+4. **ACP agent**
+   - Single protocol-level integration via [Agent Client Protocol](https://agentclientprotocol.com/) (see [agent-client-protocol.md](agent-client-protocol.md) and [protocol schema](https://agentclientprotocol.com/protocol/schema))
+   - Backend is user-configurable via `acp.command`; Python dependency `agent-client-protocol` implements the client side
 
 5. **Core Workflow**
    - Assigned issue → Specification (in comments) → Code → PR, with labels updated along the way

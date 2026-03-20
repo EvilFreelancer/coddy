@@ -18,7 +18,7 @@ Coddy Bot follows a **two-module** design: an **observer** that receives webhook
 
 - **Entry point**: `coddy worker` (or `python -m coddy.worker`)
 - **Implementation**: `coddy.worker.run`
-- **Responsibilities**: Daemon that **polls** `.coddy/issues/` every `worker.poll_interval_seconds` (default 10). Each poll: (1) Drain all pending_plan (build plan via agent, write to YAML, set plan_ready; observer posts to platform). (2) Drain all user_replied (evaluate sufficiency; if sufficient post "proceed?" and set waiting_go; if insufficient write clarification to YAML). (3) Process one queued: run **ralph loop** (branch, task YAML, agent until PR report or clarification); on success create PR, set labels, switch to default branch. Uses platform adapter and agent.
+- **Responsibilities**: Daemon that **polls** `.coddy/issues/` every `worker.poll_interval_seconds` (default 15). Each poll: (1) Drain all pending_plan (build plan via agent, write to YAML, set plan_ready; observer posts to platform). (2) Drain all user_replied (evaluate sufficiency; if sufficient post "proceed?" and set waiting_go; if insufficient write clarification to YAML). (3) Process one queued: run **ralph loop** (branch, task YAML, agent until PR report or clarification); on success create PR, set labels, switch to default branch. Uses platform adapter and agent.
 
 ### Task source and status
 
@@ -96,9 +96,11 @@ Abstract interfaces and implementations for Git hosting platforms. Authenticatio
 
 Pluggable interface for AI code generation agents.
 
-- `base.py` - Abstract base class (AIAgent, SufficiencyResult)
-- `acp_agent.py` - ACP agent implementation
-- `make_acp_agent(config)` - Build ACP agent from config
+- `base.py` - Abstract base class (`AIAgent`, `SufficiencyResult`): sufficiency, plan, code generation, review items
+- `acp_agent.py` - `ACPAgent` and `_LocalACPClient` (ACP client over stdio via the `agent-client-protocol` package)
+- `make_acp_agent(config)` - Build `ACPAgent` from the `acp` section of config
+
+**Agent Client Protocol (ACP)** is the only production integration today: the worker spawns a subprocess that implements the agent side of ACP; Coddy implements the client side (local filesystem and terminal tools). See [Agent Client Protocol in Coddy](agent-client-protocol.md) for protocol links, configuration, and behavior.
 
 **Dependencies**: Observer models (Issue, Comment, ReviewComment), worker.task_yaml
 
@@ -201,4 +203,6 @@ Tests live in `tests/`; import from `coddy.observer.*`, `coddy.worker.*`, `coddy
 - `BOT_NAME` - Bot name for commits
 - `BOT_EMAIL` - Bot email for commits
 - `REPOSITORY` - Target repository (owner/repo)
-- AI agent config via `config.yaml` (section `acp`)
+- `CURSOR_AGENT_TOKEN` / `CURSOR_AGENT_TOKEN_FILE` - Optional credentials passed into the ACP agent process when supported by the backend
+- `ACP_TIMEOUT` - Optional override for `acp.timeout` (seconds)
+- AI agent settings in `config.yaml` (section `acp`; see [agent-client-protocol.md](agent-client-protocol.md))
