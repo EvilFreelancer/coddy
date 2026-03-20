@@ -97,7 +97,7 @@ Script: `scripts/issue_to_markdown.py`. Markdown rendering is covered in `tests/
 
 | status               | Meaning |
 |----------------------|--------|
-| pending_plan         | Bot assigned; planner will run (or failed to run; optional stable delay). |
+| pending_plan         | Bot assigned; planner runs immediately. |
 | waiting_confirmation | Plan posted; wait for user to confirm (yes/da). |
 | queued               | User confirmed; worker will pick this task. |
 | in_progress          | Worker is running the agent. |

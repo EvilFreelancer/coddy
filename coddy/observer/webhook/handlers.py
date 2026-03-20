@@ -216,10 +216,13 @@ def _ensure_issue_in_store(config: Any, payload: Dict[str, Any], repo_dir: Path,
     user_payload = issue_payload.get("user") or {}
     author = user_payload.get("login") or "unknown"
     assignees = issue_payload.get("assignees") or []
-    first_assignee = assignees[0].get("login") if assignees and isinstance(assignees[0], dict) else None
+    bot_username = getattr(config.bot, "username", None)
+    logins = [a.get("login") for a in assignees if isinstance(a, dict) and a.get("login")]
+    first_assignee = logins[0] if logins else None
+    selected_assignee = bot_username if bot_username and bot_username in logins else first_assignee
     now_ts = int(datetime.now(UTC).timestamp())
-    assigned_at = now_ts if first_assignee else None
-    assigned_to = first_assignee
+    assigned_at = now_ts if selected_assignee else None
+    assigned_to = selected_assignee
     create_issue(
         repo_dir,
         int(issue_number),
@@ -286,12 +289,15 @@ def _handle_issues(config: Any, payload: Dict[str, Any], repo_dir: Path, log: lo
         _ensure_issue_in_store(config, payload, repo_dir, log)
         if action == "assigned":
             assignees = issue_payload.get("assignees") or []
-            first_assignee = assignees[0].get("login") if assignees and isinstance(assignees[0], dict) else None
-            if first_assignee and issue_number is not None and repo and repo == getattr(config.bot, "repository", ""):
+            bot_username = getattr(config.bot, "username", None)
+            logins = [a.get("login") for a in assignees if isinstance(a, dict) and a.get("login")]
+            first_assignee = logins[0] if logins else None
+            selected_assignee = bot_username if bot_username and bot_username in logins else first_assignee
+            if selected_assignee and issue_number is not None and repo and repo == getattr(config.bot, "repository", ""):
                 issue_file = load_issue(repo_dir, int(issue_number))
                 if issue_file:
                     issue_file.assigned_at = int(datetime.now(UTC).timestamp())
-                    issue_file.assigned_to = first_assignee
+                    issue_file.assigned_to = selected_assignee
                     save_issue(repo_dir, int(issue_number), issue_file)
             _handle_issues_assigned(config, payload, repo_dir, log)
 

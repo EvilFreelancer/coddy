@@ -340,16 +340,17 @@ def run_worker(config: AppConfig, once: bool = False, poll_interval: int = 15) -
     token = getattr(config, "github_token_resolved", None)
 
     adapter = None
-    agent = None
     if token and getattr(config.bot, "git_platform", "") == "github":
         from coddy.observer.adapters.github import GitHubAdapter
 
         adapter = GitHubAdapter(token=token, api_url=getattr(config.github, "api_url", "https://api.github.com"))
-        selected_agent = getattr(config.bot, "ai_agent", "acp")
-        if selected_agent == "acp":
-            from coddy.worker.agents.acp_agent import make_acp_agent
 
-            agent = make_acp_agent(config)
+    agent = None
+    selected_agent = getattr(config.bot, "ai_agent", "acp")
+    if selected_agent == "acp":
+        from coddy.worker.agents.acp_agent import make_acp_agent
+
+        agent = make_acp_agent(config)
 
     log.info(
         "Coddy worker started | repo=%s | workspace=%s | once=%s | assignment_only=%s | agent=%s",

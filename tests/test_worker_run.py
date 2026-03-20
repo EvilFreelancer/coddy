@@ -4,6 +4,7 @@ from pathlib import Path
 from unittest.mock import MagicMock, patch
 
 from coddy.config import AppConfig, BotConfig, LoggingConfig, load_config
+from coddy.observer.webhook.handlers import handle_github_event
 from coddy.services.store import create_issue, load_issue, set_issue_status
 from coddy.worker.run import run_worker
 
@@ -206,3 +207,78 @@ def test_worker_polls_bot_workspace_not_cursor_working_directory(tmp_path: Path)
     assert issue.status == "plan_ready"
     assert len(issue.comments) == 1
     assert "Step one" in (issue.comments[0].content or "")
+
+
+def test_worker_builds_plan_without_github_token_when_acp_enabled(tmp_path: Path) -> None:
+    """Worker should process pending_plan with ACP agent even without GitHub token."""
+    from coddy.config import ACPAgentConfig
+
+    create_issue(
+        tmp_path,
+        issue_id=21,
+        repo="owner/repo",
+        title="Need plan without token",
+        description="Body",
+        author="u",
+        assigned_at=1704067200,
+        assigned_to="coddybot",
+    )
+    set_issue_status(tmp_path, 21, "pending_plan")
+    assert load_issue(tmp_path, 21).status == "pending_plan"
+
+    config = AppConfig()
+    config.bot = BotConfig(
+        workspace_path=str(tmp_path),
+        repository="owner/repo",
+        assignment_only=True,
+        username="coddybot",
+    )
+    config.bot.git_platform = "github"
+    config.bot.ai_agent = "acp"
+    config.acp = ACPAgentConfig()
+    config.logging = LoggingConfig()
+    config.github = MagicMock()
+    config.github.api_url = "https://api.github.com"
+
+    mock_agent = MagicMock()
+    mock_agent.generate_plan.return_value = "1. Plan step"
+
+    with patch("coddy.worker.agents.acp_agent.make_acp_agent", return_value=mock_agent):
+        run_worker(config, once=True)
+
+    issue = load_issue(tmp_path, 21)
+    assert issue is not None
+    assert issue.status == "plan_ready"
+    assert len(issue.comments) == 1
+    assert "Plan step" in (issue.comments[0].content or "")
+
+
+def test_worker_processes_issue_when_bot_not_first_assignee_in_webhook_payload(tmp_path: Path) -> None:
+    """Issue assigned to bot should be processed even if bot is not first in assignees."""
+    config = _make_config(tmp_path, assignment_only=True, username="coddybot")
+
+    payload = {
+        "action": "assigned",
+        "issue": {
+            "number": 45,
+            "title": "Need plan",
+            "body": "Body",
+            "user": {"login": "u"},
+            "assignees": [{"login": "other-user"}, {"login": "coddybot"}],
+        },
+        "repository": {"full_name": "owner/repo"},
+    }
+    handle_github_event(config, "issues", payload, repo_dir=tmp_path)
+    assert load_issue(tmp_path, 45).status == "pending_plan"
+
+    mock_agent = MagicMock()
+    mock_agent.generate_plan.return_value = "1. Plan from worker"
+    with patch("coddy.worker.agents.acp_agent.make_acp_agent", return_value=mock_agent):
+        config.bot.git_platform = "github"
+        config.bot.ai_agent = "acp"
+        run_worker(config, once=True)
+
+    issue = load_issue(tmp_path, 45)
+    assert issue is not None
+    assert issue.status == "plan_ready"
+    assert "Plan from worker" in (issue.comments[0].content or "")

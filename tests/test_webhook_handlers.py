@@ -564,6 +564,44 @@ def test_webhook_issues_assigned_sets_pending_plan_when_bot_assignee(tmp_path: P
     assert issue.status == "pending_plan"
 
 
+def test_webhook_issues_opened_after_assigned_keeps_pending_plan(tmp_path: Path) -> None:
+    """Assigned event should move issue to pending_plan immediately and opened should not revert it."""
+    config = _issues_assigned_config(tmp_path)
+
+    assigned_payload = {
+        "action": "assigned",
+        "issue": {
+            "number": 44,
+            "title": "Add feature",
+            "body": "Body",
+            "user": {"login": "u"},
+            "assignees": [{"login": "coddybot"}],
+        },
+        "repository": {"full_name": "owner/repo"},
+    }
+    opened_payload = {
+        "action": "opened",
+        "issue": {
+            "number": 44,
+            "title": "Add feature",
+            "body": "Body",
+            "user": {"login": "u"},
+            "assignees": [{"login": "coddybot"}],
+        },
+        "repository": {"full_name": "owner/repo"},
+    }
+
+    handle_github_event(config, "issues", assigned_payload, repo_dir=tmp_path)
+    issue_after_assigned = load_issue(tmp_path, 44)
+    assert issue_after_assigned is not None
+    assert issue_after_assigned.status == "pending_plan"
+
+    handle_github_event(config, "issues", opened_payload, repo_dir=tmp_path)
+    issue_after_opened = load_issue(tmp_path, 44)
+    assert issue_after_opened is not None
+    assert issue_after_opened.status == "pending_plan"
+
+
 def test_webhook_issue_comment_affirmative_sets_queued(tmp_path: Path) -> None:
     """On issue_comment with waiting_confirmation and affirmative reply,
     status=queued (worker picks from .coddy/issues/)."""
