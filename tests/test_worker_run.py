@@ -1,7 +1,7 @@
 """Tests for worker run (queue polling, assignment-only filtering)."""
 
 from pathlib import Path
-from unittest.mock import MagicMock, patch
+from unittest.mock import MagicMock, PropertyMock, patch
 
 from coddy.config import AppConfig, BotConfig, LoggingConfig, load_config
 from coddy.observer.webhook.handlers import handle_github_event
@@ -51,7 +51,8 @@ def test_worker_processes_only_issues_assigned_to_bot_when_assignment_only(tmp_p
     set_issue_status(tmp_path, 2, "queued")
 
     config = _make_config(tmp_path, assignment_only=True, username="coddybot")
-    run_worker(config, once=True)
+    with patch.object(AppConfig, "github_token_resolved", PropertyMock(return_value=None)):
+        run_worker(config, once=True)
 
     # Issue 1 (coddybot) should be processed: report written, status done
     issue1 = load_issue(tmp_path, 1)
@@ -82,7 +83,8 @@ def test_worker_processes_any_queued_issue_when_assignment_only_false(tmp_path: 
     set_issue_status(tmp_path, 3, "queued")
 
     config = _make_config(tmp_path, assignment_only=False, username="coddybot")
-    run_worker(config, once=True)
+    with patch.object(AppConfig, "github_token_resolved", PropertyMock(return_value=None)):
+        run_worker(config, once=True)
 
     issue3 = load_issue(tmp_path, 3)
     assert issue3 is not None

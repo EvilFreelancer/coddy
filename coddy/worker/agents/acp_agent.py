@@ -299,25 +299,22 @@ class ACPAgent(AIAgent):
         return SufficiencyResult(sufficient=True)
 
     def generate_plan(self, issue: Issue, comments: List[Comment]) -> str | None:
-        comments_block = ""
-        if comments:
-            lines = []
-            for c in comments[-10:]:
-                author = (c.author or "user").strip()
-                body = (c.body or "").strip()
-                if body:
-                    lines.append(f"- {author}: {body}")
-            if lines:
-                comments_block = "\n\nRecent comments:\n" + "\n".join(lines)
+        recent = comments[-10:] if comments else []
+        thread_lines = [f"- {c.author}: {c.body}" for c in recent]
+        thread_block = "\n".join(thread_lines) if thread_lines else "(none)"
+        feedback_block = ""
+        if recent:
+            feedback_block = (
+                "The thread below may include user feedback on a previous plan. If so, revise the plan to "
+                "incorporate their feedback; do not repeat the previous plan verbatim.\n\n"
+                f"Recent thread (last up to 10 comments):\n{thread_block}\n\n"
+            )
         prompt = (
-            "You are a senior engineer. Propose a concrete implementation plan for this issue. "
-            "Write in markdown (headings and bullet lists as needed). Include approach, ordered steps, "
-            "which parts of the codebase or files are likely involved if you can infer them, and any "
-            "risks or clarifications. Use the same language as the issue title and description. "
-            "Do not ask the user for confirmation here; write only the plan content.\n\n"
-            f"**Title:** {issue.title}\n\n"
-            f"**Description:**\n{issue.body or '(none)'}"
-            f"{comments_block}"
+            "You are a planner. The user created an issue. Output ONLY a short implementation plan "
+            "(bullet points, no code). Use the same language as the issue. "
+            f"Issue title: {issue.title!r}\n\nBody:\n{issue.body or '(none)'}\n\n"
+            f"{feedback_block}"
+            "Output only the plan, nothing else."
         )
         try:
             out = self._run_prompt(prompt)

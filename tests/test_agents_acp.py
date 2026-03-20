@@ -7,7 +7,7 @@ from pathlib import Path
 from unittest.mock import patch
 
 from coddy.config import AppConfig, BotConfig
-from coddy.observer.models import Issue, ReviewComment
+from coddy.observer.models import Comment, Issue, ReviewComment
 
 
 def _issue(number: int = 42, body: str = "Enough body for sufficiency check.") -> Issue:
@@ -93,6 +93,26 @@ def test_acp_agent_generate_plan_returns_agent_text(tmp_path: Path) -> None:
         plan = agent.generate_plan(_issue(number=1), [])
 
     assert plan == "## Plan\n\n- Step 1\n- Step 2"
+
+
+def test_acp_agent_generate_plan_prompt_includes_thread_when_comments_present(tmp_path: Path) -> None:
+    """When comments exist, plan prompt asks to revise and lists recent
+    thread."""
+    from coddy.worker.agents.acp_agent import ACPAgent
+
+    agent = ACPAgent(command="agent", args=["acp"], timeout=30, working_directory=str(tmp_path))
+    now = datetime.now(UTC)
+    thread = [
+        Comment(id=1, body="Adjust section A", author="user1", created_at=now, updated_at=now),
+    ]
+
+    with patch.object(agent, "_run_prompt", return_value="- ok") as mock_run:
+        agent.generate_plan(_issue(number=2), thread)
+
+    prompt = mock_run.call_args[0][0]
+    assert "revise the plan" in prompt
+    assert "Recent thread" in prompt
+    assert "user1: Adjust section A" in prompt
 
 
 def test_acp_agent_generate_code_reads_pr_report(tmp_path: Path) -> None:

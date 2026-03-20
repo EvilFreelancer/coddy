@@ -120,7 +120,8 @@ def _handle_issue_comment(
     log: logging.Logger,
 ) -> None:
     """On comment: created -> append; edited -> update; deleted -> set deleted_at.
-    If created + waiting_confirmation + affirmative -> on_user_confirmed."""
+    If created + waiting_confirmation or waiting_go + affirmative -> on_user_confirmed.
+    If created + waiting_confirmation + non-affirmative non-empty body -> pending_plan."""
     action = payload.get("action")
     if action not in ("created", "edited", "deleted"):
         return
@@ -179,6 +180,18 @@ def _handle_issue_comment(
                 )
             else:
                 log.warning("No GitHub token; cannot post reply")
+        elif (
+            issue_file
+            and issue_file.status == "waiting_confirmation"
+            and not is_affirmative_comment(body)
+            and body.strip()
+        ):
+            set_issue_status(repo_dir, int(issue_number), "pending_plan")
+            log.info(
+                "Issue #%s non-affirmative comment while waiting_confirmation, status -> pending_plan "
+                "(worker will rebuild plan)",
+                issue_number,
+            )
         return
 
     if action == "edited":
@@ -520,7 +533,8 @@ def handle_github_event(
     - pull_request_review (action=submitted): store review in PR file.
     - pull_request_review_comment (action=created/edited): store line comment in PR file.
     - issues (action=assigned): if bot is in assignees, set status pending_plan (worker builds plan).
-    - issue_comment: on user confirmation set issue status to queued; on PR comment check review confirmation.
+    - issue_comment: on user confirmation set issue status to queued; non-affirmative comment while
+      waiting_confirmation sets pending_plan; on PR comment check review confirmation.
     """
     logger = log or logging.getLogger("coddy.observer.webhook.handlers")
     work_dir = Path(repo_dir) if repo_dir is not None else _working_dir_from_config(config)
