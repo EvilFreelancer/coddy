@@ -92,7 +92,9 @@ class _LocalACPClient(Client):
         and plan text.
         """
         chunks = self._text_chunks.get(session_id, [])
-        text = "\n".join([c for c in chunks if c.strip()]).strip()
+        # Streamed assistant deltas are partial strings; joining with newlines
+        # splits words and breaks paths. Concatenate in order with no separator.
+        text = "".join(chunks).strip()
         plans = self._plan_chunks.get(session_id, [])
         plan_text = "\n".join([c for c in plans if c.strip()]).strip()
         if text and plan_text:
@@ -129,7 +131,7 @@ class _LocalACPClient(Client):
         if isinstance(update, AgentMessageChunk):
             content = getattr(update, "content", None)
             text = getattr(content, "text", None) if content is not None else None
-            if isinstance(text, str) and text.strip():
+            if isinstance(text, str):
                 self._text_chunks.setdefault(session_id, []).append(text)
         elif isinstance(update, AgentPlanUpdate):
             lines = [entry.content for entry in update.entries if getattr(entry, "content", "")]

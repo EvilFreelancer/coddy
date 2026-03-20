@@ -64,6 +64,25 @@ def test_local_acp_client_returns_plan_when_message_is_prefix_of_plan() -> None:
     assert client.get_session_text("s1") == "Intro\n\nFull plan details here."
 
 
+def test_local_acp_client_concatenates_streaming_message_chunks_without_breaks() -> None:
+    """Streamed assistant deltas must be joined in order with no separator."""
+    import logging
+
+    from coddy.worker.agents.acp_agent import _LocalACPClient
+
+    client = _LocalACPClient(
+        logging.getLogger("test.acp"),
+        ".",
+        30,
+        True,
+        True,
+        True,
+    )
+    client.reset_session("s1")
+    client._text_chunks["s1"] = ["confi", "rmation", " ", "and ", "`coddy/observer/webhook/handlers.py`"]
+    assert client.get_session_text("s1") == "confirmation and `coddy/observer/webhook/handlers.py`"
+
+
 def test_acp_agent_generate_plan_returns_agent_text(tmp_path: Path) -> None:
     """ACP agent should return text gathered from ACP updates."""
     from coddy.worker.agents.acp_agent import ACPAgent
