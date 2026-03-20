@@ -28,6 +28,12 @@ services:
     ports:
       - "${CODDY_PORT:-8000}:8000"
     command: ["python", "-m", "coddy", "observer", "--config", "/app/config.yaml"]
+    healthcheck:
+      test: ["CMD-SHELL", "curl -sf http://localhost:8000/health || exit 1"]
+      interval: 30s
+      timeout: 10s
+      start_period: 5s
+      retries: 3
     <<: *shared-logs
 
   worker:
@@ -50,6 +56,12 @@ services:
       - ${REPO_PATH:-.}:/app/workspace:rw
       - ${CODDY_SSH_DIR:-${HOME}/.ssh}:/home/coddy/.ssh:ro
     command: ["python", "-m", "coddy", "worker", "--config", "/app/config.yaml"]
+    healthcheck:
+      test: ["CMD-SHELL", "pgrep -f 'coddy worker' || exit 1"]
+      interval: 30s
+      timeout: 10s
+      start_period: 5s
+      retries: 3
     <<: *shared-logs
 
 secrets:
