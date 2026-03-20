@@ -90,7 +90,6 @@ class ACPAgentConfig(BaseSettings):
 
     command: list[str] = Field(default_factory=lambda: ["agent", "acp"], description="ACP launcher command")
     timeout: int = Field(default=600, ge=1, description="Prompt timeout in seconds")
-    workspace: str = Field(default="./workspace", description="ACP workspace directory")
     env: dict[str, str] = Field(default_factory=dict, description="Extra environment variables for ACP process")
 
 

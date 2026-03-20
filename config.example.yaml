@@ -36,7 +36,6 @@ acp:
   command: ["opencode", "acp"]
   timeout: 600
   env: {}
-  workspace: "./workspace"
 
 # Webhook Server Configuration (required; all events come from webhooks)
 webhook:

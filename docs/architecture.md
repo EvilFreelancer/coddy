@@ -62,7 +62,7 @@ Runs the development loop and uses the AI agent.
 | Path | Description |
 |------|-------------|
 | `worker/task_yaml.py` | Task and PR report YAML (`.coddy/task-{n}.yaml`, `.coddy/pr-{n}.yaml`), review task/reply files, log path. |
-| `worker/agents/` | AI agent interface: `base.py` (AIAgent, SufficiencyResult), `acp_agent.py` (ACP transport), `cursor_cli_agent.py` (legacy direct CLI). |
+| `worker/agents/` | AI agent interface: `base.py` (AIAgent, SufficiencyResult), `acp_agent.py` (ACP transport). |
 | `worker/ralph_loop.py` | Ralph loop: sufficiency, branch, repeated agent runs until PR report or clarification. |
 | `worker/run.py` | Worker entry: poll loop over .coddy/issues/ (pending_plan, user_replied, queued); interval from worker.poll_interval_seconds. |
 
@@ -99,7 +99,6 @@ Pluggable interface for AI code generation agents.
 - `base.py` - Abstract base class (AIAgent, SufficiencyResult)
 - `acp_agent.py` - ACP agent implementation
 - `make_acp_agent(config)` - Build ACP agent from config
-- `cursor_cli_agent.py` - Legacy Cursor CLI agent implementation
 
 **Dependencies**: Observer models (Issue, Comment, ReviewComment), worker.task_yaml
 
@@ -202,4 +201,4 @@ Tests live in `tests/`; import from `coddy.observer.*`, `coddy.worker.*`, `coddy
 - `BOT_NAME` - Bot name for commits
 - `BOT_EMAIL` - Bot email for commits
 - `REPOSITORY` - Target repository (owner/repo)
-- AI agent config via `config.yaml` (e.g. cursor_cli)
+- AI agent config via `config.yaml` (section `acp`)
