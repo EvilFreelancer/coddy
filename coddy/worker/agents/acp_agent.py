@@ -415,7 +415,7 @@ def make_acp_agent(config: Any) -> ACPAgent:
     command = list(getattr(cfg, "command", ["agent", "acp"]) or ["agent", "acp"])
     command_bin = command[0]
     command_args = command[1:]
-    workspace = getattr(cfg, "workspace", None) or getattr(config.bot, "workspace_path", ".") or "."
+    workspace = getattr(config.bot, "workspace_path", ".") or "."
     env_cfg = getattr(cfg, "env", None) or {}
     return ACPAgent(
         command=command_bin,
