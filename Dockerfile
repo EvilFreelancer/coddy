@@ -4,7 +4,7 @@ WORKDIR /app
 
 # Install system dependencies and Node.js 24 (Cursor agent needs Node 23.8+ for --use-system-ca)
 RUN apt update \
- && apt install -y --no-install-recommends git curl openssh-client ca-certificates gnupg \
+ && apt install -y --no-install-recommends git curl openssh-client ca-certificates gnupg procps \
  && curl -fsSL https://deb.nodesource.com/setup_24.x | bash - \
  && apt install -y --no-install-recommends nodejs \
  && rm -rf /var/lib/apt/lists/* \
@@ -23,9 +23,6 @@ USER coddy
 RUN curl -fsSL https://cursor.com/install | bash
 ENV PATH="/home/coddy/.local/bin:${PATH}"
 
-# Health check for daemon (HTTP server on 8000)
-HEALTHCHECK --interval=30s --timeout=10s --start-period=5s --retries=3 \
-    CMD curl -sf http://localhost:8000/health || exit 1
-
 # Default: run daemon (webhook server). Override with "worker" in compose.
+# Healthcheck is defined per-service in docker-compose files.
 CMD ["python", "-m", "coddy", "observer"]
