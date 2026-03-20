@@ -57,7 +57,8 @@ class IssueFile(BaseModel):
     status: str = Field(
         default="pending_plan",
         description="Current state: pending_plan, waiting_confirmation, queued, in_progress, "
-        "waiting_user_reply, clarification_sent, user_replied, waiting_go, done, failed, closed",
+        "waiting_user_reply, clarification_sent, user_replied, waiting_go, done, failed, closed. "
+        "From waiting_confirmation, a non-affirmative user comment triggers pending_plan so the plan is rebuilt.",
     )
     title: str = Field(default="", description="Issue title")
     description: str = Field(default="", description="Issue description")

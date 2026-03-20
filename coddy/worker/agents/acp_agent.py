@@ -285,10 +285,21 @@ class ACPAgent(AIAgent):
         return SufficiencyResult(sufficient=True)
 
     def generate_plan(self, issue: Issue, comments: List[Comment]) -> str | None:
+        recent = comments[-10:] if comments else []
+        thread_lines = [f"- {c.author}: {c.body}" for c in recent]
+        thread_block = "\n".join(thread_lines) if thread_lines else "(none)"
+        feedback_block = ""
+        if recent:
+            feedback_block = (
+                "The thread below may include user feedback on a previous plan. If so, revise the plan to "
+                "incorporate their feedback; do not repeat the previous plan verbatim.\n\n"
+                f"Recent thread (last up to 10 comments):\n{thread_block}\n\n"
+            )
         prompt = (
             "You are a planner. The user created an issue. Output ONLY a short implementation plan "
             "(bullet points, no code). Use the same language as the issue. "
             f"Issue title: {issue.title!r}\n\nBody:\n{issue.body or '(none)'}\n\n"
+            f"{feedback_block}"
             "Output only the plan, nothing else."
         )
         try:

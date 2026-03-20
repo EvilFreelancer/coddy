@@ -598,3 +598,94 @@ def test_webhook_issue_comment_affirmative_sets_queued(tmp_path: Path) -> None:
     assert queued[0][1].repo == "owner/repo"
 
     mock_adapter.create_comment.assert_called_once()
+
+
+def test_webhook_issue_comment_non_affirmative_waiting_confirmation_sets_pending_plan(tmp_path: Path) -> None:
+    """On issue_comment with waiting_confirmation and non-affirmative body,
+    status -> pending_plan."""
+    from coddy.services.store import create_issue, set_issue_status
+
+    create_issue(tmp_path, 71, "owner/repo", "Fix plan flow", "Description", "user1")
+    set_issue_status(tmp_path, 71, "waiting_confirmation")
+
+    config = _issues_assigned_config(tmp_path)
+    config.github = type("GitHub", (), {"api_url": "https://api.github.com"})()
+    config.github_token_resolved = "gh-token"
+    payload = {
+        "action": "created",
+        "comment": {
+            "comment_id": 9001,
+            "body": "Please revise section 2 to use the store layer only.",
+            "user": {"login": "user1"},
+            "created_at": "2026-03-20T00:00:00Z",
+            "updated_at": "2026-03-20T00:00:00Z",
+        },
+        "issue": {"number": 71},
+        "repository": {"full_name": "owner/repo"},
+    }
+
+    handle_github_event(config, "issue_comment", payload, repo_dir=tmp_path)
+
+    issue = load_issue(tmp_path, 71)
+    assert issue is not None
+    assert issue.status == "pending_plan"
+    assert len(issue.comments) == 1
+    assert issue.comments[0].content.startswith("Please revise")
+
+
+def test_webhook_issue_comment_whitespace_only_waiting_confirmation_no_pending_plan(tmp_path: Path) -> None:
+    """Whitespace-only comment does not move waiting_confirmation to
+    pending_plan."""
+    from coddy.services.store import create_issue, set_issue_status
+
+    create_issue(tmp_path, 72, "owner/repo", "T", "B", "user1")
+    set_issue_status(tmp_path, 72, "waiting_confirmation")
+
+    config = _issues_assigned_config(tmp_path)
+    payload = {
+        "action": "created",
+        "comment": {
+            "comment_id": 9002,
+            "body": "   \n\t  ",
+            "user": {"login": "user1"},
+            "created_at": "2026-03-20T00:00:00Z",
+            "updated_at": "2026-03-20T00:00:00Z",
+        },
+        "issue": {"number": 72},
+        "repository": {"full_name": "owner/repo"},
+    }
+
+    handle_github_event(config, "issue_comment", payload, repo_dir=tmp_path)
+
+    issue = load_issue(tmp_path, 72)
+    assert issue is not None
+    assert issue.status == "waiting_confirmation"
+
+
+def test_webhook_issue_comment_waiting_go_non_affirmative_does_not_set_pending_plan(tmp_path: Path) -> None:
+    """Non-affirmative comment on waiting_go does not set pending_plan (plan
+    confirmation scope only)."""
+    from coddy.services.store import create_issue, set_issue_status
+
+    create_issue(tmp_path, 73, "owner/repo", "T", "B", "user1")
+    set_issue_status(tmp_path, 73, "waiting_go")
+
+    config = _issues_assigned_config(tmp_path)
+    payload = {
+        "action": "created",
+        "comment": {
+            "comment_id": 9003,
+            "body": "Change the approach before I say go",
+            "user": {"login": "user1"},
+            "created_at": "2026-03-20T00:00:00Z",
+            "updated_at": "2026-03-20T00:00:00Z",
+        },
+        "issue": {"number": 73},
+        "repository": {"full_name": "owner/repo"},
+    }
+
+    handle_github_event(config, "issue_comment", payload, repo_dir=tmp_path)
+
+    issue = load_issue(tmp_path, 73)
+    assert issue is not None
+    assert issue.status == "waiting_go"
