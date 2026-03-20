@@ -178,6 +178,11 @@ class AppConfig(BaseSettings):
             return s
         return _read_secret("WEBHOOK_SECRET", "WEBHOOK_SECRET_FILE") or ""
 
+    @property
+    def cursor_agent_token_resolved(self) -> str | None:
+        """Resolve ACP/Cursor token from env or Docker secret file."""
+        return _read_secret("CURSOR_AGENT_TOKEN", "CURSOR_AGENT_TOKEN_FILE")
+
 
 def _substitute_env(value: Any) -> Any:
     """Replace ${VAR} and $VAR in strings with os.environ."""

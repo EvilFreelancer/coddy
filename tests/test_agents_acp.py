@@ -6,6 +6,7 @@ from datetime import UTC, datetime
 from pathlib import Path
 from unittest.mock import patch
 
+from coddy.config import AppConfig, BotConfig
 from coddy.observer.models import Issue, ReviewComment
 
 
@@ -23,7 +24,8 @@ def _issue(number: int = 42, body: str = "Enough body for sufficiency check.") -
 
 
 def test_local_acp_client_merges_message_chunks_and_plan_updates() -> None:
-    """Session text must include both message stream and plan stream from ACP."""
+    """Session text must include both message stream and plan stream from
+    ACP."""
     import logging
 
     from coddy.worker.agents.acp_agent import _LocalACPClient
@@ -119,3 +121,26 @@ def test_acp_agent_process_review_item_reads_reply(tmp_path: Path) -> None:
         )
 
     assert reply == "Applied fix"
+
+
+def test_make_acp_agent_passes_cursor_token_to_child_env(tmp_path: Path) -> None:
+    """Resolved CURSOR_AGENT_TOKEN should be passed to ACP process env."""
+    import coddy.config as config_module
+    from coddy.worker.agents.acp_agent import make_acp_agent
+
+    config = AppConfig()
+    config.bot = BotConfig(workspace_path=str(tmp_path), repository="owner/repo")
+    old_env = getattr(config_module, "_current_env", {})
+    try:
+        secret_file = tmp_path / "cursor_token"
+        secret_file.write_text("token-value\n", encoding="utf-8")
+        config_module._current_env = {
+            **old_env,
+            "CURSOR_AGENT_TOKEN_FILE": str(secret_file),
+        }
+        agent = make_acp_agent(config)
+    finally:
+        config_module._current_env = old_env
+
+    assert agent.env["CURSOR_AGENT_TOKEN"] == "token-value"
+    assert agent.env["CURSOR_API_KEY"] == "token-value"

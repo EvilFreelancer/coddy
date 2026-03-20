@@ -86,9 +86,10 @@ class _LocalACPClient(Client):
     def get_session_text(self, session_id: str) -> str:
         """Return assistant output from ACP session updates.
 
-        Some agents emit a short acknowledgment in AgentMessageChunk and put the
-        substantive plan in AgentPlanUpdate. Returning only the first kind drops
-        the real plan, so we merge non-empty message and plan text.
+        Some agents emit a short acknowledgment in AgentMessageChunk and
+        put the substantive plan in AgentPlanUpdate. Returning only the
+        first kind drops the real plan, so we merge non-empty message
+        and plan text.
         """
         chunks = self._text_chunks.get(session_id, [])
         text = "\n".join([c for c in chunks if c.strip()]).strip()
@@ -442,6 +443,14 @@ def make_acp_agent(config: Any) -> ACPAgent:
     command_args = command[1:]
     workspace = getattr(config.bot, "workspace_path", ".") or "."
     env_cfg = getattr(cfg, "env", None) or {}
+    token = getattr(config, "cursor_agent_token_resolved", None)
+    token_file = os.environ.get("CURSOR_AGENT_TOKEN_FILE")
+    if token:
+        # Some ACP-compatible CLIs expect one of these variable names.
+        env_cfg.setdefault("CURSOR_AGENT_TOKEN", token)
+        env_cfg.setdefault("CURSOR_API_KEY", token)
+    if token_file:
+        env_cfg.setdefault("CURSOR_AGENT_TOKEN_FILE", token_file)
     return ACPAgent(
         command=command_bin,
         args=command_args,

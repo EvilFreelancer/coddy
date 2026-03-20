@@ -322,3 +322,33 @@ def test_worker_uses_acp_when_config_contains_legacy_ai_agent_key(tmp_path: Path
     issue = load_issue(tmp_path, 46)
     assert issue is not None
     assert issue.status == "plan_ready"
+
+
+def test_worker_marks_issue_failed_when_plan_generation_fails(tmp_path: Path) -> None:
+    """On ACP plan generation failure worker should not move issue to
+    plan_ready."""
+    create_issue(
+        tmp_path,
+        issue_id=47,
+        repo="owner/repo",
+        title="Need plan",
+        description="Body",
+        author="u",
+        assigned_at=1704067200,
+        assigned_to="coddybot",
+    )
+    set_issue_status(tmp_path, 47, "pending_plan")
+
+    config = _make_config(tmp_path, assignment_only=True, username="coddybot")
+    config.bot.git_platform = "github"
+    mock_agent = MagicMock()
+    mock_agent.generate_plan.return_value = None
+
+    with patch("coddy.worker.agents.acp_agent.make_acp_agent", return_value=mock_agent):
+        run_worker(config, once=True)
+
+    issue = load_issue(tmp_path, 47)
+    assert issue is not None
+    assert issue.status == "failed"
+    assert len(issue.comments) == 1
+    assert "worker error" in (issue.comments[0].content or "").lower()

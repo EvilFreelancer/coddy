@@ -135,11 +135,16 @@ def run_worker_poll(
         from coddy.observer.planner import TEMPLATE_PLAN_ERROR, format_plan_request
 
         plan = agent.generate_plan(issue, comments)
+        plan_failed = not bool(plan)
         message = format_plan_request(plan) if plan else TEMPLATE_PLAN_ERROR
         bot_name = f"@{bot_username}" if bot_username else "@bot"
         add_comment(repo_dir, issue_number, bot_name, message)
-        set_issue_status(repo_dir, issue_number, "plan_ready")
-        log.info("Issue #%s: plan written to YAML, status -> plan_ready", issue_number)
+        if plan_failed:
+            set_issue_status(repo_dir, issue_number, "failed")
+            log.warning("Issue #%s: plan generation failed, status -> failed", issue_number)
+        else:
+            set_issue_status(repo_dir, issue_number, "plan_ready")
+            log.info("Issue #%s: plan written to YAML, status -> plan_ready", issue_number)
         did_work = True
 
     while True:
