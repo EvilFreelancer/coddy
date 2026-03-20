@@ -1,10 +1,7 @@
 """Tests for ralph_loop service."""
 
-import shutil
 from pathlib import Path
 from unittest.mock import MagicMock, patch
-
-import pytest
 
 from coddy.observer.models import Issue
 from coddy.worker.ralph_loop import run_ralph_loop_for_issue
@@ -187,67 +184,3 @@ def test_ralph_loop_returns_failed_after_max_iterations_without_pr(tmp_path: Pat
         )
     assert result == "failed"
     assert agent.generate_code.call_count == 3
-
-
-@pytest.mark.integration
-@pytest.mark.skipif(not shutil.which("agent"), reason="Cursor CLI (agent) not installed")
-def test_ralph_loop_runs_real_cursor_cli_integration(tmp_path: Path) -> None:
-    """Integration: ralph loop starts real Cursor CLI; skip if agent not in PATH.
-
-    Verifies the loop creates task YAML, invokes the agent, and writes .coddy/logs/N.log.
-    Does not require the agent to complete the task (may timeout).
-    """
-    from coddy.services.store import create_issue
-    from coddy.worker.agents.cursor_cli_agent import CursorCLIAgent
-
-    (tmp_path / ".coddy").mkdir(parents=True, exist_ok=True)
-    create_issue(
-        tmp_path,
-        issue_id=1,
-        repo="owner/repo",
-        title="Add a comment to README",
-        description="Add a single line to README with the word Hello.",
-        author="user",
-    )
-
-    adapter = MagicMock()
-    adapter.get_issue_comments.return_value = []
-    adapter.get_issue.return_value = _issue(
-        number=1,
-        body="Add a single line to README with the word Hello.",
-    )
-    adapter.get_default_branch.return_value = "main"
-    adapter.create_branch.side_effect = None
-    adapter.set_issue_labels.side_effect = None
-
-    agent = CursorCLIAgent(
-        command="agent",
-        timeout=30,
-        working_directory=str(tmp_path),
-    )
-
-    def _checkout_noop(*args: object, **kwargs: object) -> None:
-        pass
-
-    with (
-        patch("coddy.worker.ralph_loop.fetch_and_checkout_branch", side_effect=_checkout_noop),
-        patch("coddy.worker.ralph_loop.checkout_branch", side_effect=_checkout_noop),
-        patch("coddy.worker.ralph_loop.commit_all_and_push", side_effect=_checkout_noop),
-    ):
-        result = run_ralph_loop_for_issue(
-            adapter,
-            agent,
-            adapter.get_issue.return_value,
-            "owner/repo",
-            tmp_path,
-            default_branch="main",
-            max_iterations=1,
-        )
-
-    log_path = tmp_path / ".coddy" / "logs" / "1.log"
-    assert log_path.is_file(), "Ralph loop must invoke Cursor CLI and write logs/1.log"
-    content = log_path.read_text(encoding="utf-8")
-    assert "command=agent" in content or "Issue #1" in content
-    assert "timeout=30" in content
-    # Result may be success (agent wrote report), failed (timeout), or clarification
-    assert result in ("success", "failed", "clarification")

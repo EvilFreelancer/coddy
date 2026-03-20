@@ -187,7 +187,6 @@ def test_worker_polls_bot_workspace_not_cursor_working_directory(tmp_path: Path)
     config.logging = LoggingConfig()
     config.github = MagicMock()
     config.github.api_url = "https://api.github.com"
-    config.bot.ai_agent = "acp"
     config.acp = ACPAgentConfig()
 
     mock_agent = MagicMock()
@@ -210,7 +209,8 @@ def test_worker_polls_bot_workspace_not_cursor_working_directory(tmp_path: Path)
 
 
 def test_worker_builds_plan_without_github_token_when_acp_enabled(tmp_path: Path) -> None:
-    """Worker should process pending_plan with ACP agent even without GitHub token."""
+    """Worker should process pending_plan with ACP agent even without GitHub
+    token."""
     from coddy.config import ACPAgentConfig
 
     create_issue(
@@ -234,7 +234,6 @@ def test_worker_builds_plan_without_github_token_when_acp_enabled(tmp_path: Path
         username="coddybot",
     )
     config.bot.git_platform = "github"
-    config.bot.ai_agent = "acp"
     config.acp = ACPAgentConfig()
     config.logging = LoggingConfig()
     config.github = MagicMock()
@@ -254,7 +253,8 @@ def test_worker_builds_plan_without_github_token_when_acp_enabled(tmp_path: Path
 
 
 def test_worker_processes_issue_when_bot_not_first_assignee_in_webhook_payload(tmp_path: Path) -> None:
-    """Issue assigned to bot should be processed even if bot is not first in assignees."""
+    """Issue assigned to bot should be processed even if bot is not first in
+    assignees."""
     config = _make_config(tmp_path, assignment_only=True, username="coddybot")
 
     payload = {
@@ -275,10 +275,50 @@ def test_worker_processes_issue_when_bot_not_first_assignee_in_webhook_payload(t
     mock_agent.generate_plan.return_value = "1. Plan from worker"
     with patch("coddy.worker.agents.acp_agent.make_acp_agent", return_value=mock_agent):
         config.bot.git_platform = "github"
-        config.bot.ai_agent = "acp"
         run_worker(config, once=True)
 
     issue = load_issue(tmp_path, 45)
     assert issue is not None
     assert issue.status == "plan_ready"
     assert "Plan from worker" in (issue.comments[0].content or "")
+
+
+def test_worker_uses_acp_when_config_contains_legacy_ai_agent_key(tmp_path: Path) -> None:
+    """Worker should initialize ACP even when config YAML still has legacy
+    ai_agent key."""
+    yaml_path = tmp_path / "config.yaml"
+    yaml_path.write_text(
+        (
+            "bot:\n"
+            "  workspace_path: " + str(tmp_path) + "\n"
+            "  repository: owner/repo\n"
+            "  assignment_only: true\n"
+            "  username: coddybot\n"
+            "  ai_agent: cursor_cli\n"
+            "  git_platform: github\n"
+        ),
+        encoding="utf-8",
+    )
+    config = load_config(yaml_path)
+    config.bot.workspace_path = str(tmp_path)
+
+    create_issue(
+        tmp_path,
+        issue_id=46,
+        repo="owner/repo",
+        title="Need plan",
+        description="Body",
+        author="u",
+        assigned_at=1704067200,
+        assigned_to="coddybot",
+    )
+    set_issue_status(tmp_path, 46, "pending_plan")
+
+    mock_agent = MagicMock()
+    mock_agent.generate_plan.return_value = "1. ACP plan"
+    with patch("coddy.worker.agents.acp_agent.make_acp_agent", return_value=mock_agent):
+        run_worker(config, once=True)
+
+    issue = load_issue(tmp_path, 46)
+    assert issue is not None
+    assert issue.status == "plan_ready"

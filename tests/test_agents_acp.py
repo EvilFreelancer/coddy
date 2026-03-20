@@ -22,6 +22,46 @@ def _issue(number: int = 42, body: str = "Enough body for sufficiency check.") -
     )
 
 
+def test_local_acp_client_merges_message_chunks_and_plan_updates() -> None:
+    """Session text must include both message stream and plan stream from ACP."""
+    import logging
+
+    from coddy.worker.agents.acp_agent import _LocalACPClient
+
+    client = _LocalACPClient(
+        logging.getLogger("test.acp"),
+        ".",
+        30,
+        True,
+        True,
+        True,
+    )
+    client.reset_session("s1")
+    client._text_chunks["s1"] = ["Short ack"]
+    client._plan_chunks["s1"] = ["## Plan\n\n- Step one\n- Step two"]
+    assert client.get_session_text("s1") == "Short ack\n\n## Plan\n\n- Step one\n- Step two"
+
+
+def test_local_acp_client_returns_plan_when_message_is_prefix_of_plan() -> None:
+    """If message text is contained in plan text, avoid duplicating."""
+    import logging
+
+    from coddy.worker.agents.acp_agent import _LocalACPClient
+
+    client = _LocalACPClient(
+        logging.getLogger("test.acp"),
+        ".",
+        30,
+        True,
+        True,
+        True,
+    )
+    client.reset_session("s1")
+    client._text_chunks["s1"] = ["Intro"]
+    client._plan_chunks["s1"] = ["Intro\n\nFull plan details here."]
+    assert client.get_session_text("s1") == "Intro\n\nFull plan details here."
+
+
 def test_acp_agent_generate_plan_returns_agent_text(tmp_path: Path) -> None:
     """ACP agent should return text gathered from ACP updates."""
     from coddy.worker.agents.acp_agent import ACPAgent

@@ -17,7 +17,6 @@ def config_pr_merged() -> "object":
     config.bot.git_platform = "github"
     config.bot.repository = "owner/repo"
     config.bot.default_branch = "main"
-    config.ai_agents = {"cursor_cli": type("CLI", (), {"working_directory": "."})()}
     return config
 
 
@@ -112,7 +111,6 @@ def test_handle_issues_assigned_creates_issue_file_when_bot_in_assignees(tmp_pat
     config.bot.git_platform = "github"
     config.bot.repository = "owner/repo"
     config.bot.username = "coddybot"
-    config.ai_agents = {"cursor_cli": type("CLI", (), {"working_directory": str(tmp_path)})()}
 
     payload = {
         "action": "assigned",
@@ -145,7 +143,6 @@ def test_handle_issues_assigned_ignores_when_bot_not_assignee(tmp_path: Path) ->
     config.bot = type("Bot", (), {})()
     config.bot.repository = "owner/repo"
     config.bot.username = "coddybot"
-    config.ai_agents = {"cursor_cli": type("CLI", (), {"working_directory": str(tmp_path)})()}
 
     payload = {
         "action": "assigned",
@@ -168,7 +165,6 @@ def test_handle_issue_comment_calls_on_user_confirmed_when_affirmative(tmp_path:
     config.bot.username = "coddybot"
     config.github = type("GitHub", (), {"api_url": "https://api.github.com"})()
     config.github_token_resolved = "token"
-    config.ai_agents = {"cursor_cli": type("CLI", (), {"working_directory": str(tmp_path)})()}
 
     payload = {
         "action": "created",
@@ -202,7 +198,6 @@ def test_handle_issue_comment_ignores_when_not_waiting_confirmation(tmp_path: Pa
     config.bot.repository = "owner/repo"
     config.bot.username = "coddybot"
     config.github_token_resolved = "token"
-    config.ai_agents = {"cursor_cli": type("CLI", (), {"working_directory": str(tmp_path)})()}
 
     payload = {
         "action": "created",
@@ -223,7 +218,6 @@ def test_handle_issue_comment_ignores_bot_comment(tmp_path: Path) -> None:
     config.bot.repository = "owner/repo"
     config.bot.username = "coddybot"
     config.github_token_resolved = "token"
-    config.ai_agents = {"cursor_cli": type("CLI", (), {"working_directory": str(tmp_path)})()}
 
     payload = {
         "action": "created",
@@ -255,7 +249,6 @@ def test_handle_issue_comment_appends_to_store_even_when_closed(tmp_path: Path) 
     config.bot = type("Bot", (), {})()
     config.bot.repository = "owner/repo"
     config.bot.username = "coddybot"
-    config.ai_agents = {"cursor_cli": type("CLI", (), {"working_directory": str(tmp_path)})()}
     payload = {
         "action": "created",
         "comment": {
@@ -287,7 +280,6 @@ def test_handle_issue_comment_edited_updates_in_store(tmp_path: Path) -> None:
     config.bot = type("Bot", (), {})()
     config.bot.repository = "owner/repo"
     config.bot.username = "coddybot"
-    config.ai_agents = {"cursor_cli": type("CLI", (), {"working_directory": str(tmp_path)})()}
     handle_github_event(
         config,
         "issue_comment",
@@ -338,7 +330,6 @@ def test_handle_issue_comment_deleted_sets_deleted_at(tmp_path: Path) -> None:
     config.bot = type("Bot", (), {})()
     config.bot.repository = "owner/repo"
     config.bot.username = "coddybot"
-    config.ai_agents = {"cursor_cli": type("CLI", (), {"working_directory": str(tmp_path)})()}
     handle_github_event(
         config,
         "issue_comment",
@@ -385,7 +376,6 @@ def test_handle_issue_comment_clarification_sent_sets_user_replied(tmp_path: Pat
     config.bot = type("Bot", (), {})()
     config.bot.repository = "owner/repo"
     config.bot.username = "coddybot"
-    config.ai_agents = {"cursor_cli": type("CLI", (), {"working_directory": str(tmp_path)})()}
     handle_github_event(
         config,
         "issue_comment",
@@ -423,7 +413,6 @@ def test_handle_issue_comment_waiting_go_affirmative_sets_queued(tmp_path: Path)
     config.bot.username = "coddybot"
     config.github_token_resolved = "token"
     config.github = type("G", (), {"api_url": "https://api.github.com"})()
-    config.ai_agents = {"cursor_cli": type("CLI", (), {"working_directory": str(tmp_path)})()}
     with patch("coddy.observer.webhook.handlers.GitHubAdapter") as mock_adapter_class:
         mock_adapter = MagicMock()
         mock_adapter_class.return_value = mock_adapter
@@ -459,7 +448,6 @@ def _issues_assigned_config(tmp_path: Path) -> "object":
     config.bot.git_platform = "github"
     config.bot.repository = "owner/repo"
     config.bot.username = "coddybot"
-    config.ai_agents = {"cursor_cli": type("CLI", (), {"working_directory": str(tmp_path)})()}
     return config
 
 
@@ -565,7 +553,8 @@ def test_webhook_issues_assigned_sets_pending_plan_when_bot_assignee(tmp_path: P
 
 
 def test_webhook_issues_opened_after_assigned_keeps_pending_plan(tmp_path: Path) -> None:
-    """Assigned event should move issue to pending_plan immediately and opened should not revert it."""
+    """Assigned event should move issue to pending_plan immediately and opened
+    should not revert it."""
     config = _issues_assigned_config(tmp_path)
 
     assigned_payload = {

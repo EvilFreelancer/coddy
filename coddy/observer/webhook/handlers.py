@@ -293,7 +293,12 @@ def _handle_issues(config: Any, payload: Dict[str, Any], repo_dir: Path, log: lo
             logins = [a.get("login") for a in assignees if isinstance(a, dict) and a.get("login")]
             first_assignee = logins[0] if logins else None
             selected_assignee = bot_username if bot_username and bot_username in logins else first_assignee
-            if selected_assignee and issue_number is not None and repo and repo == getattr(config.bot, "repository", ""):
+            if (
+                selected_assignee
+                and issue_number is not None
+                and repo
+                and repo == getattr(config.bot, "repository", "")
+            ):
                 issue_file = load_issue(repo_dir, int(issue_number))
                 if issue_file:
                     issue_file.assigned_at = int(datetime.now(UTC).timestamp())

@@ -84,12 +84,23 @@ class _LocalACPClient(Client):
         self._plan_chunks[session_id] = []
 
     def get_session_text(self, session_id: str) -> str:
+        """Return assistant output from ACP session updates.
+
+        Some agents emit a short acknowledgment in AgentMessageChunk and put the
+        substantive plan in AgentPlanUpdate. Returning only the first kind drops
+        the real plan, so we merge non-empty message and plan text.
+        """
         chunks = self._text_chunks.get(session_id, [])
         text = "\n".join([c for c in chunks if c.strip()]).strip()
-        if text:
-            return text
         plans = self._plan_chunks.get(session_id, [])
-        return "\n".join([c for c in plans if c.strip()]).strip()
+        plan_text = "\n".join([c for c in plans if c.strip()]).strip()
+        if text and plan_text:
+            if text in plan_text:
+                return plan_text
+            if plan_text in text:
+                return text
+            return f"{text}\n\n{plan_text}".strip()
+        return text or plan_text
 
     async def request_permission(
         self, options: List[PermissionOption], session_id: str, tool_call: ToolCallUpdate, **kwargs: Any
@@ -285,11 +296,25 @@ class ACPAgent(AIAgent):
         return SufficiencyResult(sufficient=True)
 
     def generate_plan(self, issue: Issue, comments: List[Comment]) -> str | None:
+        comments_block = ""
+        if comments:
+            lines = []
+            for c in comments[-10:]:
+                author = (c.author or "user").strip()
+                body = (c.body or "").strip()
+                if body:
+                    lines.append(f"- {author}: {body}")
+            if lines:
+                comments_block = "\n\nRecent comments:\n" + "\n".join(lines)
         prompt = (
-            "You are a planner. The user created an issue. Output ONLY a short implementation plan "
-            "(bullet points, no code). Use the same language as the issue. "
-            f"Issue title: {issue.title!r}\n\nBody:\n{issue.body or '(none)'}\n\n"
-            "Output only the plan, nothing else."
+            "You are a senior engineer. Propose a concrete implementation plan for this issue. "
+            "Write in markdown (headings and bullet lists as needed). Include approach, ordered steps, "
+            "which parts of the codebase or files are likely involved if you can infer them, and any "
+            "risks or clarifications. Use the same language as the issue title and description. "
+            "Do not ask the user for confirmation here; write only the plan content.\n\n"
+            f"**Title:** {issue.title}\n\n"
+            f"**Description:**\n{issue.body or '(none)'}"
+            f"{comments_block}"
         )
         try:
             out = self._run_prompt(prompt)

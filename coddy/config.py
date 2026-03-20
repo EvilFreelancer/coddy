@@ -52,7 +52,6 @@ class BotConfig(BaseSettings):
         description="When True, worker only processes issues assigned to bot; env BOT_ASSIGNMENT_ONLY",
     )
     webhook_secret: str = Field(default="", description="Secret for webhook verification")
-    ai_agent: str = Field(default="acp", description="AI agent key")
 
 
 class GitHubConfig(BaseSettings):
