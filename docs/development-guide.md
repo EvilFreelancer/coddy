@@ -104,7 +104,7 @@ coddy/
 │   │   ├── planner.py       # Plan and confirmation flow
 │   │   └── run.py           # Observer entry point
 │   ├── worker/              # Worker: ralph loop, agents
-│   │   ├── agents/          # AI agents (base, cursor_cli)
+│   │   ├── agents/          # AI agents (base, acp)
 │   │   ├── task_yaml.py     # Task and PR report YAML
 │   │   ├── ralph_loop.py    # Development loop
 │   │   └── run.py           # Worker entry point

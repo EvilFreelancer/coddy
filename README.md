@@ -275,10 +275,6 @@ ruff format .
 
 See [Development Rules](.cursor/rules/) for coding standards and workflow.
 
-## License
-
-\[To be determined\]
-
 ## Roadmap
 
 Done vs planned. Only **GitHub** is supported; GitLab and Bitbucket are not implemented.
@@ -340,3 +336,8 @@ Picks queued issues, runs agent, creates branches/commits/PRs.
 - [x] PR workflow statuses - `idle`, `review_received`, `pending_plan`, `waiting_confirmation`, `in_progress`
 - [ ] User attribution in commits
 - [ ] GitLab / Bitbucket adapters and webhook events
+
+
+## License
+
+This project is licensed under the MIT License, see the [LICENSE](LICENSE) file in the repository root for details.

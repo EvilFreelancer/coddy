@@ -43,9 +43,9 @@ Coddy is split into two runnable applications that work together:
      - Load issue and comments from the platform adapter; evaluate data sufficiency. If insufficient: post clarification comment, set label `stuck`, and exit (task can be re-queued when user comments).
      - Create branch from default (e.g. `42-add-user-login`), checkout, and set label `in progress`.
      - Write task file `.coddy/task-{issue_number}.yaml` with issue title, body, comments, and instructions: plan, clarify if needed, write tests, write code, run tests/linter, commit with `#{number} ...`, and when everything is done write `.coddy/pr-{issue_number}.yaml` (YAML with key `body` for PR description including "Closes #N").
-     - **Loop**: Run the AI agent (e.g. Cursor CLI) with the task YAML. After each run, check: (1) if `.coddy/pr-{issue_number}.yaml` exists (with `body`), break and create PR; (2) if the task YAML contains key `agent_clarification`, post it to the issue, set `stuck`, and exit; (3) otherwise repeat up to a configured max iterations (e.g. 10). Each iteration is a fresh agent run; context is preserved via git history and the task/report files.
+     - **Loop**: Run the AI agent over ACP with the task YAML. After each run, check: (1) if `.coddy/pr-{issue_number}.yaml` exists (with `body`), break and create PR; (2) if the task YAML contains key `agent_clarification`, post it to the issue, set `stuck`, and exit; (3) otherwise repeat up to a configured max iterations (e.g. 10). Each iteration is a fresh agent run; context is preserved via git history and the task/report files.
      - When the PR report file is written: commit and push any remaining changes, create the pull request using the report as body, set label `review`, switch back to the default branch.
-   - Code is written **only** by the AI agent (Cursor CLI in the initial version); the worker only orchestrates the loop, git, and platform API (create branch, create PR, labels, comments).
+   - Code is written **only** by the AI agent (ACP-compatible backend); the worker only orchestrates the loop, git, and platform API (create branch, create PR, labels, comments).
    - After handling one task, the worker picks the next from the queue or exits (e.g. when run as a one-shot or by a process manager that restarts it).
 
 This separation allows:
@@ -59,14 +59,14 @@ This separation allows:
 2. **Observer** (`coddy.observer.run`): Webhook server and poll of .coddy/issues/ (post plan when plan_ready, post clarification when waiting_user_reply); on assignment sets status pending_plan; optional **sync on startup** (fetch issues and PRs from API into .coddy/issues/open|closed/ and .coddy/pull_requests/open|merged|rejected/); does not run the development loop or planner.
 3. **Tasks** - Issues in `.coddy/issues/` (files in `open/` or `closed/`) with status=queued; worker picks by issue number and sets status done/failed. PRs in `.coddy/pull_requests/{open|merged|rejected}/` updated from webhooks (file moved to the right folder).
 4. **Worker** (`coddy.worker.run`) - Reads queue; for each task runs sufficiency check, branch creation, ralph loop (repeated agent runs until PR report YAML or agent_clarification), then PR creation and labels.
-5. **AI Agent Interface** (`coddy.worker.agents`) - Pluggable interface; Cursor CLI agent runs one iteration per call (read task YAML, implement, optionally write PR report YAML or add agent_clarification to task YAML).
+5. **AI Agent Interface** (`coddy.worker.agents`) - Pluggable interface; ACP agent runs one iteration per call (read task YAML, implement, optionally write PR report YAML or add agent_clarification to task YAML).
 
 ### Technology Stack
 
 - **Language**: Python 3.11+
 - **Containerization**: Docker
 - **Git Platforms**: GitHub (primary), GitLab, BitBucket (planned)
-- **AI Agents**: Cursor CLI (initial), extensible to other agents
+- **AI Agents**: ACP-compatible agents (e.g. Cursor Agent, OpenCode), extensible to other agents
 
 ## Core Workflow
 
@@ -96,7 +96,7 @@ This separation allows:
      - **Branch must be created from the default branch** (e.g. main/master). Before creating: checkout default branch, pull latest, then create and switch to the new branch.
      - Example: `42-add-user-login`
    - Worker writes `.coddy/task-{issue_number}.yaml` and runs the **agent in a loop** (ralph-style):
-     - Each iteration: run Cursor CLI (or other agent) with the task YAML. The agent is instructed to: plan, implement, write tests, run tests/linter, commit with `#{number} Description`, and when done write `.coddy/pr-{issue_number}.yaml` (YAML with key `body`).
+     - Each iteration: run ACP agent with the task YAML. The agent is instructed to: plan, implement, write tests, run tests/linter, commit with `#{number} Description`, and when done write `.coddy/pr-{issue_number}.yaml` (YAML with key `body`).
      - Worker checks after each run: PR report file present with `body` -> create PR and exit loop; key `agent_clarification` in task YAML -> post to issue, set `stuck`, exit; else repeat up to max iterations.
    - **Commit message format**: `#{number} Description of what was done`
    - Commits are signed with bot identity (configurable).
@@ -196,7 +196,7 @@ class AIAgent(ABC):
 ```
 
 **Implementations**:
-- `CursorCLIAgent` - Uses Cursor CLI for code generation
+- `ACPAgent` - Uses ACP to connect to configured agent backend
 - Future agents can be added by implementing the interface
 
 ### Code Generator
@@ -299,7 +299,7 @@ bot:
   git_platform: "github"  # github, gitlab, bitbucket
   repository: "owner/repo"
   webhook_secret: "secret"
-  ai_agent: "cursor_cli"
+  ai_agent: "acp"
 
 github:
   token: "ghp_..."
@@ -313,11 +313,10 @@ bitbucket:
   token: "..."
   api_url: "https://api.bitbucket.org/2.0"
 
-ai_agents:
-  cursor_cli:
-    command: "cursor"
-    args: ["generate"]
-    timeout: 600
+acp:
+  command: ["opencode", "acp"]
+  timeout: 600
+  env: {}
 
 observer:
   poll_clarifications: true   # Poll .coddy/issues/ for plan_ready and waiting_user_reply
@@ -398,9 +397,9 @@ For the initial prototype, focus on:
 3. **Issue Tags (Labels)**
    - Bot must set and update issue labels: e.g. `in progress`, `stuck`, `review`, `done` as the workflow progresses.
 
-4. **Cursor CLI Agent**
-   - Single AI agent implementation
-   - Basic code generation
+4. **ACP Agent**
+   - Single protocol-level integration via ACP
+   - Backend is user-configurable via `acp.command`
 
 5. **Core Workflow**
    - Assigned issue → Specification (in comments) → Code → PR, with labels updated along the way
