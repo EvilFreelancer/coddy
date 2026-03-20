@@ -180,6 +180,7 @@ class AppConfig(BaseSettings):
             return s
         return _read_secret("WEBHOOK_SECRET", "WEBHOOK_SECRET_FILE") or ""
 
+
 def _substitute_env(value: Any) -> Any:
     """Replace ${VAR} and $VAR in strings with os.environ."""
     if isinstance(value, str):

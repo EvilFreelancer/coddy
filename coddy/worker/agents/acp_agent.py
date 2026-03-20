@@ -7,7 +7,7 @@ import logging
 import os
 from datetime import UTC, datetime
 from pathlib import Path
-from typing import Any, Dict, List, Optional
+from typing import Any, Dict, List
 
 from acp import spawn_agent_process, text_block
 from acp.interfaces import Agent, Client
@@ -69,7 +69,7 @@ class _LocalACPClient(Client):
         self._allow_fs_read = allow_fs_read
         self._allow_fs_write = allow_fs_write
         self._allow_terminal = allow_terminal
-        self._conn: Optional[Agent] = None
+        self._conn: Agent | None = None
         self._text_chunks: Dict[str, List[str]] = {}
         self._plan_chunks: Dict[str, List[str]] = {}
         self._terminal_processes: Dict[str, asyncio.subprocess.Process] = {}
@@ -188,7 +188,7 @@ class _LocalACPClient(Client):
                     self._terminal_buffers[terminal_id] += chunk.decode("utf-8", errors="replace")
             except TimeoutError:
                 pass
-        from acp.schema import TerminalOutputResponse, TerminalExitStatus
+        from acp.schema import TerminalExitStatus, TerminalOutputResponse
 
         exit_status = None
         if process and process.returncode is not None:
@@ -199,7 +199,9 @@ class _LocalACPClient(Client):
             exit_status=exit_status,
         )
 
-    async def release_terminal(self, session_id: str, terminal_id: str, **kwargs: Any) -> ReleaseTerminalResponse | None:
+    async def release_terminal(
+        self, session_id: str, terminal_id: str, **kwargs: Any
+    ) -> ReleaseTerminalResponse | None:
         process = self._terminal_processes.get(terminal_id)
         if process and process.returncode is None:
             process.kill()
@@ -208,14 +210,18 @@ class _LocalACPClient(Client):
         self._terminal_buffers.pop(terminal_id, None)
         return ReleaseTerminalResponse()
 
-    async def wait_for_terminal_exit(self, session_id: str, terminal_id: str, **kwargs: Any) -> WaitForTerminalExitResponse:
+    async def wait_for_terminal_exit(
+        self, session_id: str, terminal_id: str, **kwargs: Any
+    ) -> WaitForTerminalExitResponse:
         process = self._terminal_processes.get(terminal_id)
         if process is None:
             return WaitForTerminalExitResponse(exit_code=1, signal=None)
         await process.wait()
         return WaitForTerminalExitResponse(exit_code=process.returncode, signal=None)
 
-    async def kill_terminal(self, session_id: str, terminal_id: str, **kwargs: Any) -> KillTerminalCommandResponse | None:
+    async def kill_terminal(
+        self, session_id: str, terminal_id: str, **kwargs: Any
+    ) -> KillTerminalCommandResponse | None:
         process = self._terminal_processes.get(terminal_id)
         if process and process.returncode is None:
             process.kill()
@@ -239,7 +245,7 @@ class ACPAgent(AIAgent):
     def __init__(
         self,
         command: str = "agent",
-        args: Optional[List[str]] = None,
+        args: List[str] | None = None,
         timeout: int = 600,
         working_directory: str = ".",
         mode: str | None = None,
@@ -247,7 +253,7 @@ class ACPAgent(AIAgent):
         allow_fs_read: bool = True,
         allow_fs_write: bool = True,
         allow_terminal: bool = True,
-        env: Optional[Dict[str, str]] = None,
+        env: Dict[str, str] | None = None,
         log: logging.Logger | None = None,
     ) -> None:
         self.command = command
@@ -338,7 +344,9 @@ class ACPAgent(AIAgent):
         )
         try:
             out = self._run_prompt(prompt)
-            self._append_log(log_path, f"[{datetime.now(UTC).isoformat()}] PR #{pr_number} review item {current_index}\n")
+            self._append_log(
+                log_path, f"[{datetime.now(UTC).isoformat()}] PR #{pr_number} review item {current_index}\n"
+            )
             self._append_log(log_path, out or "")
         except Exception as e:
             self._append_log(log_path, f"\nError: {e}\n")
