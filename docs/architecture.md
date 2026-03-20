@@ -4,7 +4,7 @@
 
 ### Overview
 
-Coddy Bot follows a **two-module** design: an **observer** that receives webhooks and enqueues tasks, and a **worker** that runs the development loop (Ralph-style) using an AI agent (e.g. Cursor CLI). Code is written only by the agent in iterative runs; the worker orchestrates the loop, git, and GitHub API.
+Coddy Bot follows a **two-module** design: an **observer** that receives webhooks and enqueues tasks, and a **worker** that runs the development loop (Ralph-style) using an AI agent over ACP (Agent Client Protocol). Code is written only by the agent in iterative runs; the worker orchestrates the loop, git, and GitHub API.
 
 **Trigger model**: The bot does not auto-process every new issue. Work is started when (1) a human assigns the bot to an issue, or (2) a user gives the bot an MR/PR number. The observer receives these events via **webhooks** and enqueues a task; the worker picks tasks and runs the ralph loop.
 
@@ -62,7 +62,7 @@ Runs the development loop and uses the AI agent.
 | Path | Description |
 |------|-------------|
 | `worker/task_yaml.py` | Task and PR report YAML (`.coddy/task-{n}.yaml`, `.coddy/pr-{n}.yaml`), review task/reply files, log path. |
-| `worker/agents/` | AI agent interface: `base.py` (AIAgent, SufficiencyResult), `cursor_cli_agent.py` (Cursor CLI headless). |
+| `worker/agents/` | AI agent interface: `base.py` (AIAgent, SufficiencyResult), `acp_agent.py` (ACP transport), `cursor_cli_agent.py` (legacy direct CLI). |
 | `worker/ralph_loop.py` | Ralph loop: sufficiency, branch, repeated agent runs until PR report or clarification. |
 | `worker/run.py` | Worker entry: poll loop over .coddy/issues/ (pending_plan, user_replied, queued); interval from worker.poll_interval_seconds. |
 
@@ -97,8 +97,9 @@ Abstract interfaces and implementations for Git hosting platforms. Authenticatio
 Pluggable interface for AI code generation agents.
 
 - `base.py` - Abstract base class (AIAgent, SufficiencyResult)
-- `cursor_cli_agent.py` - Cursor CLI agent implementation
-- `make_cursor_cli_agent(config)` - Build agent from config
+- `acp_agent.py` - ACP agent implementation
+- `make_acp_agent(config)` - Build ACP agent from config
+- `cursor_cli_agent.py` - Legacy Cursor CLI agent implementation
 
 **Dependencies**: Observer models (Issue, Comment, ReviewComment), worker.task_yaml
 
@@ -129,7 +130,7 @@ Orchestrates the development loop and uses the agent.
 ```
   OBSERVER (observer.run)
   Webhook Server -> on assigned: .coddy/issues/ status=pending_plan. Poll: plan_ready -> post plan; waiting_user_reply -> post clarification.
-  Worker (worker.run) polls .coddy/issues/ every worker.poll_interval_seconds: pending_plan -> build plan (plan_ready); user_replied -> proceed? or clarification; queued -> ralph loop -> Cursor CLI -> PR or clarification.
+  Worker (worker.run) polls .coddy/issues/ every worker.poll_interval_seconds: pending_plan -> build plan (plan_ready); user_replied -> proceed? or clarification; queued -> ralph loop -> ACP agent -> PR or clarification.
 ```
 
 ## Design Patterns
@@ -137,7 +138,7 @@ Orchestrates the development loop and uses the agent.
 ### Factory Pattern
 
 Used for:
-- Creating AI agents (`make_cursor_cli_agent(config)`)
+- Creating AI agents (`make_acp_agent(config)`)
 
 ### Strategy Pattern
 

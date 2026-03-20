@@ -52,7 +52,7 @@ class BotConfig(BaseSettings):
         description="When True, worker only processes issues assigned to bot; env BOT_ASSIGNMENT_ONLY",
     )
     webhook_secret: str = Field(default="", description="Secret for webhook verification")
-    ai_agent: str = Field(default="cursor_cli", description="AI agent key from ai_agents")
+    ai_agent: str = Field(default="acp", description="AI agent key")
 
 
 class GitHubConfig(BaseSettings):
@@ -85,25 +85,13 @@ class BitbucketConfig(BaseSettings):
     webhook_path: str = Field(default="/webhook/bitbucket", description="Webhook URL path")
 
 
-class CursorCLIAgentConfig(BaseSettings):
-    """Cursor CLI agent settings (cursor.com/cli,
-    cursor.com/docs/cli/headless)."""
+class ACPAgentConfig(BaseSettings):
+    """ACP agent settings for any ACP-compatible backend."""
 
-    command: str = Field(default="agent", description="CLI command name (agent from Cursor install)")
-    args: list[str] = Field(default_factory=lambda: ["generate"], description="CLI args")
-    timeout: int = Field(default=600, ge=1, description="Timeout in seconds")
-    token: str | None = Field(default=None, description="Agent token; prefer env or secret file")
-    # Headless CLI options (docs: cursor.com/docs/cli/reference/parameters, output-format)
-    output_format: str | None = Field(
-        default="stream-json",
-        description="--output-format: text (default), json, or stream-json",
-    )
-    stream_partial_output: bool = Field(
-        default=False,
-        description="--stream-partial-output (only with output_format=stream-json)",
-    )
-    model: str | None = Field(default=None, description="--model: model to use")
-    mode: str | None = Field(default=None, description="--mode: agent (default), plan, or ask")
+    command: list[str] = Field(default_factory=lambda: ["agent", "acp"], description="ACP launcher command")
+    timeout: int = Field(default=600, ge=1, description="Prompt timeout in seconds")
+    workspace: str = Field(default="./workspace", description="ACP workspace directory")
+    env: dict[str, str] = Field(default_factory=dict, description="Extra environment variables for ACP process")
 
 
 class WebhookConfig(BaseSettings):
@@ -170,7 +158,7 @@ class AppConfig(BaseSettings):
     github: GitHubConfig = Field(default_factory=GitHubConfig)
     gitlab: GitLabConfig = Field(default_factory=GitLabConfig)
     bitbucket: BitbucketConfig = Field(default_factory=BitbucketConfig)
-    ai_agents: dict[str, Any] = Field(default_factory=dict)
+    acp: ACPAgentConfig = Field(default_factory=ACPAgentConfig)
     webhook: WebhookConfig = Field(default_factory=WebhookConfig)
     observer: ObserverConfig = Field(default_factory=ObserverConfig)
     worker: WorkerConfig = Field(default_factory=WorkerConfig)
@@ -191,20 +179,6 @@ class AppConfig(BaseSettings):
         if s and not s.startswith("${") and s != "your-webhook-secret-here":
             return s
         return _read_secret("WEBHOOK_SECRET", "WEBHOOK_SECRET_FILE") or ""
-
-    @property
-    def cursor_agent_token_resolved(self) -> str | None:
-        """Resolve Cursor Agent token from env or Docker secret file (for agent
-        CLI)."""
-        t = None
-        if self.ai_agents and "cursor_cli" in self.ai_agents:
-            cfg = self.ai_agents["cursor_cli"]
-            if hasattr(cfg, "token") and cfg.token:
-                t = cfg.token
-        if t and not str(t).startswith("${"):
-            return t
-        return _read_secret("CURSOR_AGENT_TOKEN", "CURSOR_AGENT_TOKEN_FILE")
-
 
 def _substitute_env(value: Any) -> Any:
     """Replace ${VAR} and $VAR in strings with os.environ."""
@@ -258,23 +232,17 @@ def load_config(config_path: Path | None = None) -> AppConfig:
     worker = WorkerConfig(**(raw.get("worker") or {}))
     logging = LoggingConfig(**(raw.get("logging") or {}))
 
-    ai_agents_raw = raw.get("ai_agents") or {}
-    ai_agents: dict[str, Any] = {}
-    for key, val in ai_agents_raw.items():
-        if key == "cursor_cli":
-            cursor_raw = dict(val or {})
-            if _current_env.get("CURSOR_CLI_TIMEOUT"):
-                cursor_raw["timeout"] = int(_current_env["CURSOR_CLI_TIMEOUT"])
-            ai_agents[key] = CursorCLIAgentConfig(**cursor_raw)
-        else:
-            ai_agents[key] = val
+    acp_raw = dict(raw.get("acp") or {})
+    if _current_env.get("ACP_TIMEOUT"):
+        acp_raw["timeout"] = int(_current_env["ACP_TIMEOUT"])
+    acp = ACPAgentConfig(**acp_raw)
 
     return AppConfig(
         bot=bot,
         github=github,
         gitlab=gitlab,
         bitbucket=bitbucket,
-        ai_agents=ai_agents,
+        acp=acp,
         webhook=webhook,
         observer=observer,
         worker=worker,

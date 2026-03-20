@@ -19,7 +19,6 @@ def _make_config(tmp_path: Path, assignment_only: bool = True, username: str | N
         username=username,
     )
     config.logging = LoggingConfig()
-    config.ai_agents = {}
     return config
 
 
@@ -156,7 +155,7 @@ def test_worker_polls_bot_workspace_not_cursor_working_directory(tmp_path: Path)
     """Worker reads .coddy/issues/ only from bot.workspace_path (same as
     observer)."""
     import coddy.config as config_module
-    from coddy.config import CursorCLIAgentConfig
+    from coddy.config import ACPAgentConfig
 
     store_dir = tmp_path / "store"
     store_dir.mkdir()
@@ -187,7 +186,8 @@ def test_worker_polls_bot_workspace_not_cursor_working_directory(tmp_path: Path)
     config.logging = LoggingConfig()
     config.github = MagicMock()
     config.github.api_url = "https://api.github.com"
-    config.ai_agents = {"cursor_cli": CursorCLIAgentConfig()}
+    config.bot.ai_agent = "acp"
+    config.acp = ACPAgentConfig()
 
     mock_agent = MagicMock()
     mock_agent.generate_plan.return_value = "1. Step one\n2. Step two"
@@ -195,7 +195,7 @@ def test_worker_polls_bot_workspace_not_cursor_working_directory(tmp_path: Path)
     old_env = getattr(config_module, "_current_env", {})
     try:
         config_module._current_env = {**old_env, "GITHUB_TOKEN": "token"}
-        with patch("coddy.worker.agents.cursor_cli_agent.make_cursor_cli_agent", return_value=mock_agent):
+        with patch("coddy.worker.agents.acp_agent.make_acp_agent", return_value=mock_agent):
             with patch("coddy.observer.adapters.github.GitHubAdapter"):
                 run_worker(config, once=True)
     finally:

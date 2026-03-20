@@ -11,7 +11,7 @@ bot:
   default_branch: "main"   # used for git pull on PR merge and for PR base
   workspace_path: "./workspace"  # Path to repo root (sources + .coddy/ with issues and PRs); env BOT_WORKSPACE_PATH
   webhook_secret: "your-webhook-secret-here"
-  ai_agent: "cursor_cli"
+  ai_agent: "acp"
 
 # GitHub Configuration
 github:
@@ -31,19 +31,12 @@ bitbucket:
   api_url: "https://api.bitbucket.org/2.0"
   webhook_path: "/webhook/bitbucket"
 
-# AI Agent Configuration (Cursor CLI: cursor.com/cli, cursor.com/docs/cli/headless)
-# Headless: agent -p --force "prompt". Task/report in .coddy/ (gitignored).
-# If agent finds task unclear, it appends "## Agent clarification request" to task file; Coddy posts it to the issue.
-ai_agents:
-  cursor_cli:
-    command: "agent"
-    args: ["generate"]
-    timeout: 600
-    model: "auto"
-    mode: "agent"   # agent (default), plan, or ask
-    # token: CURSOR_AGENT_TOKEN or CURSOR_AGENT_TOKEN_FILE; or CURSOR_API_KEY for headless CLI
-    # output_format: "text"   # default; or "json", "stream-json"
-    # stream_partial_output: false   # true only with output_format: "stream-json"
+# Agent Client Configuration (ACP)
+acp:
+  command: ["opencode", "acp"]
+  timeout: 600
+  env: {}
+  workspace: "./workspace"
 
 # Webhook Server Configuration (required; all events come from webhooks)
 webhook:
